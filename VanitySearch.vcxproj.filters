@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="GPU">
+      <UniqueIdentifier>{73e58d01-6278-4028-b783-e2ad59aeaef5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Hash">
+      <UniqueIdentifier>{05199e76-f6d1-45bc-8592-23e58c04ff0e}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GPU\GPUCompute.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUEngine.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUGroup.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\ripemd160.h">
+      <Filter>Hash</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\sha256.h">
+      <Filter>Hash</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\sha512.h">
+      <Filter>Hash</Filter>
+    </ClInclude>
+    <ClInclude Include="Int.h" />
+    <ClInclude Include="IntGroup.h" />
+    <ClInclude Include="Point.h" />
+    <ClInclude Include="Random.h" />
+    <ClInclude Include="SECP256k1.h" />
+    <ClInclude Include="Timer.h" />
+    <ClInclude Include="Vanity.h" />
+    <ClInclude Include="Base58.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GPU\GPUGenerate.cpp">
+      <Filter>GPU</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\ripemd160.cpp">
+      <Filter>Hash</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\ripemd160_sse.cpp">
+      <Filter>Hash</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\sha256.cpp">
+      <Filter>Hash</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\sha256_sse.cpp">
+      <Filter>Hash</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\sha512.cpp">
+      <Filter>Hash</Filter>
+    </ClCompile>
+    <ClCompile Include="Int.cpp" />
+    <ClCompile Include="IntGroup.cpp" />
+    <ClCompile Include="IntMod.cpp" />
+    <ClCompile Include="Point.cpp" />
+    <ClCompile Include="Random.cpp" />
+    <ClCompile Include="SECP256K1.cpp" />
+    <ClCompile Include="Timer.cpp" />
+    <ClCompile Include="Vanity.cpp" />
+    <ClCompile Include="Base58.cpp" />
+    <ClCompile Include="main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="GPU\GPUEngine.cu">
+      <Filter>GPU</Filter>
+    </CudaCompile>
+  </ItemGroup>
+</Project>
