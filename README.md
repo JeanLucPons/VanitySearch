@@ -34,5 +34,7 @@ VanitySeacrh [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t thre
   Check   : 1Testa3r7d1FF4o5pbWYiUSqBdMWMq9MY (comp)
   ```
 
-#License
+# License
+
+VanitySearch is licensed under GPLv3.
 
