@@ -1,10 +1,10 @@
-#VanitySearch
+# VanitySearch
 
 VanitySearch is a bitcoin address prefix finder. It uses fixed size arithmethic in order to get best performances. 
 Secure hash algorithms (SHA256 and RIPEMD160) are performed using SSE on the CPU. The GPU kernel has been written using
 CUDA in order to get advantage of inline PTX assembly.
 
-#Usage
+# Usage
 
 VanitySeacrh [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix\
   prefix: prefix to search\
@@ -34,5 +34,7 @@ VanitySeacrh [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t thre
   Check   : 1Testa3r7d1FF4o5pbWYiUSqBdMWMq9MY (comp)
   ```
 
-#License
+# License
+
+VanitySearch is licensed under GPLv3.
 
