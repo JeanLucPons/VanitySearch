@@ -3,12 +3,15 @@
 #include "Vanity.h"
 #include "Secp256K1.h"
 
+#define RELEASE "1.0"
+
 using namespace std;
 
 void printUsage() {
 
-  printf("VanitySeacrh [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix");
+  printf("VanitySeacrh [-v] [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix");
   printf(" prefix: prefix to search\n");
+  printf(" -v: Print version\n");
   printf(" -u: Search uncompressed address\n");
   printf(" -gpu: Enable gpu calculation\n");
   printf(" -gpu gpuId: Use gpu gpuId, default is 0\n");
@@ -69,6 +72,9 @@ int main(int argc, char* argv[]) {
     } else if (strcmp(argv[a], "-stop") == 0) {
       stop = true;
       a++;
+    } else if (strcmp(argv[a], "-v") == 0) {
+      printf("%s\n",RELEASE);
+      exit(0);
     } else if (strcmp(argv[a], "-u") == 0) {
       uncomp = true;
       a++;
