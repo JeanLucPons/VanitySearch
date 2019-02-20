@@ -2,7 +2,7 @@
 
 VanitySearch is a bitcoin address prefix finder. It uses fixed size arithmethic in order to get best performances. 
 Secure hash algorithms (SHA256 and RIPEMD160) are performed using SSE on the CPU. The GPU kernel has been written using
-CUDA in order to get advantage of inline PTX assembly.
+CUDA in order to get advantage of inline PTX assembly. VanitySearch may not compute a good grid size for your hardware, so try different values using -g option. If you want to use GPU and CPU together, you may have best performance by keeping one CPU core for handling GPU/CPU exchanges (use -t option to set the number of CPU threads).
 
 # Usage
 
@@ -18,7 +18,7 @@ VanitySeacrh [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t thre
   -t threadNumber: Specify number of CPU thread, default is number of core\
   -stop: Stop when prefix is found
   
-  Exemple:
+  Exemple (Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 645):
   ```
   C:\C++\VanitySearch\x64\Release>VanitySearch.exe -t 6 -gpu 1Test
   Start Wed Feb 20 14:27:24 2019
