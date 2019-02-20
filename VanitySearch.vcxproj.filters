@@ -71,4 +71,7 @@
       <Filter>GPU</Filter>
     </CudaCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="LICENSE.txt" />
+  </ItemGroup>
 </Project>

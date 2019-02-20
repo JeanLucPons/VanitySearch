@@ -37,6 +37,7 @@
     <ClCompile Include="Int.cpp" />
     <ClCompile Include="IntGroup.cpp" />
     <ClCompile Include="IntMod.cpp" />
+    <Text Include="LICENSE.txt" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Point.cpp" />
     <ClCompile Include="Random.cpp" />
