@@ -6,6 +6,8 @@ CUDA in order to get advantage of inline PTX assembly.
 
 # Usage
 
+You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/releases
+
 VanitySeacrh [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix\
   prefix: prefix to search\
   -u: Search uncompressed address\
