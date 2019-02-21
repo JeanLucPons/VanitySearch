@@ -9,9 +9,10 @@ using namespace std;
 
 void printUsage() {
 
-  printf("VanitySeacrh [-v] [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix");
+  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix");
   printf(" prefix: prefix to search\n");
   printf(" -v: Print version\n");
+  printf(" -check: Check GPU kernel vs CPU\n");
   printf(" -u: Search uncompressed address\n");
   printf(" -gpu: Enable gpu calculation\n");
   printf(" -gpu gpuId: Use gpu gpuId, default is 0\n");
@@ -74,6 +75,11 @@ int main(int argc, char* argv[]) {
       a++;
     } else if (strcmp(argv[a], "-v") == 0) {
       printf("%s\n",RELEASE);
+      exit(0);
+    } else if (strcmp(argv[a], "-check") == 0) {
+      GPUEngine g(gridSize,gpuId);
+      g.SetSearchMode(!uncomp);
+      g.Check(secp);
       exit(0);
     } else if (strcmp(argv[a], "-u") == 0) {
       uncomp = true;

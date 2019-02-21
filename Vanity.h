@@ -45,6 +45,7 @@ private:
   bool stopWhenFound;
   bool endOfSearch;
   int gridSize;
+  int nbCpuThread;
 
 };
 

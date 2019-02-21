@@ -371,6 +371,10 @@ void VanitySearch::FindKeyGPU() {
 
   }
 
+  // GPU thread may exit on error
+  if(nbCpuThread==0)
+    endOfSearch = true;
+
   delete[] keys;
   delete[] p;
 
@@ -383,6 +387,7 @@ void VanitySearch::Search(int nbThread) {
   double t0;
   double t1;
   endOfSearch = false;
+  nbCpuThread = nbThread;
 
   memset(counters,0,sizeof(counters));
 
@@ -412,7 +417,11 @@ void VanitySearch::Search(int nbThread) {
   __int64 lastGPUCount = 0;
   while (!endOfSearch) {
 
-    Sleep(2000);
+    int delay = 2000;
+    while (!endOfSearch && delay>0) {
+      Sleep(500);
+      delay -= 500;
+    }
 
     __int64 count = 0;
     for (int i = 0; i < nbThread; i++)
@@ -424,9 +433,11 @@ void VanitySearch::Search(int nbThread) {
     double keyRate = (double)(count - lastCount) / (t1 - t0);
     double gpuKeyRate = (double)(counters[0xFF] - lastGPUCount) / (t1 - t0);
 
-    printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s\r",
-      keyRate/1000000.0, gpuKeyRate/1000000.0,
-      log2((double)count), GetExpectedTime(keyRate,(double)count).c_str() );
+    if (!endOfSearch) {
+      printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s\r",
+      keyRate / 1000000.0, gpuKeyRate / 1000000.0,
+      log2((double)count), GetExpectedTime(keyRate, (double)count).c_str());
+    }
 
     lastCount = count;
     lastGPUCount = counters[0xFF];

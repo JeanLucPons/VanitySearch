@@ -46,6 +46,7 @@ __device__ __constant__ uint64_t _P[] = { 0xFFFFFFFEFFFFFC2F,0xFFFFFFFFFFFFFFFF,
 __device__ __constant__ uint64_t MM64 = 0xD838091DD2253531; // 64bits lsb negative inverse of P (mod 2^64)
 __device__ __constant__ uint64_t _R3[] = { 0x00000F44002BB1E3ULL,0x0000000000000001ULL,0ULL,0x002BB1E33795F671ULL,0ULL };
 __device__ __constant__ uint64_t _R4[] = { 0xB09AC3DFCA1D8D11ULL,0x0091A64C2BDBA48EULL,0x0000000100001315ULL,0ULL,0ULL };
+#include "GPUGroup.h"
 
 // ---------------------------------------------------------------------------------------
 
@@ -426,7 +427,7 @@ __device__ void _ModInv(uint64_t *R) {
 // _MontgomeryMult
 // Compute a*b*R^-1 (mod n),  R=2^(5*64) (mod n)
 // a and b must be lower than n
-
+// ---------------------------------------------------------------------------------------
 
 __device__ void _MontgomeryMult(uint64_t *r, uint64_t *a, uint64_t *b) {
 
@@ -518,8 +519,34 @@ __device__ void _MontgomeryMult(uint64_t *r, uint64_t *a) {
 }
 
 // ---------------------------------------------------------------------------------------
+// Compute all ModInv of the group
+// ---------------------------------------------------------------------------------------
 
-#include "GPUGroup.h"
+__device__ void _ModInvGrouped(uint64_t r[GRP_SIZE][4]) {
+
+  uint64_t subp[GRP_SIZE][4];
+  uint64_t newValue[4];
+  uint64_t inverse[5];
+
+  Load256(subp[0], r[0]);
+  for (uint32_t i = 1; i < GRP_SIZE; i++) {
+    _MontgomeryMult(subp[i], subp[i - 1], r[i]);
+  }
+
+  // We need 320bit signed int for ModInv
+  Load256(inverse, subp[GRP_SIZE - 1]);
+  inverse[4] = 0;
+  _ModInv(inverse);
+
+  for (uint32_t i = GRP_SIZE - 1; i > 0; i--) {
+    _MontgomeryMult(newValue, subp[i - 1], inverse);
+    _MontgomeryMult(inverse, r[i]);
+    Load256(r[i], newValue);
+  }
+
+  Load256(r[0], inverse);
+
+}
 
 // ---------------------------------------------------------------------------------
 // SHA256
@@ -565,7 +592,7 @@ __device__ __forceinline__ uint32_t S0(uint32_t x) {
   asm("{\n\t" 
       " .reg .u64 r1,r2,r3;\n\t"
       " cvt.u64.u32 r1, %1;\n\t"
-      " cvt.u64.u32 r2, %1;\n\t"
+      " mov.u64 r2, r1;\n\t"
       " shl.b64 r2, r2,32;\n\t"
       " or.b64  r1, r1,r2;\n\t"
       " shr.b64 r3, r1, 2;\n\t"
@@ -587,7 +614,7 @@ __device__ __forceinline__ uint32_t S1(uint32_t x) {
   asm("{\n\t"
     " .reg .u64 r1,r2,r3;\n\t"
     " cvt.u64.u32 r1, %1;\n\t"
-    " cvt.u64.u32 r2, %1;\n\t"
+    " mov.u64 r2, r1;\n\t"
     " shl.b64 r2, r2,32;\n\t"
     " or.b64  r1, r1,r2;\n\t"
     " shr.b64 r3, r1, 6;\n\t"
@@ -609,7 +636,7 @@ __device__ __forceinline__ uint32_t s0(uint32_t x) {
   asm("{\n\t"
     " .reg .u64 r1,r2,r3;\n\t"
     " cvt.u64.u32 r1, %1;\n\t"
-    " cvt.u64.u32 r2, %1;\n\t"
+    " mov.u64 r2, r1;\n\t"
     " shl.b64 r2, r2,32;\n\t"
     " or.b64  r1, r1,r2;\n\t"
     " shr.b64 r2, r2, 35;\n\t"
@@ -630,7 +657,7 @@ __device__ __forceinline__ uint32_t s1(uint32_t x) {
   asm("{\n\t"
     " .reg .u64 r1,r2,r3;\n\t"
     " cvt.u64.u32 r1, %1;\n\t"
-    " cvt.u64.u32 r2, %1;\n\t"
+    " mov.u64 r2, r1;\n\t"
     " shl.b64 r2, r2,32;\n\t"
     " or.b64  r1, r1,r2;\n\t"
     " shr.b64 r2, r2, 42;\n\t"
