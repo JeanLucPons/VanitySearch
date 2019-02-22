@@ -39,13 +39,13 @@ VanitySearch: $(OBJET)
 $(OBJET): | $(OBJDIR) $(OBJDIR)/GPU $(OBJDIR)/hash
 
 $(OBJDIR):
-	mkdir $(OBJDIR)
+	mkdir -p $(OBJDIR)
 
 $(OBJDIR)/GPU: $(OBJDIR)
-	cd $(OBJDIR) &&	mkdir GPU
+	cd $(OBJDIR) &&	mkdir -p GPU
 
 $(OBJDIR)/hash: $(OBJDIR)
-	cd $(OBJDIR) &&	mkdir hash
+	cd $(OBJDIR) &&	mkdir -p hash
 
 clean:
 	@echo Cleaning...
