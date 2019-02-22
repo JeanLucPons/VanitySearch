@@ -194,11 +194,11 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex, string chkAd
     }
   }
 
-  fprintf(f, "Pub Addr: %s\n", addr.c_str());
+  fprintf(f, "\nPub Addr: %s\n", addr.c_str());
   fprintf(f, "Prv Addr: %s\n", pAddr.c_str());
   fprintf(f, "Prv Key : 0x%s\n", pAddrHex.c_str());
   fprintf(f, "Check   : %s\n", chkAddr.c_str());
-  fprintf(f, "Check   : %s (comp)\n\n", chkAddrC.c_str());
+  fprintf(f, "Check   : %s (comp)\n", chkAddrC.c_str());
 
   if(needToClose)
     fclose(f);
