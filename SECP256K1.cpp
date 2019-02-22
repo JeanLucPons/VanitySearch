@@ -2,9 +2,12 @@
 #include "hash/sha256.h"
 #include "hash/ripemd160.h"
 #include "Base58.h"
+#include <string.h>
 
 #ifdef WIN64
 #include <windows.h>
+#else
+typedef int HANDLE;
 #endif
 
 Secp256K1::Secp256K1() {
@@ -38,7 +41,8 @@ Secp256K1::~Secp256K1() {
 }
 
 void PrintResult(HANDLE H,bool ok) {
-	if (ok) {
+#ifdef WIN64
+  if (ok) {
 		SetConsoleTextAttribute(H, 10);
 		printf("OK\n");
 		SetConsoleTextAttribute(H, 7);
@@ -48,6 +52,14 @@ void PrintResult(HANDLE H,bool ok) {
 		printf("Failed !\n");
 		SetConsoleTextAttribute(H, 7);
 	}
+#else
+  if (ok) {
+    printf("OK\n");
+  }
+  else {
+    printf("Failed !\n");
+  }
+#endif
 }
 
 void CheckAddress(Secp256K1 *T,HANDLE H, std::string address, std::string privKeyStr) {
@@ -59,6 +71,7 @@ void CheckAddress(Secp256K1 *T,HANDLE H, std::string address, std::string privKe
 
 	printf("Adress : %s ", address.c_str());
 
+#ifdef WIN64
 	if (address == calcAddress) {
 		SetConsoleTextAttribute(H, 10);
 		printf("OK!\n");
@@ -76,12 +89,29 @@ void CheckAddress(Secp256K1 *T,HANDLE H, std::string address, std::string privKe
 	SetConsoleTextAttribute(H, 12);
 	printf("Failed ! %s\n",calcAddress.c_str());
 	SetConsoleTextAttribute(H, 7);
+#else
+  if (address == calcAddress) {
+    printf("OK!\n");
+    return;
+  }
+
+  if (address == calcAddressComp) {
+    printf("OK(comp)!\n");
+    return;
+  }
+
+  printf("Failed ! %s\n",calcAddress.c_str());
+#endif
 
 }
 
 void Secp256K1::Check() {
 
+#ifdef WIN64
   HANDLE H = GetStdHandle(STD_OUTPUT_HANDLE);
+#else
+  HANDLE H = 0;
+#endif
 
   printf("Check Generator :");
 

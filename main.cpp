@@ -1,7 +1,7 @@
-#include "SECP256K1.h"
+#include <string.h>
 #include "Timer.h"
 #include "Vanity.h"
-#include "Secp256K1.h"
+#include "SECP256k1.h"
 
 #define RELEASE "1.0"
 
@@ -77,9 +77,13 @@ int main(int argc, char* argv[]) {
       printf("%s\n",RELEASE);
       exit(0);
     } else if (strcmp(argv[a], "-check") == 0) {
+#ifdef WITHGPU
       GPUEngine g(gridSize,gpuId);
       g.SetSearchMode(!uncomp);
       g.Check(secp);
+#else
+  printf("GPU code not compiled, use -DWITHGPU when compiling.\n");
+#endif
       exit(0);
     } else if (strcmp(argv[a], "-u") == 0) {
       uncomp = true;

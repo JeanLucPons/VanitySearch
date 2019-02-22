@@ -1,4 +1,5 @@
 #include "GPUEngine.h"
+#include <math.h>
 
 using namespace std;
 

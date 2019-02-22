@@ -22,7 +22,6 @@
 
 #include "Random.h"
 #include <string>
-#include <intrin.h>
 
 // We need 1 extra block for Knuth div algorithm , Montgomey multiplication and ModInv
 #define BISIZE 256
@@ -179,6 +178,35 @@ private:
 };
 
 // Inline routines
+
+#ifndef WIN64
+
+// Missing intrinsics
+static uint64_t inline _umul128(uint64_t a, uint64_t b, uint64_t *h) {
+  uint64_t rhi;
+  uint64_t rlo;
+  __asm__( "mulq  %[b];" :"=d"(rhi),"=a"(rlo) :"1"(a),[b]"rm"(b));
+    *h = rhi;
+    return rlo;
+}
+
+static uint64_t inline __shiftright128(uint64_t a, uint64_t b,unsigned char n) {
+  uint64_t c;
+  __asm__ ("movq %1,%0;shrdq %3,%2,%0;" : "=D"(c) : "r"(a),"r"(b),"c"(n));
+  return  c;
+}
+
+static uint64_t inline __shiftleft128(uint64_t a, uint64_t b,unsigned char n) {
+  uint64_t c;
+  __asm__ ("movq %1,%0;shldq %3,%2,%0;" : "=D"(c) : "r"(a),"r"(b),"c"(n));
+  return  c;
+}
+
+#define _subborrow_u64(a,b,c,d) __builtin_ia32_sbb_u64(a,b,c,(long long unsigned int*)d);
+#define _addcarry_u64(a,b,c,d) __builtin_ia32_addcarryx_u64(a,b,c,(long long unsigned int*)d);
+#define _byteswap_uint64 __builtin_bswap64
+
+#endif
 
 static void inline imm_mul(uint64_t *x, uint64_t y, uint64_t *dst) {
 

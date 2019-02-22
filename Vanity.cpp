@@ -4,10 +4,14 @@
 #include "hash/sha512.h"
 #include "IntGroup.h"
 #include "Timer.h"
+#include <string.h>
+#include <math.h>
+#ifndef WIN64
+#include <pthread.h>
+#include <unistd.h>
+#endif
 
 using namespace std;
-
-DWORD WINAPI _FindKey(LPVOID lpParam);
 
 Point Gn[CPU_GRP_SIZE];
 
@@ -39,9 +43,9 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
   int nbDigit = 0;
   bool wrong = false;
 
-  char ctimeBuff[64];
+  char *ctimeBuff;
   time_t now = time(NULL);
-  ctime_s((char *const)&ctimeBuff, 64, &now);
+  ctimeBuff = ctime(&now);
   printf("Start %s", ctimeBuff);
 
   printf("Search: %s\n",dummy1.c_str());
@@ -95,9 +99,14 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
 
   // Seed
   if (seed.length() == 0) {
+#ifdef WIN64
     // Default seed
     seed = to_string(Timer::qwTicksPerSec.LowPart) + to_string(Timer::perfTickStart.HighPart) +
            to_string(Timer::perfTickStart.LowPart) + to_string(time(NULL));
+#else
+    // TODO
+    seed = to_string(time(NULL));
+#endif
   }
 
   // Protect seed against "seed search attack" using pbkdf2_hmac_sha512
@@ -124,7 +133,7 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
   // pow(1-P,keyCount) is the probality of failure after keyCount tries
   double cP = 1.0 - pow(1-P,keyCount);
 
-  sprintf_s(tmp,"[P %.2f%%]",cP*100.0);
+  sprintf(tmp,"[P %.2f%%]",cP*100.0);
   ret = string(tmp);
   
   double desiredP = 0.5;
@@ -143,7 +152,7 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
   int nbDay  = (int)(dTime / 86400 );
   if (nbDay >= 1) {
 
-    sprintf_s(tmp, "[%.2f%% in %.1fd]", dP*100.0, (double)dTime / 86400);
+    sprintf(tmp, "[%.2f%% in %.1fd]", dP*100.0, (double)dTime / 86400);
 
   } else {
 
@@ -151,7 +160,7 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
     int nbMin = (int)(((dTime % 86400) % 3600) / 60);
     int nbSec = (int)(dTime % 60);
 
-    sprintf_s(tmp, "[%.2f%% in %02d:%02d:%02d]", dP*100.0, nbHour, nbMin, nbSec);
+    sprintf(tmp, "[%.2f%% in %02d:%02d:%02d]", dP*100.0, nbHour, nbMin, nbSec);
 
   }
 
@@ -205,13 +214,21 @@ bool VanitySearch::checkAddr(string &addr, Int &key, uint64_t incr) {
 
 // ----------------------------------------------------------------------------
 
+#ifdef WIN64
 DWORD WINAPI _FindKey(LPVOID lpParam) {
+#else
+void *_FindKey(void *lpParam) {
+#endif
   TH_PARAM *p = (TH_PARAM *)lpParam;
   p->obj->FindKeyCPU(p);
   return 0;
 }
 
+#ifdef WIN64
 DWORD WINAPI _FindKeyGPU(LPVOID lpParam) {
+#else
+void *_FindKeyGPU(void *lpParam) {
+#endif
   ((VanitySearch *)lpParam)->FindKeyGPU();
   return 0;
 }
@@ -234,7 +251,7 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
   // Group Init
   Int key(&startKey);
-  Int off(0LL);
+  Int off((int64_t)0);
   off.Add((uint64_t)thId);
   off.ShiftL(64);
   key.Add(&off);
@@ -326,6 +343,8 @@ void VanitySearch::FindKeyGPU() {
 
   bool ok = true;
 
+#ifdef WITHGPU
+
   // Global init
   GPUEngine g(gridSize, gpuId);
   int nbThread = g.GetNbThread();
@@ -378,6 +397,10 @@ void VanitySearch::FindKeyGPU() {
   delete[] keys;
   delete[] p;
 
+#else
+  printf("GPU code not compiled, use -DWITHGPU when compiling.\n");
+#endif
+
 }
 
 // ----------------------------------------------------------------------------
@@ -391,39 +414,56 @@ void VanitySearch::Search(int nbThread) {
 
   memset(counters,0,sizeof(counters));
 
-  ghMutex = CreateMutex(NULL, FALSE, NULL);
-
   printf("Number of CPU thread: %d\n", nbThread);
 
   TH_PARAM *params = (TH_PARAM *)malloc((nbThread + (useGpu?1:0)) * sizeof(TH_PARAM));
 
   for (int i = 0; i < nbThread; i++) {
-    DWORD thread_id;
     params[i].obj = this;
     params[i].threadId = i;
+
+#ifdef WIN64
+    DWORD thread_id;
     CreateThread(NULL, 0, _FindKey, (void*)(params+i), 0, &thread_id);
+#else
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, &_FindKey, (void*)(params+i));  
+#endif
   }
 
   if (useGpu) {
-    DWORD thread_id;
     params[nbThread].obj = this;
     params[nbThread].threadId = 255;
+#ifdef WIN64
+    DWORD thread_id;
     CreateThread(NULL, 0, _FindKeyGPU, (void*)(this), 0, &thread_id);
+#else
+    pthread_t thread_id;
+    pthread_create(&thread_id, NULL, &_FindKeyGPU, (void*)(this));  
+#endif
   }
+
+#ifndef WIN64
+  setvbuf(stdout, NULL, _IONBF, 0);
+#endif
 
   t0 = Timer::get_tick();
   startTime = t0;
-  __int64 lastCount = 0;
-  __int64 lastGPUCount = 0;
+  uint64_t lastCount = 0;
+  uint64_t lastGPUCount = 0;
   while (!endOfSearch) {
 
     int delay = 2000;
     while (!endOfSearch && delay>0) {
+#ifdef WIN64
       Sleep(500);
+#else
+      usleep(500000);
+#endif
       delay -= 500;
     }
 
-    __int64 count = 0;
+    uint64_t count = 0;
     for (int i = 0; i < nbThread; i++)
       count += counters[i];
     if(useGpu)
@@ -457,7 +497,7 @@ string VanitySearch::GetHex(vector<unsigned char> &buffer) {
 
   char tmp[128];
   for (int i = 0; i < (int)buffer.size(); i++) {
-    sprintf_s(tmp,"%02X",buffer[i]);
+    sprintf(tmp,"%02X",buffer[i]);
     ret.append(tmp);
   }
 

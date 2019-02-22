@@ -14,7 +14,7 @@ public:
   void Init();
   Point ComputePublicKey(Int *privKey);
   Point NextKey(Point &key);
-  void Secp256K1::Check();
+  void Check();
   int  EC(Point &p);
   void GetHash160(bool compressed,
     Point &k0, Point &k1, Point &k2, Point &k3,

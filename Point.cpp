@@ -3,10 +3,10 @@
 Point::Point() {
 }
 
-Point::Point(Point &p) {
-  x.Set(&p.x);
-  y.Set(&p.y);
-  z.Set(&p.z);
+Point::Point(const Point &p) {
+  x.Set((Int *)&p.x);
+  y.Set((Int *)&p.y);
+  z.Set((Int *)&p.z);
 }
 
 Point::Point(Int *cx,Int *cy,Int *cz) {

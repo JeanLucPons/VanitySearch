@@ -1,7 +1,7 @@
-#include "base58.h"
+#include "Base58.h"
 
 #include <algorithm>
-#include "Int.h"
+#include <string.h>
 
 /** All alphanumeric characters except for "0", "I", "O", and "l" */
 static const char* pszBase58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";

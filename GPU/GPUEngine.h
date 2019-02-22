@@ -2,8 +2,7 @@
 #define GPUENGINEH
 
 #include <vector>
-#include <cuda_runtime.h>
-#include "../SECP256K1.h"
+#include "../SECP256k1.h"
 
 // Number of key per thread (must be a multiple of GRP_SIZE) per kernel call
 #define STEP_SIZE 256

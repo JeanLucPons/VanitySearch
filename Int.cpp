@@ -1,5 +1,5 @@
 #include "Int.h"
-#include <Windows.h>
+#include <string.h>
 #include <emmintrin.h>
 
 #define MAX(x,y) (((x)>(y))?(x):(y))
@@ -937,9 +937,9 @@ std::string Int::GetBlockStr() {
 	char bStr[256];
 	tmp[0] = 0;
 	for (int i = NB32BLOCK-3; i>=0 ; i--) {
-	  sprintf_s(bStr, 256, "%08X", bits[i]);
-	  strcat_s(tmp, 256, bStr);
-	  if(i!=0) strcat_s(tmp, 256, " ");
+	  sprintf(bStr, "%08X", bits[i]);
+	  strcat(tmp, bStr);
+	  if(i!=0) strcat(tmp, " ");
 	}
 	return std::string(tmp);
 }
@@ -954,14 +954,14 @@ std::string Int::GetC64Str(int nbDigit) {
   tmp[1] = 0;
   for (int i = 0; i< nbDigit; i++) {
     if (bits64[i] != 0) {
-      sprintf_s(bStr, 256, "0x%016I64XULL", bits64[i]);
+      sprintf(bStr, "0x%016I64XULL", bits64[i]);
     } else {
-      sprintf_s(bStr, 256, "0ULL");
+      sprintf(bStr, "0ULL");
     }
-    strcat_s(tmp, 256, bStr);
-    if (i != nbDigit -1) strcat_s(tmp, 256, ",");
+    strcat(tmp, bStr);
+    if (i != nbDigit -1) strcat(tmp, ",");
   }
-  strcat_s(tmp,256,"}");
+  strcat(tmp,"}");
   return std::string(tmp);
 }
 

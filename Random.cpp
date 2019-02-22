@@ -42,7 +42,7 @@ void rk_seed(unsigned long seed, rk_state *state)
 #endif
 
 /* Slightly optimised reference implementation of the Mersenne Twister */
-__forceinline unsigned long rk_random(rk_state *state)
+inline unsigned long rk_random(rk_state *state)
 {
   unsigned long y;
 
@@ -77,7 +77,7 @@ __forceinline unsigned long rk_random(rk_state *state)
   return y;
 }
 
-__forceinline double rk_double(rk_state *state)
+inline double rk_double(rk_state *state)
 {
   /* shifts : 67108864 = 0x4000000, 9007199254740992 = 0x20000000000000 */
   long a = rk_random(state) >> 5, b = rk_random(state) >> 6;

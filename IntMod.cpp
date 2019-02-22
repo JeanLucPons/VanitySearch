@@ -1,6 +1,6 @@
 #include "Int.h"
 #include <emmintrin.h>
-#include <intrin.h>
+#include <string.h>
 
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #define MIN(x,y) (((x)<(y))?(x):(y))
@@ -98,8 +98,8 @@ void Int::ModInv() {
 
   Int u(&_P);
   Int v(this);
-  Int r(0LL);
-  Int s(1);
+  Int r((int64_t)0);
+  Int s((int64_t)1);
 
 #ifdef XCD
 
@@ -575,7 +575,7 @@ void Int::ModSqrt() {
 
     int nbBit = _P.GetBitLength();
 
-    // Tonelli–Shanks
+    // Tonelliï¿½Shanks
     uint64_t e=0;
     Int S(&_P);
     S.SubOne();

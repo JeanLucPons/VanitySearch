@@ -1,3 +1,9 @@
 .vs/
 VanitySearch.vcxproj.user
 x64/
+obj/
+.idea/
+CMakeLists.txt
+VanitySearch
+cmake-build-debug/
+

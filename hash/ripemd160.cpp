@@ -1,6 +1,5 @@
 #include "ripemd160.h"
 #include <string.h>
-#include <intrin.h>
 
 /// Internal RIPEMD-160 implementation.
 namespace _ripemd160 {
@@ -14,6 +13,13 @@ void inline Initialize(uint32_t* s)
     s[3] = 0x10325476ul;
     s[4] = 0xC3D2E1F0ul;
 }
+
+#ifndef WIN64
+inline uint32_t _rotl(uint32_t x, uint8_t r) {
+  asm("roll %1,%0" : "+r" (x) : "c" (r));
+  return x;
+}
+#endif
 
 #define ROL(x,n) _rotl(x,n)
 
@@ -297,7 +303,7 @@ std::string ripemd160_hex(unsigned char *digest) {
   char buf[2 * 20 + 1];
   buf[2 * 20] = 0;
   for (int i = 0; i < 20; i++)
-    sprintf_s(buf + i * 2, 3, "%02x", digest[i]);
+    sprintf(buf + i * 2, "%02x", (int)digest[i]);
   return std::string(buf);
 
 }

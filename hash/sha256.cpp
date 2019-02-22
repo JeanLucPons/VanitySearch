@@ -1,12 +1,20 @@
 #include <string.h>
 #include "sha256.h"
-#include <intrin.h>
 
 #define BSWAP
 
 /// Internal SHA-256 implementation.
 namespace _sha256
 {
+
+#ifndef WIN64
+#define _byteswap_ulong __builtin_bswap32
+#define _byteswap_uint64 __builtin_bswap64
+inline uint32_t _rotr(uint32_t x, uint8_t r) {
+  asm("rorl %1,%0" : "+r" (x) : "c" (r));
+  return x;
+}
+#endif
 
 #define ROR(x,n) _rotr(x, n)
 #define S0(x) (ROR(x,2) ^ ROR(x,13) ^ ROR(x,22))
@@ -228,7 +236,7 @@ const uint8_t sizedesc_33[8] = {0,0,0,0,0,0,1,8};
 void sha256_33(unsigned char *input, unsigned char *digest) {
 
   static const unsigned char pad[64] = { 0x80, };
-  __declspec(align(16)) uint32_t s[8];
+  uint32_t s[8];
 
   _sha256::Initialize(s);
   memcpy(input + 33, pad, 23);
@@ -252,7 +260,7 @@ std::string sha256_hex(unsigned char *digest) {
     char buf[2*32+1];
     buf[2*32] = 0;
     for (int i = 0; i < 32; i++)
-        sprintf_s(buf+i*2,3,"%02x",digest[i]);
+        sprintf(buf+i*2,"%02x",digest[i]);
     return std::string(buf);
 
 }

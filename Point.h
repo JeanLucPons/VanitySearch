@@ -10,7 +10,7 @@ public:
   Point();
   Point(Int *cx,Int *cy,Int *cz);
   Point(Int *cx, Int *cz);
-  Point(Point &p);
+  Point(const Point &p);
   ~Point();
   bool isZero();
   bool equals(Point &p);

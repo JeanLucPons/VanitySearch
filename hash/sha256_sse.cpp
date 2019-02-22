@@ -1,11 +1,17 @@
 #include "sha256.h"
 #include <immintrin.h>
+#include <string.h>
 #include <stdint.h>
 
 #define BSWAP
 
 namespace _sha256sse
 {
+
+#ifndef WIN64
+#define _byteswap_ulong __builtin_bswap32
+#define _byteswap_uint64 __builtin_bswap64
+#endif
 
 #ifdef BSWAP
 #define WRITEBE32(ptr,xPtr,o) *((uint32_t *)(ptr)) = _byteswap_ulong(*((uint32_t *)(xPtr)+o))
@@ -17,7 +23,11 @@ namespace _sha256sse
 #define READBE32(ptr) *(uint32_t *)(ptr)
 #endif
 
+#ifdef WIN64
   static const __declspec(align(16)) uint32_t _init[] = {
+#else
+  static const uint32_t _init[] __attribute__ ((aligned (16))) = {
+#endif
       0x6a09e667,0x6a09e667,0x6a09e667,0x6a09e667,
       0xbb67ae85,0xbb67ae85,0xbb67ae85,0xbb67ae85,
       0x3c6ef372,0x3c6ef372,0x3c6ef372,0x3c6ef372,
@@ -338,10 +348,10 @@ void sha256sse_test() {
   unsigned char m2[64];
   unsigned char m3[64];
 
-  strcpy_s((char *)m0, 34, "This is a test message to test 01");
-  strcpy_s((char *)m1, 34, "This is a test message to test 02");
-  strcpy_s((char *)m2, 34, "This is a test message to test 03");
-  strcpy_s((char *)m3, 34, "This is a test message to test 04");
+  strcpy((char *)m0, "This is a test message to test 01");
+  strcpy((char *)m1, "This is a test message to test 02");
+  strcpy((char *)m2, "This is a test message to test 03");
+  strcpy((char *)m3, "This is a test message to test 04");
 
   sha256_33(m0, ch0);
   sha256_33(m1, ch1);

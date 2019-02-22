@@ -1,10 +1,9 @@
 #ifndef VANITYH
 #define VANITYH
 
-#include <windows.h>
 #include <string>
 #include <vector>
-#include "SECP256K1.h"
+#include "SECP256k1.h"
 #include "GPU/GPUEngine.h"
 
 class VanitySearch;
@@ -36,7 +35,6 @@ private:
   std::string vanityPrefix;
   prefix_t sPrefix;
   Int startKey;
-  HANDLE ghMutex;
   uint64_t counters[256];
   double startTime;
   bool searchComp;

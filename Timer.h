@@ -16,9 +16,13 @@ public:
   static std::string getResult(char *unit, int nbTry, double t0, double t1);
   static int getCoreNumber();
 
+#ifdef WIN64
   static LARGE_INTEGER perfTickStart;
   static double perfTicksPerSec;
   static LARGE_INTEGER qwTicksPerSec;
+#else
+  static time_t tickStart;
+#endif
 
 };
 

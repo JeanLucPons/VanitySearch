@@ -1,9 +1,8 @@
 #include <string.h>
 #include "sha512.h"
-#include <intrin.h>
 
 #define BSWAP
-#define SHA512_BLOCK_SIZE	  128
+#define SHA512_BLOCK_SIZE	128
 #define SHA512_HASH_LENGTH	64
 #define MIN(x,y) (x<y)?x:y;
 #define MAX(x,y) (x>y)?x:y;
@@ -41,6 +40,14 @@ namespace _sha512 {
   0x5fcb6fab3ad6faecULL, 0x6c44198c4a475817ULL
   };
 
+#ifndef WIN64
+#define _byteswap_ulong __builtin_bswap32
+#define _byteswap_uint64 __builtin_bswap64
+inline uint64_t _rotr64(uint64_t x, uint8_t r) {
+  asm("rorq %1,%0" : "+r" (x) : "c" (r));
+  return x;
+}
+#endif
 
 #define ROR(x,n) _rotr64(x, n)
 #define S0(x)		(ROR(x, 28) ^ ROR(x, 34) ^ ROR(x, 39))
@@ -376,7 +383,7 @@ std::string sha512_hex(unsigned char *digest) {
   char buf[2 * 64 + 1];
   buf[2 * 64] = 0;
   for (int i = 0; i < 64; i++)
-    sprintf_s(buf + i * 2, 3, "%02x", digest[i]);
+    sprintf(buf + i * 2, "%02x", digest[i]);
   return std::string(buf);
 
 }
