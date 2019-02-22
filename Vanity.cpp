@@ -17,7 +17,8 @@ Point Gn[CPU_GRP_SIZE];
 
 // ----------------------------------------------------------------------------
 
-VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, bool useGpu, int gpuId, bool stop, int gridSize) {
+VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, bool useGpu, 
+                           int gpuId, bool stop, int gridSize, string outputFile) {
 
   this->vanityPrefix = prefix;
   this->secp = secp;
@@ -26,6 +27,7 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
   this->gpuId = gpuId;
   this->stopWhenFound = stop;
   this->gridSize = gridSize;
+  this->outputFile = outputFile;
   sPrefix = -1;
   std::vector<unsigned char> result;
 
@@ -171,6 +173,43 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
 }
 
 // ----------------------------------------------------------------------------
+void VanitySearch::output(string addr,string pAddr,string pAddrHex, string chkAddr,string chkAddrC) {
+
+#ifdef WIN64
+   WaitForSingleObject(ghMutex,INFINITE);
+#else
+  pthread_mutex_lock(&ghMutex);
+#endif
+  
+  FILE *f = stdout;
+  bool needToClose = false;
+
+  if (outputFile.length() > 0) {
+    f = fopen(outputFile.c_str(), "a");
+    if (f == NULL) {
+      printf("Cannot open %s for writing\n", outputFile.c_str());
+      f = stdout;
+    } else {
+      needToClose = true;
+    }
+  }
+
+  fprintf(f, "Pub Addr: %s\n", addr.c_str());
+  fprintf(f, "Prv Addr: %s\n", pAddr.c_str());
+  fprintf(f, "Prv Key : 0x%s\n", pAddrHex.c_str());
+  fprintf(f, "Check   : %s\n", chkAddr.c_str());
+  fprintf(f, "Check   : %s (comp)\n\n", chkAddrC.c_str());
+
+  if(needToClose)
+    fclose(f);
+
+#ifdef WIN64
+  ReleaseMutex(ghMutex);
+#else
+  pthread_mutex_lock(&ghMutex);
+#endif
+
+}
 
 bool VanitySearch::checkAddr(string &addr, Int &key, uint64_t incr) {
 
@@ -182,17 +221,12 @@ bool VanitySearch::checkAddr(string &addr, Int &key, uint64_t incr) {
   a[vanityPrefix.length()] = 0;
 
   if (strcmp(p, a) == 0) {
+    // Found it
     Int k(&key);
     k.Add(incr);
-    // Found it
-    printf("\nFound address:\n");
-    printf("Pub Addr: %s\n", addr.c_str());
-    printf("Prv Addr: %s\n", secp.GetPrivAddress(k).c_str());
-    printf("Prv Key : 0x%s\n", k.GetBase16().c_str());
-    // Check
     Point p = secp.ComputePublicKey(&k);
-    printf("Check   : %s\n", secp.GetAddress(p,false).c_str());
-    printf("Check   : %s (comp)\n", secp.GetAddress(p, true).c_str());
+    output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
+    nbFoundKey++;
     return true;
   }
 
@@ -411,6 +445,7 @@ void VanitySearch::Search(int nbThread) {
   double t1;
   endOfSearch = false;
   nbCpuThread = nbThread;
+  nbFoundKey = 0;
 
   memset(counters,0,sizeof(counters));
 
@@ -425,9 +460,11 @@ void VanitySearch::Search(int nbThread) {
 #ifdef WIN64
     DWORD thread_id;
     CreateThread(NULL, 0, _FindKey, (void*)(params+i), 0, &thread_id);
+    ghMutex = CreateMutex(NULL, FALSE, NULL);
 #else
     pthread_t thread_id;
     pthread_create(&thread_id, NULL, &_FindKey, (void*)(params+i));  
+    ghMutex = PTHREAD_MUTEX_INITIALIZER;
 #endif
   }
 
@@ -474,9 +511,15 @@ void VanitySearch::Search(int nbThread) {
     double gpuKeyRate = (double)(counters[0xFF] - lastGPUCount) / (t1 - t0);
 
     if (!endOfSearch) {
-      printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s\r",
-      keyRate / 1000000.0, gpuKeyRate / 1000000.0,
-      log2((double)count), GetExpectedTime(keyRate, (double)count).c_str());
+      if (stopWhenFound) {
+        printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s\r",
+          keyRate / 1000000.0, gpuKeyRate / 1000000.0,
+          log2((double)count), GetExpectedTime(keyRate, (double)count).c_str());
+      } else {
+        printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]\r",
+          keyRate / 1000000.0, gpuKeyRate / 1000000.0,
+          log2((double)count), GetExpectedTime(keyRate, (double)count).c_str(),nbFoundKey);
+      }
     }
 
     lastCount = count;

@@ -9,11 +9,12 @@ using namespace std;
 
 void printUsage() {
 
-  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix");
+  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix");
   printf(" prefix: prefix to search\n");
   printf(" -v: Print version\n");
   printf(" -check: Check GPU kernel vs CPU\n");
-  printf(" -u: Search uncompressed address\n");
+  printf(" -u: Search uncompressed addresses\n");
+  printf(" -o outputfile: Output results to the specified file\n");
   printf(" -gpu: Enable gpu calculation\n");
   printf(" -gpu gpuId: Use gpu gpuId, default is 0\n");
   printf(" -g gridSize: Specify GPU kernel gridsize, default is 16*(MP number)\n");
@@ -58,6 +59,7 @@ int main(int argc, char* argv[]) {
   int gridSize = -1;
   string seed = "";
   string prefix = "";
+  string outputFile = "";
   int nbThread = Timer::getCoreNumber();
   
 
@@ -96,6 +98,10 @@ int main(int argc, char* argv[]) {
       a++;
       seed = string(argv[a]);
       a++;
+    } else if (strcmp(argv[a], "-o") == 0) {
+      a++;
+      outputFile = string(argv[a]);
+      a++;
     } else if (strcmp(argv[a], "-t") == 0) {
       a++;
       nbThread = getInt(argv[a]);
@@ -109,7 +115,7 @@ int main(int argc, char* argv[]) {
 
   }
 
-  VanitySearch v(secp, prefix, seed,!uncomp,gpuEnable,gpuId,stop,gridSize);
+  VanitySearch v(secp, prefix, seed,!uncomp,gpuEnable,gpuId,stop,gridSize,outputFile);
   v.Search(nbThread);
 
   return 0;
