@@ -3,7 +3,7 @@
 #include "Vanity.h"
 #include "SECP256k1.h"
 
-#define RELEASE "1.0"
+#define RELEASE "1.1"
 
 using namespace std;
 
