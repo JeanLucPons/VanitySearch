@@ -9,17 +9,18 @@ Linux release does not support GPU yet.
 
 You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/releases
 
-VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix prefix: prefix to search
- -v: Print version
- -check: Check GPU kernel vs CPU
- -u: Search uncompressed addresses
- -o outputfile: Output results to the specified file
- -gpu: Enable gpu calculation
- -gpu gpuId: Use gpu gpuId, default is 0
- -g gridSize: Specify GPU kernel gridsize, default is 16*(MP number)
- -s seed: Specify a seed for the base key, default is random
- -t threadNumber: Specify number of CPU thread, default is number of core
- -stop: Stop when prefix is found
+VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix
+  prefix: prefix to search\
+  -v: Print version\
+  -check: Check GPU kernel vs CPU\
+  -u: Search uncompressed addresses\
+  -o outputfile: Output results to the specified file\
+  -gpu: Enable gpu calculation\
+  -gpu gpuId: Use gpu gpuId, default is 0\
+  -g gridSize: Specify GPU kernel gridsize, default is 16*(MP number)\
+  -s seed: Specify a seed for the base key, default is random\
+  -t threadNumber: Specify number of CPU thread, default is number of core\
+  -stop: Stop when prefix is found
   
   Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 645):
   ```
