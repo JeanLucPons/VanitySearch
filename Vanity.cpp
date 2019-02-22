@@ -206,7 +206,7 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex, string chkAd
 #ifdef WIN64
   ReleaseMutex(ghMutex);
 #else
-  pthread_mutex_lock(&ghMutex);
+  pthread_mutex_unlock(&ghMutex);
 #endif
 
 }
