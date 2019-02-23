@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
   string prefix = "";
   string outputFile = "";
   int nbThread = Timer::getCoreNumber();
-  
+  bool tSpecified = false;
 
   while (a < argc) {
 
@@ -106,6 +106,7 @@ int main(int argc, char* argv[]) {
       a++;
       nbThread = getInt(argv[a]);
       a++;
+      tSpecified = true;
     } else if (a == argc - 1) {
       prefix = string(argv[a]);
       a++;
@@ -115,6 +116,11 @@ int main(int argc, char* argv[]) {
     }
 
   }
+
+  // Let one CPU core free if gpu is enabled
+  // It will avoid to hang the system
+  if( !tSpecified && nbThread>1 && gpuEnable)
+    nbThread--;
 
   VanitySearch v(secp, prefix, seed,!uncomp,gpuEnable,gpuId,stop,gridSize,outputFile);
   v.Search(nbThread);
