@@ -663,6 +663,7 @@ Int* Int::GetR4() {
 
 void Int::SetupField(Int *n, Int *R, Int *R2, Int *R3, Int *R4) {
 
+  // Size in number of 32bit word
   int nSize = n->GetSize();
 
   // Last digit inversions (Newton's iteration)
@@ -681,10 +682,10 @@ void Int::SetupField(Int *n, Int *R, Int *R2, Int *R3, Int *R4) {
   _P.Set(n);
 
   // Size of Montgomery mult (64bits digit)
-  // R = 2^(64*Msize) mod n
-  Msize = (nSize+2)/2;
+  Msize = nSize/2;
 
   // Compute few power of R
+  // R = 2^(64*Msize) mod n
   Int Ri;
   Ri.MontgomeryMult(&_ONE, &_ONE); // Ri = R^-1
   _R.Set(&Ri);                     // R  = R^-1
@@ -773,7 +774,7 @@ void Int::MontgomeryMult(Int *a) {
   memcpy(t.bits64, pr.bits64 + 1, 8 * (NB64BLOCK - 1));
   t.bits64[NB64BLOCK - 1] = c;
 
-  for (int i = 1; i < Msize - 1; i++) {
+  for (int i = 1; i < Msize; i++) {
 
     imm_umul(a->bits64, bits64[i], pr.bits64);
     ML = (pr.bits64[0] + t.bits64[0]) * MM64;
@@ -783,13 +784,11 @@ void Int::MontgomeryMult(Int *a) {
 
   }
 
-  ML = t.bits64[0] * MM64;
-  imm_umul(_P.bits64, ML, p.bits64);
-  AddAndShift(&t, &p, 0ULL);
-
-  p.Sub(this,&_P);
+  p.Sub(&t,&_P);
   if (p.IsPositive())
     Set(&p);
+  else
+    Set(&t);
 
 }
 
@@ -812,7 +811,7 @@ void Int::MontgomeryMult(Int *a, Int *b) {
   memcpy(bits64,pr.bits64 + 1,8*(NB64BLOCK-1));
   bits64[NB64BLOCK-1] = c;
 
-  for (int i = 1; i < Msize-1; i++) {
+  for (int i = 1; i < Msize; i++) {
 
     imm_umul(a->bits64, b->bits64[i], pr.bits64);
     ML = (pr.bits64[0] + bits64[0]) * MM64;
@@ -821,10 +820,6 @@ void Int::MontgomeryMult(Int *a, Int *b) {
     AddAndShift(this, &pr, c);
 
   }
-
-  ML = bits64[0] * MM64;
-  imm_umul(_P.bits64, ML, p.bits64);
-  AddAndShift(this, &p, 0ULL);
 
   p.Sub(this, &_P);
   if (p.IsPositive())

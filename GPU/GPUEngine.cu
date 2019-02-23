@@ -9,6 +9,7 @@
 
 #include "GPUEngine.h"
 #include <cuda.h>
+#include <cuda_runtime.h>
 
 #include <stdint.h>
 #include "../hash/sha256.h"
@@ -44,8 +45,8 @@ __device__ __constant__ uint64_t _1[] = { 1ULL,0ULL,0ULL,0ULL,0ULL };
 // Field constant (SECPK1)
 __device__ __constant__ uint64_t _P[] = { 0xFFFFFFFEFFFFFC2F,0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF,0ULL };
 __device__ __constant__ uint64_t MM64 = 0xD838091DD2253531; // 64bits lsb negative inverse of P (mod 2^64)
-__device__ __constant__ uint64_t _R3[] = { 0x00000F44002BB1E3ULL,0x0000000000000001ULL,0ULL,0x002BB1E33795F671ULL,0ULL };
-__device__ __constant__ uint64_t _R4[] = { 0xB09AC3DFCA1D8D11ULL,0x0091A64C2BDBA48EULL,0x0000000100001315ULL,0ULL,0ULL };
+__device__ __constant__ uint64_t _R3[] = { 0x002BB1E33795F671ULL,0x0000000100000B73ULL,0ULL,0ULL,0ULL };
+__device__ __constant__ uint64_t _R4[] = { 0xDE57DA9823518541ULL,0x00000F44005763C6ULL,0x1ULL,0ULL,0ULL };
 #include "GPUGroup.h"
 
 // ---------------------------------------------------------------------------------------
@@ -425,7 +426,7 @@ __device__ void _ModInv(uint64_t *R) {
 
 // ---------------------------------------------------------------------------------------
 // _MontgomeryMult
-// Compute a*b*R^-1 (mod n),  R=2^(5*64) (mod n)
+// Compute a*b*R^-1 (mod n),  R=2^256 (mod n)
 // a and b must be lower than n
 // ---------------------------------------------------------------------------------------
 
@@ -460,10 +461,6 @@ __device__ void _MontgomeryMult(uint64_t *r, uint64_t *a, uint64_t *b) {
   UMult(p, _P, ML);
   AddC(pr, p, c);
   AddAndShift(t, pr, t, c);
-
-  ML = t[0] * MM64;
-  UMult(p, _P, ML);
-  AddAndShift(t, p, t, 0ULL);
 
   Sub2(p, t, _P);
   if (_IsPositive(p))
@@ -505,10 +502,6 @@ __device__ void _MontgomeryMult(uint64_t *r, uint64_t *a) {
   UMult(p, _P, ML);
   AddC(pr, p, c);
   AddAndShift(t, pr, t, c);
-
-  ML = t[0] * MM64;
-  UMult(p, _P, ML);
-  AddAndShift(t, p, t, 0ULL);
 
   Sub2(p, t, _P);
   if (_IsPositive(p))
@@ -1209,7 +1202,6 @@ int _ConvertSMVer2Cores(int major, int minor) {
 }
 
 GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
-
 
   // Initialise CUDA
   initialised = false;

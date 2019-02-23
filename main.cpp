@@ -3,13 +3,13 @@
 #include "Vanity.h"
 #include "SECP256k1.h"
 
-#define RELEASE "1.1"
+#define RELEASE "1.2"
 
 using namespace std;
 
 void printUsage() {
 
-  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix");
+  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix\n");
   printf(" prefix: prefix to search\n");
   printf(" -v: Print version\n");
   printf(" -check: Check GPU kernel vs CPU\n");
@@ -46,8 +46,8 @@ int main(int argc, char* argv[]) {
   secp.Init();
 
   // Browse arguments
-
   if (argc < 2) {
+    printf("Not enough argument\n");
     printUsage();
   }
 
@@ -110,6 +110,7 @@ int main(int argc, char* argv[]) {
       prefix = string(argv[a]);
       a++;
     } else {
+      printf("Unexpected %s argument\n",argv[a]);
       printUsage();
     }
 

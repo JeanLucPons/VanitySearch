@@ -330,6 +330,7 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
       p.y.MontgomeryMult(Int::GetR3());
       p.y.ModSub(&Gn[i].y);               // ry = - p2.y - s*(ret.x-p2.x);  
 
+
     }
 
     // Check addresses (compressed)
