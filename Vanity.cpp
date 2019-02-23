@@ -126,6 +126,11 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
 
 // ----------------------------------------------------------------------------
 
+double log1(double x) {
+  // Use taloy series to approximate log(1-x)
+  return -x - (x*x)/2.0 - (x*x*x)/3.0 - (x*x*x*x)/4.0;
+}
+
 string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
 
   char tmp[128];
@@ -142,27 +147,36 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
   while(desiredP<cP)
     desiredP += 0.1;
   if(desiredP>=0.99) desiredP = 0.99;
-
   double k = log(1.0-desiredP)/log(1.0-P);
-
-  int64_t dTime = (int64_t)((k-keyCount)/keyRate); // Time to perform k tries
+  if (isinf(k)) {
+    // Try taylor
+    k = log(1.0 - desiredP)/log1(P);
+  }
+  double dTime = (k-keyCount)/keyRate; // Time to perform k tries
 
   if(dTime<0) dTime = 0;
 
-  double dP = 1.0 - pow(1 - P, k);
-
-  int nbDay  = (int)(dTime / 86400 );
+  double nbDay  = dTime / 86400.0;
   if (nbDay >= 1) {
 
-    sprintf(tmp, "[%.2f%% in %.1fd]", dP*100.0, (double)dTime / 86400);
+    double nbYear = nbDay/365.0;
+    if (nbYear > 1) {
+      if(nbYear<5)
+        sprintf(tmp, "[%.2f%% in %.1fy]", desiredP*100.0, nbYear);
+      else
+        sprintf(tmp, "[%.2f%% in %gy]", desiredP*100.0, nbYear);
+    } else {
+      sprintf(tmp, "[%.2f%% in %.1fd]", desiredP*100.0, nbDay);
+    }
 
   } else {
 
-    int nbHour = (int)((dTime % 86400) / 3600);
-    int nbMin = (int)(((dTime % 86400) % 3600) / 60);
-    int nbSec = (int)(dTime % 60);
+    int iTime = (int)dTime;
+    int nbHour = (int)((iTime % 86400) / 3600);
+    int nbMin = (int)(((iTime % 86400) % 3600) / 60);
+    int nbSec = (int)(iTime % 60);
 
-    sprintf(tmp, "[%.2f%% in %02d:%02d:%02d]", dP*100.0, nbHour, nbMin, nbSec);
+    sprintf(tmp, "[%.2f%% in %02d:%02d:%02d]", desiredP*100.0, nbHour, nbMin, nbSec);
 
   }
 
