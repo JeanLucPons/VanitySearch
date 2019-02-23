@@ -24,19 +24,19 @@ VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-
   
   Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 645):
   ```
-  C:\C++\VanitySearch\x64\Release>VanitySearch.exe -t 6 -gpu 1tryme
-  Start Fri Feb 22 10:30:57 2019
+  C:\C++\VanitySearch\x64\Release>VanitySearch.exe -stop -gpu 1tryme
+  Start Sat Feb 23 08:55:41 2019
   Search: 1tryme
   Difficulty: 15318045009
-  Base Key:DD62DD7AD67A8BF2AED0A64605CC54A54EB678A9B4FB4631BDC5966481FF1E01
-  Number of CPU thread: 6
+  Base Key:3E9F14F4D9D9CFC99C83AC9925C500548D1A1F0160060F2B6E6D0F50B8DB86FC
+  Number of CPU thread: 7
   GPU: GPU #0 GeForce GTX 645 (3x192 cores) Grid(48x64)
-  24.637 MK/s (GPU 18.480 MK/s) (2^29.40) [P 4.51%][50.00% in 00:06:42][0]
-  Pub Addr: 1trymepuUbhT7FYVDZwUQAkvc7Bxyoc8B
-  Prv Addr: 5KVnbSfWEAiK5Gpf5uV2SpSNykHQoCo9fLLEne7SAYPUQuj2dMK
-  Prv Key : 0xDD62DD7AD67A8BF2AED0A64605CC54A54EB678A9B4FB4632BDC5966483C7A574
-  Check   : 1Hn7uyytuQdUC2c54WFP3ZYSvsJ4fUMwfu
-  Check   : 1trymepuUbhT7FYVDZwUQAkvc7Bxyoc8B (comp)
+  27.183 MK/s (GPU 20.446 MK/s) (2^32.24) [P 28.25%][50.00% in 00:03:23]
+  Pub Addr: 1trymencMnwgP9L3uAvJ5e7XFbMcz4iFR
+  Prv Addr: 5JHsAKSYZZ4dyiQWrpiNYDEW4sxkkbCcKJWQAsKnBre2xUbKTTA
+  Prv Key : 0x3E9F14F4D9D9CFC99C83AC9925C500548D1A26E260060F2B6E6D0F50B8EE7D03
+  Check   : 1P651E3ASWKpJTeM1L6tz1RSaCpVzpUWkq
+  Check   : 1trymencMnwgP9L3uAvJ5e7XFbMcz4iFR (comp)
   ```
 
 # License
