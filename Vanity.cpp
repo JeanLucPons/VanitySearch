@@ -127,7 +127,7 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
 // ----------------------------------------------------------------------------
 
 double log1(double x) {
-  // Use taloy series to approximate log(1-x)
+  // Use taylor series to approximate log(1-x)
   return -x - (x*x)/2.0 - (x*x*x)/3.0 - (x*x*x*x)/4.0;
 }
 
