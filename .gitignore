@@ -1,4 +1,6 @@
+DOC/
 .vs/
+VanitySearchNoCUDA.*
 VanitySearch.vcxproj.user
 x64/
 obj/
