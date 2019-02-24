@@ -263,6 +263,32 @@ __device__ void IMult(uint64_t *r, uint64_t *a, int64_t b) {
   Mult2(r, t, b)
 
 }
+// ---------------------------------------------------------------------------------------
+// Multiply a by (2^256 - 2^32 - 977) (Secpk1 prime field)
+
+__device__ void MulP(uint64_t *r,uint64_t a) {
+
+  uint64_t a32h = a >> 32;
+  uint64_t a32l = a << 32;
+  uint64_t a977h = ;
+  uint64_t a977l;
+
+  UMULLO(a977l,a,977ULL);
+  UMULHI(a977h,a,977ULL);
+
+  USUBO(r[0], 0, a32l);
+  USUBC(r[1], 0, a32h);
+  USUBC(r[2], 0, b[2]);
+  USUBC(r[3], 0, b[3]);
+  USUB(r[4],  a, 0);
+  
+  USUBO(r[0], r[0], a977l);
+  USUBC(r[1], r[1], a977h);
+  USUBC(r[2], r[2], 0);
+  USUBC(r[3], r[3], 0);
+  USUB(r[4],  r[4], 0);
+  
+}
 
 // ---------------------------------------------------------------------------------------
 
@@ -457,25 +483,25 @@ __device__ void _MontgomeryMult(uint64_t *r, uint64_t *a, uint64_t *b) {
 
   UMult(pr, a, b[0]);
   ML = pr[0] * MM64;
-  UMult(p, _P, ML);
+  MulP(p, ML);
   AddC(pr, p, c);
   Shift64(t, pr, c);
 
   UMult(pr, a, b[1]);
   ML = (pr[0] + t[0]) * MM64;
-  UMult(p, _P, ML);
+  MulP(p, ML);
   AddC(pr, p, c);
   AddAndShift(t, pr, t, c);
 
   UMult(pr, a, b[2]);
   ML = (pr[0] + t[0]) * MM64;
-  UMult(p, _P, ML);
+  MulP(p, ML);
   AddC(pr, p, c);
   AddAndShift(t, pr, t, c);
 
   UMult(pr, a, b[3]);
   ML = (pr[0] + t[0]) * MM64;
-  UMult(p, _P, ML);
+  MulP(p, ML);
   AddC(pr, p, c);
   AddAndShift(t, pr, t, c);
 
@@ -498,25 +524,25 @@ __device__ void _MontgomeryMult(uint64_t *r, uint64_t *a) {
 
   UMult(pr, a, r[0]);
   ML = pr[0] * MM64;
-  UMult(p, _P, ML);
+  MulP(p, ML);
   AddC(pr, p, c);
   Shift64(t, pr, c);
 
   UMult(pr, a, r[1]);
   ML = (pr[0] + t[0]) * MM64;
-  UMult(p, _P, ML);
+  MulP(p, ML);
   AddC(pr, p, c);
   AddAndShift(t, pr, t, c);
 
   UMult(pr, a, r[2]);
   ML = (pr[0] + t[0]) * MM64;
-  UMult(p, _P, ML);
+  MulP(p, ML);
   AddC(pr, p, c);
   AddAndShift(t, pr, t, c);
 
   UMult(pr, a, r[3]);
   ML = (pr[0] + t[0]) * MM64;
-  UMult(p, _P, ML);
+  MulP(p, ML);
   AddC(pr, p, c);
   AddAndShift(t, pr, t, c);
 

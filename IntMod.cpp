@@ -770,6 +770,37 @@ void Int::AddAndShift(Int *a, Int *b, uint64_t cH) {
 
 }
 
+
+static inline void mulP(uint64_t a,uint64_t *dst) {
+
+  // Multiply a by (2^256 - 2^32 - 977) (Secpk1 prime field)
+  unsigned char c = 0;
+
+  uint64_t a32h = a >> 32;
+  uint64_t a32l = a << 32;
+  uint64_t a977h;
+  uint64_t a977l;
+
+  a977l = _umul128(a,977,&a977h);
+
+  // Compute a.2^256 - a.2^32
+  c = _subborrow_u64(c,0,a32l,dst + 0);
+  c = _subborrow_u64(c,0,a32h,dst + 1);
+  c = _subborrow_u64(c,0,0,dst + 2);
+  c = _subborrow_u64(c,0,0,dst + 3);
+  _subborrow_u64(c,a,0,dst + 4);
+
+  c = 0;
+
+  // Compute (a.2^256 - a.2^32) - a.977
+  c = _subborrow_u64(c,dst[0],a977l,dst + 0);
+  c = _subborrow_u64(c,dst[1],a977h,dst + 1);
+  c = _subborrow_u64(c,dst[2],0,dst + 2);
+  c = _subborrow_u64(c,dst[3],0,dst + 3);
+  _subborrow_u64(c,dst[4],0,dst + 4);
+
+}
+
 // ------------------------------------------------
 void Int::MontgomeryMult(Int *a) {
 
@@ -786,7 +817,9 @@ void Int::MontgomeryMult(Int *a) {
   // i = 0
   imm_umul(a->bits64, bits64[0], pr.bits64);
   ML = pr.bits64[0] * MM64;
-  imm_umul(_P.bits64, ML, p.bits64);
+  //imm_umul(_P.bits64, ML, p.bits64);
+  // specific secpk1 optimisation here
+  mulP(ML,p.bits64);
   c = pr.AddC(&p);
   memcpy(t.bits64, pr.bits64 + 1, 8 * (NB64BLOCK - 1));
   t.bits64[NB64BLOCK - 1] = c;
@@ -795,8 +828,10 @@ void Int::MontgomeryMult(Int *a) {
 
     imm_umul(a->bits64, bits64[i], pr.bits64);
     ML = (pr.bits64[0] + t.bits64[0]) * MM64;
-    imm_umul(_P.bits64, ML, p.bits64);
-    c = pr.AddC(&p);
+    //imm_umul(_P.bits64, ML, p.bits64);
+    // specific secpk1 optimisation here
+	mulP(ML,p.bits64);
+	c = pr.AddC(&p);
     t.AddAndShift(&t, &pr, c);
 
   }
@@ -823,7 +858,9 @@ void Int::MontgomeryMult(Int *a, Int *b) {
   // i = 0
   imm_umul(a->bits64, b->bits64[0], pr.bits64);
   ML = pr.bits64[0] * MM64;
-  imm_umul(_P.bits64, ML, p.bits64);
+  //imm_umul(_P.bits64, ML, p.bits64);
+  // specific secpk1 optimisation here
+  mulP(ML,p.bits64);
   c = pr.AddC(&p);
   memcpy(bits64,pr.bits64 + 1,8*(NB64BLOCK-1));
   bits64[NB64BLOCK-1] = c;
@@ -832,8 +869,10 @@ void Int::MontgomeryMult(Int *a, Int *b) {
 
     imm_umul(a->bits64, b->bits64[i], pr.bits64);
     ML = (pr.bits64[0] + bits64[0]) * MM64;
-    imm_umul(_P.bits64, ML, p.bits64);
-    c = pr.AddC(&p);
+    //imm_umul(_P.bits64, ML, p.bits64);
+    // specific secpk1 optimisation here
+	mulP(ML,p.bits64);
+	c = pr.AddC(&p);
     AddAndShift(this, &pr, c);
 
   }
