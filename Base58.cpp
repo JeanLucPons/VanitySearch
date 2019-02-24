@@ -75,35 +75,32 @@ bool DecodeBase58(const char* psz, std::vector<unsigned char>& vch)
 std::string EncodeBase58(const unsigned char* pbegin, const unsigned char* pend) {
 
   std::string ret;
+  unsigned char digits[256];
 
   // Skip leading zeroes.
-  int length = 0;
   while (pbegin != pend && *pbegin == 0) {
     ret.push_back('1');
     pbegin++;
   }
-  // Allocate enough space in big-endian base58 representation.
-  int size = (int)(pend - pbegin) * 138 / 100 + 1; // log(256) / log(58), rounded up.
-  std::vector<unsigned char> b58(size);
-  // Process the bytes.
-  while (pbegin != pend) {
-    uint32_t carry = *pbegin;
-    int i = 0;
-    // Apply "b58 = b58 * 256 + ch".
-    for (std::vector<unsigned char>::reverse_iterator it = b58.rbegin(); (carry != 0 || i < length) && (it != b58.rend()); it++, i++) {
-      carry += 256 * (*it);
-      *it = carry % 58;
+  int length = (int)(pend - pbegin);
+
+  int digitslen = 1;
+  for(int i = 0; i < length; i++) {
+    unsigned int carry = pbegin[i];
+    for(int j = 0; j < digitslen; j++) {
+      carry += (unsigned int)(digits[j]) << 8;
+      digits[j] = (unsigned char)(carry % 58);
       carry /= 58;
     }
-    length = i;
-    pbegin++;
+    while(carry > 0) {
+      digits[digitslen++] = (unsigned char)(carry % 58);
+      carry /= 58;
+    }
   }
-  // Skip leading zeroes in base58 result.
-  std::vector<unsigned char>::iterator it = b58.begin() + (size - length);
-  while (it != b58.end() && *it == 0)
-    it++;
-  while (it != b58.end())
-    ret.push_back(pszBase58[*(it++)]);
+
+  // reverse
+  for(int i = 0; i < digitslen; i++)
+    ret.push_back(pszBase58[digits[digitslen - 1 - i]]);
 
   return ret;
 
@@ -119,35 +116,3 @@ bool DecodeBase58(const std::string& str, std::vector<unsigned char>& vchRet)
     return DecodeBase58(str.c_str(), vchRet);
 }
 
-/*
-std::string EncodeBase58Check(const std::vector<unsigned char>& vchIn)
-{
-    // add 4-byte hash check to the end
-    std::vector<unsigned char> vch(vchIn);
-    uint256 hash = Hash(vch.begin(), vch.end());
-    vch.insert(vch.end(), (unsigned char*)&hash, (unsigned char*)&hash + 4);
-    return EncodeBase58(vch);
-}
-
-bool DecodeBase58Check(const char* psz, std::vector<unsigned char>& vchRet)
-{
-    if (!DecodeBase58(psz, vchRet) ||
-        (vchRet.size() < 4)) {
-        vchRet.clear();
-        return false;
-    }
-    // re-calculate the checksum, ensure it matches the included 4-byte checksum
-    uint256 hash = Hash(vchRet.begin(), vchRet.end() - 4);
-    if (memcmp(&hash, &vchRet[vchRet.size() - 4], 4) != 0) {
-        vchRet.clear();
-        return false;
-    }
-    vchRet.resize(vchRet.size() - 4);
-    return true;
-}
-
-bool DecodeBase58Check(const std::string& str, std::vector<unsigned char>& vchRet)
-{
-    return DecodeBase58Check(str.c_str(), vchRet);
-}
-*/

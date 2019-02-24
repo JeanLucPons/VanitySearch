@@ -592,7 +592,7 @@ void Int::ModSqrt() {
 
     int nbBit = _P.GetBitLength();
 
-    // Tonelli�Shanks
+    // Tonelli Shanks
     uint64_t e=0;
     Int S(&_P);
     S.SubOne();
@@ -830,8 +830,8 @@ void Int::MontgomeryMult(Int *a) {
     ML = (pr.bits64[0] + t.bits64[0]) * MM64;
     //imm_umul(_P.bits64, ML, p.bits64);
     // specific secpk1 optimisation here
-	mulP(ML,p.bits64);
-	c = pr.AddC(&p);
+	  mulP(ML,p.bits64);
+	  c = pr.AddC(&p);
     t.AddAndShift(&t, &pr, c);
 
   }
@@ -871,8 +871,8 @@ void Int::MontgomeryMult(Int *a, Int *b) {
     ML = (pr.bits64[0] + bits64[0]) * MM64;
     //imm_umul(_P.bits64, ML, p.bits64);
     // specific secpk1 optimisation here
-	mulP(ML,p.bits64);
-	c = pr.AddC(&p);
+	  mulP(ML,p.bits64);
+	  c = pr.AddC(&p);
     AddAndShift(this, &pr, c);
 
   }

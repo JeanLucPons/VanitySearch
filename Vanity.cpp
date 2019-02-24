@@ -100,10 +100,25 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
     sPrefix = *(prefix_t *)(result.data()+1);
     nbDigit++;
   }
+
+  // Try to attack a full address ?
+  DecodeBase58(prefix,result);
+  if(result.size()>21) {
+
+    if( !secp.CheckPudAddress(prefix) ) {
+      printf("Warning, impossible prefix, checksum cannot match !\n");
+    } else {
+      printf("Searching full address\n");
+    }
+    _difficulty = pow(2,160);
+
+  } else {
   
-  // Difficulty
-  _difficulty = pow(2,192) / pow(58,nbDigit);
-  printf("Difficulty: %.0f\n", _difficulty);
+    // Difficulty
+    _difficulty = pow(2,192) / pow(58,nbDigit);
+    printf("Difficulty: %.0f\n", _difficulty);
+
+  }
 
   // Compute Generator table G[n] = (n+1)*G
 
