@@ -106,7 +106,7 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
   if(result.size()>21) {
 
     if( !secp.CheckPudAddress(prefix) ) {
-      printf("Warning, impossible prefix, checksum cannot match !\n");
+      printf("Warning, prefix and address checksum may not match !\n");
     } else {
       printf("Searching full address\n");
     }
