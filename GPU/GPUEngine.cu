@@ -62,8 +62,6 @@ __device__ __constant__ uint64_t _1[] = { 1ULL,0ULL,0ULL,0ULL,0ULL };
 // Field constant (SECPK1)
 __device__ __constant__ uint64_t _P[] = { 0xFFFFFFFEFFFFFC2F,0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF,0ULL };
 __device__ __constant__ uint64_t MM64 = 0xD838091DD2253531; // 64bits lsb negative inverse of P (mod 2^64)
-__device__ __constant__ uint64_t _R3[] = { 0x002BB1E33795F671ULL,0x0000000100000B73ULL,0ULL,0ULL,0ULL };
-__device__ __constant__ uint64_t _R4[] = { 0xDE57DA9823518541ULL,0x00000F44005763C6ULL,0x1ULL,0ULL,0ULL };
 #include "GPUGroup.h"
 
 // ---------------------------------------------------------------------------------------
@@ -270,23 +268,23 @@ __device__ void MulP(uint64_t *r,uint64_t a) {
 
   uint64_t a32h = a >> 32;
   uint64_t a32l = a << 32;
-  uint64_t a977h = ;
+  uint64_t a977h;
   uint64_t a977l;
 
   UMULLO(a977l,a,977ULL);
   UMULHI(a977h,a,977ULL);
 
-  USUBO(r[0], 0, a32l);
-  USUBC(r[1], 0, a32h);
-  USUBC(r[2], 0, b[2]);
-  USUBC(r[3], 0, b[3]);
-  USUB(r[4],  a, 0);
+  USUBO(r[0], 0ULL, a32l);
+  USUBC(r[1], 0ULL, a32h);
+  USUBC(r[2], 0ULL, 0ULL);
+  USUBC(r[3], 0ULL, 0ULL);
+  USUB(r[4],  a, 0ULL);
   
   USUBO(r[0], r[0], a977l);
   USUBC(r[1], r[1], a977h);
-  USUBC(r[2], r[2], 0);
-  USUBC(r[3], r[3], 0);
-  USUB(r[4],  r[4], 0);
+  USUBC(r[2], r[2], 0ULL);
+  USUBC(r[3], r[3], 0ULL);
+  USUB(r[4],  r[4], 0ULL);
   
 }
 
@@ -545,6 +543,89 @@ __device__ void _MontgomeryMult(uint64_t *r, uint64_t *a) {
   MulP(p, ML);
   AddC(pr, p, c);
   AddAndShift(t, pr, t, c);
+
+  Sub2(p, t, _P);
+  if (_IsPositive(p))
+    Load256(r, p)
+  else
+    Load256(r, t)
+
+}
+
+__device__ void _MontgomeryMultR3(uint64_t *r) {
+  
+  
+  // R3 = { 0x002BB1E33795F671ULL, 0x0000000100000B73ULL, 0ULL, 0ULL };
+
+  uint64_t pr[NBBLOCK];
+  uint64_t p[NBBLOCK];
+  uint64_t t[NBBLOCK];
+  uint64_t ML;
+  uint64_t c;
+
+  UMult(pr, r, 0x002BB1E33795F671ULL);
+  ML = pr[0] * MM64;
+  MulP(p, ML);
+  AddC(pr, p, c);
+  Shift64(t, pr, c);
+
+  UMult(pr, r, 0x0000000100000B73ULL);
+  ML = (pr[0] + t[0]) * MM64;
+  MulP(p, ML);
+  AddC(pr, p, c);
+  AddAndShift(t, pr, t, c);
+
+  ML = t[0] * MM64;
+  MulP(p, ML);
+  AddC(t, p, c);
+  Shift64(t, t, c);
+
+  ML = t[0] * MM64;
+  MulP(p, ML);
+  AddC(t, p, c);
+  Shift64(t, t, c);
+
+  Sub2(p, t, _P);
+  if (_IsPositive(p))
+    Load256(r, p)
+  else
+    Load256(r, t)
+
+}
+
+__device__ void _MontgomeryMultR4(uint64_t *r) {
+
+  // R4 = { 0xDE57DA9823518541ULL,0x00000F44005763C6ULL,0x1ULL,0ULL };
+
+  uint64_t pr[NBBLOCK];
+  uint64_t p[NBBLOCK];
+  uint64_t t[NBBLOCK];
+  uint64_t ML;
+  uint64_t c;
+
+  UMult(pr, r, 0xDE57DA9823518541ULL);
+  ML = pr[0] * MM64;
+  MulP(p, ML);
+  AddC(pr, p, c);
+  Shift64(t, pr, c);
+
+  UMult(pr, r, 0x00000F44005763C6ULL);
+  ML = (pr[0] + t[0]) * MM64;
+  MulP(p, ML);
+  AddC(pr, p, c);
+  AddAndShift(t, pr, t, c);
+
+  Load256(pr, r);
+  pr[4] = 0ULL;
+  ML = (pr[0] + t[0]) * MM64;
+  MulP(p, ML);
+  AddC(pr, p, c);
+  AddAndShift(t, pr, t, c);
+
+  ML = t[0] * MM64;
+  MulP(p, ML);
+  AddC(t, p, c);
+  Shift64(t, t, c);
 
   Sub2(p, t, _P);
   if (_IsPositive(p))

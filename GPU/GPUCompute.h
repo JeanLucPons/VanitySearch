@@ -73,14 +73,14 @@ __device__ void __COMPFUNC__(uint64_t *startx, uint64_t *starty, prefix_t sPrefi
 
       _MontgomeryMult(_s, dy, dx[i]);      // s = (p2.y-p1.y)*inverse(p2.x-p1.x);
       _MontgomeryMult(_p2, _s, _s);        // _p = pow2(s)*R^-3
-      _MontgomeryMult(_p2, _R4);           // _p = pow2(s)
+      _MontgomeryMultR4(_p2);              // _p = pow2(s)
 
       ModSub256(px, _p2,px);
       ModSub256(px, Gx[i]);                // px = pow2(s) - p1.x - p2.x;
 
       ModSub256(py, Gx[i], px);
       _MontgomeryMult(py, _s);
-      _MontgomeryMult(py, _R3);
+      _MontgomeryMultR3(py);
       ModSub256(py, Gy[i]);               // py = - p2.y - s*(ret.x-p2.x);  
 
     }
