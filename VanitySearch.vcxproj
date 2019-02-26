@@ -56,6 +56,9 @@
       <CodeGeneration Condition="'$(Configuration)|$(Platform)'=='ReleaseSM30|x64'">compute_30,sm_30</CodeGeneration>
       <PtxAsOptionV Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</PtxAsOptionV>
       <PtxAsOptionV Condition="'$(Configuration)|$(Platform)'=='ReleaseSM30|x64'">true</PtxAsOptionV>
+      <NvccCompilation Condition="'$(Configuration)|$(Platform)'=='ReleaseSM30|x64'">compile</NvccCompilation>
+      <AdditionalCompilerOptions Condition="'$(Configuration)|$(Platform)'=='ReleaseSM30|x64'">
+      </AdditionalCompilerOptions>
     </CudaCompile>
   </ItemGroup>
   <PropertyGroup Label="Globals">

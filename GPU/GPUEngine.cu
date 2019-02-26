@@ -554,7 +554,7 @@ __device__ void _MontgomeryMult(uint64_t *r, uint64_t *a) {
 
 __device__ void _MontgomeryMultR3(uint64_t *r) {
   
-  
+  // R3 = (2^256)^3 mod p
   // R3 = { 0x002BB1E33795F671ULL, 0x0000000100000B73ULL, 0ULL, 0ULL };
 
   uint64_t pr[NBBLOCK];
@@ -595,6 +595,7 @@ __device__ void _MontgomeryMultR3(uint64_t *r) {
 
 __device__ void _MontgomeryMultR4(uint64_t *r) {
 
+  // R3 = (2^256)^4 mod p
   // R4 = { 0xDE57DA9823518541ULL,0x00000F44005763C6ULL,0x1ULL,0ULL };
 
   uint64_t pr[NBBLOCK];
@@ -644,6 +645,9 @@ __device__ void _ModInvGrouped(uint64_t r[GRP_SIZE][4]) {
   uint64_t subp[GRP_SIZE][4];
   uint64_t newValue[4];
   uint64_t inverse[5];
+
+  // Number of _MontgomeryMult must be equal before and after the inversion of each item
+  // in order that power of R vanish
 
   Load256(subp[0], r[0]);
   for (uint32_t i = 1; i < GRP_SIZE; i++) {

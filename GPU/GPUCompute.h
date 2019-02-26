@@ -71,17 +71,17 @@ __device__ void __COMPFUNC__(uint64_t *startx, uint64_t *starty, prefix_t sPrefi
       // Compute next point on the curve (P = StartPoint + i*G)
       ModSub256(dy, Gy[i], py);
 
-      _MontgomeryMult(_s, dy, dx[i]);      // s = (p2.y-p1.y)*inverse(p2.x-p1.x);
-      _MontgomeryMult(_p2, _s, _s);        // _p = pow2(s)*R^-3
-      _MontgomeryMultR4(_p2);              // _p = pow2(s)
+      _MontgomeryMult(_s, dy, dx[i]);      //  s = (p2.y-p1.y)*inverse(p2.x-p1.x) (*R^-1)
+      _MontgomeryMult(_p2, _s, _s);        // _p = pow2(s) (*R^-3)
+      _MontgomeryMultR4(_p2);              // _p2 = pow2(s)
 
       ModSub256(px, _p2,px);
       ModSub256(px, Gx[i]);                // px = pow2(s) - p1.x - p2.x;
 
       ModSub256(py, Gx[i], px);
-      _MontgomeryMult(py, _s);
-      _MontgomeryMultR3(py);
-      ModSub256(py, Gy[i]);               // py = - p2.y - s*(ret.x-p2.x);  
+      _MontgomeryMult(py, _s);             // py = - s*(ret.x-p2.x) (*R^-2)
+      _MontgomeryMultR3(py);               // py = - s*(ret.x-p2.x)
+      ModSub256(py, Gy[i]);                // py = - p2.y - s*(ret.x-p2.x);  
 
     }
 
