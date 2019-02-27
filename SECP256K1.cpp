@@ -104,7 +104,7 @@ void CheckAddress(Secp256K1 *T,HANDLE H,std::string address,std::string privKeyS
   }
 
   SetConsoleTextAttribute(H,12);
-  printf("Failed ! %s\n",calcAddress.c_str());
+  printf("Failed ! \n%s\n%s (comp)\n",calcAddress.c_str(),calcAddressComp.c_str());
   SetConsoleTextAttribute(H,7);
 #else
   if(address == calcAddress) {
@@ -117,7 +117,7 @@ void CheckAddress(Secp256K1 *T,HANDLE H,std::string address,std::string privKeyS
     return;
   }
 
-  printf("Failed ! %s\n",calcAddress.c_str());
+  printf("Failed ! \n%s\n%s (comp)\n",calcAddress.c_str(),calcAddressComp.c_str());
 #endif
 
 }

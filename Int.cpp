@@ -971,7 +971,11 @@ std::string Int::GetC64Str(int nbDigit) {
   tmp[1] = 0;
   for (int i = 0; i< nbDigit; i++) {
     if (bits64[i] != 0) {
+#ifdef WIN64
       sprintf(bStr, "0x%016I64XULL", bits64[i]);
+#else
+      sprintf(bStr, "0x%" PRIx64  "ULL", bits64[i]);
+#endif
     } else {
       sprintf(bStr, "0ULL");
     }

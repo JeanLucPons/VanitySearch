@@ -139,8 +139,8 @@ int main(int argc, char* argv[]) {
   if( !tSpecified && nbThread>1 && gpuEnable)
     nbThread--;
 
-  VanitySearch v(secp, prefix, seed,!uncomp,gpuEnable,gpuId,stop,gridSize,outputFile);
-  v.Search(nbThread);
+  VanitySearch *v = new VanitySearch(secp, prefix, seed,!uncomp,gpuEnable,gpuId,stop,gridSize,outputFile);
+  v->Search(nbThread);
 
   return 0;
 }
