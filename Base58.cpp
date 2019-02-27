@@ -76,7 +76,7 @@ std::string EncodeBase58(const unsigned char* pbegin, const unsigned char* pend)
 
   std::string ret;
   unsigned char digits[256];
-
+  
   // Skip leading zeroes.
   while (pbegin != pend && *pbegin == 0) {
     ret.push_back('1');
@@ -85,10 +85,11 @@ std::string EncodeBase58(const unsigned char* pbegin, const unsigned char* pend)
   int length = (int)(pend - pbegin);
 
   int digitslen = 1;
+  digits[0]=0;
   for(int i = 0; i < length; i++) {
-    unsigned int carry = pbegin[i];
+    uint32_t carry = pbegin[i];
     for(int j = 0; j < digitslen; j++) {
-      carry += (unsigned int)(digits[j]) << 8;
+      carry += (uint32_t)(digits[j]) << 8;
       digits[j] = (unsigned char)(carry % 58);
       carry /= 58;
     }
