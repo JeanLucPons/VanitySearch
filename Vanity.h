@@ -40,7 +40,8 @@ class VanitySearch {
 public:
 
   VanitySearch(Secp256K1 &secp, std::string prefix, std::string seed, bool compressed, 
-               bool useGpu, int gpuId, bool stop,int gridSize,std::string outputFile);
+               bool useGpu, int gpuId, bool stop,int gridSize,std::string outputFile,
+               bool useSSE);
   void Search(int nbThread);
   void FindKeyCPU(TH_PARAM *p);
   void FindKeyGPU();
@@ -68,6 +69,7 @@ private:
   int nbCpuThread;
   int nbFoundKey;
   std::string outputFile;
+  bool useSSE;
 
 #ifdef WIN64
   HANDLE ghMutex;

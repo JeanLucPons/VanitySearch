@@ -21,12 +21,6 @@
 #include "Base58.h"
 #include <string.h>
 
-#ifdef WIN64
-#include <windows.h>
-#else
-typedef int HANDLE;
-#endif
-
 Secp256K1::Secp256K1() {
 }
 
@@ -57,29 +51,16 @@ void Secp256K1::Init() {
 Secp256K1::~Secp256K1() {
 }
 
-void PrintResult(HANDLE H,bool ok) {
-#ifdef WIN64
-  if(ok) {
-    SetConsoleTextAttribute(H,10);
-    printf("OK\n");
-    SetConsoleTextAttribute(H,7);
-  }
-  else {
-    SetConsoleTextAttribute(H,12);
-    printf("Failed !\n");
-    SetConsoleTextAttribute(H,7);
-  }
-#else
+void PrintResult(bool ok) {
   if(ok) {
     printf("OK\n");
   }
   else {
     printf("Failed !\n");
   }
-#endif
 }
 
-void CheckAddress(Secp256K1 *T,HANDLE H,std::string address,std::string privKeyStr) {
+void CheckAddress(Secp256K1 *T,std::string address,std::string privKeyStr) {
 
   Int privKey = T->DecodePrivateKey((char *)privKeyStr.c_str());
   Point pub = T->ComputePublicKey(&privKey);
@@ -88,25 +69,6 @@ void CheckAddress(Secp256K1 *T,HANDLE H,std::string address,std::string privKeyS
 
   printf("Adress : %s ",address.c_str());
 
-#ifdef WIN64
-  if(address == calcAddress) {
-    SetConsoleTextAttribute(H,10);
-    printf("OK!\n");
-    SetConsoleTextAttribute(H,7);
-    return;
-  }
-
-  if(address == calcAddressComp) {
-    SetConsoleTextAttribute(H,10);
-    printf("OK(comp)!\n");
-    SetConsoleTextAttribute(H,7);
-    return;
-  }
-
-  SetConsoleTextAttribute(H,12);
-  printf("Failed ! \n%s\n%s (comp)\n",calcAddress.c_str(),calcAddressComp.c_str());
-  SetConsoleTextAttribute(H,7);
-#else
   if(address == calcAddress) {
     printf("OK!\n");
     return;
@@ -118,17 +80,10 @@ void CheckAddress(Secp256K1 *T,HANDLE H,std::string address,std::string privKeyS
   }
 
   printf("Failed ! \n%s\n%s (comp)\n",calcAddress.c_str(),calcAddressComp.c_str());
-#endif
 
 }
 
 void Secp256K1::Check() {
-
-#ifdef WIN64
-  HANDLE H = GetStdHandle(STD_OUTPUT_HANDLE);
-#else
-  HANDLE H = 0;
-#endif
 
   printf("Check Generator :");
 
@@ -137,7 +92,7 @@ void Secp256K1::Check() {
   while(i < 256 && EC(GTable[i])) {
     i++;
   }
-  PrintResult(H,i == 256);
+  PrintResult(i == 256);
 
   printf("Check Double :");
   Point Pt(G);
@@ -146,13 +101,13 @@ void Secp256K1::Check() {
   Point R3;
   R1 = Double(G);
   R1.Reduce();
-  PrintResult(H,EC(R1));
+  PrintResult(EC(R1));
 
   printf("Check Add :");
   R2 = Add(G,R1);
   R3 = Add(R1,R2);
   R3.Reduce();
-  PrintResult(H,EC(R3));
+  PrintResult(EC(R3));
 
   printf("Check GenKey :");
   Int privKey;
@@ -163,31 +118,31 @@ void Secp256K1::Check() {
   expectedPubKey.y.SetBase16("37a9461c4f1c57fecc499753381e772a128a5820a924a2fa05162eb662987a9f");
   expectedPubKey.z.SetInt32(1);
 
-  PrintResult(H,pub.equals(expectedPubKey));
+  PrintResult(pub.equals(expectedPubKey));
 
-  CheckAddress(this,H,"15t3Nt1zyMETkHbjJTTshxLnqPzQvAtdCe","5HqoeNmaz17FwZRqn7kCBP1FyJKSe4tt42XZB7426EJ2MVWDeqk");
-  CheckAddress(this,H,"1BoatSLRHtKNngkdXEeobR76b53LETtpyT","5J4XJRyLVgzbXEgh8VNi4qovLzxRftzMd8a18KkdXv4EqAwX3tS");
-  CheckAddress(this,H,"1JeanLucgidKHxfY5gkqGmoVjo1yaU4EDt","5JHMHsrrLNoEnPacZJ6VCv2YraHxPhApEp2DEa1uFzGndiByVzV");
-  CheckAddress(this,H,"1Test6BNjSJC5qwYXsjwKVLvz7DpfLehy","5HytzR8p5hp8Cfd8jsVFnwMNXMsEW1sssFxMQYqEUjGZN72iLJ2");
-  CheckAddress(this,H,"1BitcoinP7vnLpsUHWbzDALyJKnNo16Qms","5HwKrREWhgtupmZH9cE1wFvHQJhbXMxm28L5KaVhtReBKGXL2J1");
+  CheckAddress(this,"15t3Nt1zyMETkHbjJTTshxLnqPzQvAtdCe","5HqoeNmaz17FwZRqn7kCBP1FyJKSe4tt42XZB7426EJ2MVWDeqk");
+  CheckAddress(this,"1BoatSLRHtKNngkdXEeobR76b53LETtpyT","5J4XJRyLVgzbXEgh8VNi4qovLzxRftzMd8a18KkdXv4EqAwX3tS");
+  CheckAddress(this,"1JeanLucgidKHxfY5gkqGmoVjo1yaU4EDt","5JHMHsrrLNoEnPacZJ6VCv2YraHxPhApEp2DEa1uFzGndiByVzV");
+  CheckAddress(this,"1Test6BNjSJC5qwYXsjwKVLvz7DpfLehy","5HytzR8p5hp8Cfd8jsVFnwMNXMsEW1sssFxMQYqEUjGZN72iLJ2");
+  CheckAddress(this,"1BitcoinP7vnLpsUHWbzDALyJKnNo16Qms","5HwKrREWhgtupmZH9cE1wFvHQJhbXMxm28L5KaVhtReBKGXL2J1");
 
   // 1ViViGLEawN27xRzGrEhhYPQrZiTKvKLo
   pub.x.SetBase16(/*04*/"75249c39f38baa6bf20ab472191292349426dc3652382cdc45f65695946653dc");
   pub.y.SetBase16("978b2659122fe1df1be132167f27b74e5d4a2f3ecbbbd0b3fbcc2f4983518674");
   printf("Check Calc PubKey (full) %s :",GetAddress(pub,false).c_str());
-  PrintResult(H,EC(pub));
+  PrintResult(EC(pub));
 
   // 1Gp7rQ4GdooysEAEJAS2o4Ktjvf1tZCihp
   pub.x.SetBase16(/*02*/"2b70d6a249aeb187d6f079ecc0fb34d075056ca985384240166a2080c7d2beb5");
   pub.y = GetY(pub.x,true);
   printf("Check Calc PubKey (even) %s:",GetAddress(pub,true).c_str());
-  PrintResult(H,EC(pub));
+  PrintResult(EC(pub));
 
   // 18aPiLmTow7Xgu96msrDYvSSWweCvB9oBA
   pub.x.SetBase16(/*03*/"3bf3d80f868fa33c6353012cb427e98b080452f19b5c1149ea2acfe4b7599739");
   pub.y = GetY(pub.x,false);
   printf("Check Calc PubKey (odd) %s:",GetAddress(pub,true).c_str());
-  PrintResult(H,EC(pub));
+  PrintResult(EC(pub));
 
 }
 

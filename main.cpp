@@ -20,7 +20,7 @@
 #include "Vanity.h"
 #include "SECP256k1.h"
 
-#define RELEASE "1.3"
+#define RELEASE "1.4"
 
 using namespace std;
 
@@ -29,7 +29,7 @@ void printUsage() {
   printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix\n");
   printf(" prefix: prefix to search\n");
   printf(" -v: Print version\n");
-  printf(" -check: Check GPU kernel vs CPU\n");
+  printf(" -check: Check CPU and GPU kernel vs CPU\n");
   printf(" -u: Search uncompressed addresses\n");
   printf(" -o outputfile: Output results to the specified file\n");
   printf(" -gpu: Enable gpu calculation\n");
@@ -37,6 +37,7 @@ void printUsage() {
   printf(" -g gridSize: Specify GPU kernel gridsize, default is 16*(MP number)\n");
   printf(" -s seed: Specify a seed for the base key, default is random\n");
   printf(" -t threadNumber: Specify number of CPU thread, default is number of core\n");
+  printf(" -nosse : Disable SSE hash function\n");
   printf(" -stop: Stop when prefix is found\n");
   exit(-1);
 
@@ -79,6 +80,7 @@ int main(int argc, char* argv[]) {
   string outputFile = "";
   int nbThread = Timer::getCoreNumber();
   bool tSpecified = false;
+  bool sse = true;
 
   while (a < argc) {
 
@@ -96,6 +98,10 @@ int main(int argc, char* argv[]) {
       printf("%s\n",RELEASE);
       exit(0);
     } else if (strcmp(argv[a], "-check") == 0) {
+
+      Int::Check();
+      secp.Check();
+
 #ifdef WITHGPU
       GPUEngine g(gridSize,gpuId);
       g.SetSearchMode(!uncomp);
@@ -106,6 +112,9 @@ int main(int argc, char* argv[]) {
       exit(0);
     } else if (strcmp(argv[a], "-u") == 0) {
       uncomp = true;
+      a++;
+    } else if (strcmp(argv[a], "-nosse") == 0) {
+      sse = false;
       a++;
     } else if (strcmp(argv[a], "-g") == 0) {
       a++;
@@ -139,7 +148,7 @@ int main(int argc, char* argv[]) {
   if( !tSpecified && nbThread>1 && gpuEnable)
     nbThread--;
 
-  VanitySearch *v = new VanitySearch(secp, prefix, seed,!uncomp,gpuEnable,gpuId,stop,gridSize,outputFile);
+  VanitySearch *v = new VanitySearch(secp, prefix, seed,!uncomp,gpuEnable,gpuId,stop,gridSize,outputFile,sse);
   v->Search(nbThread);
 
   return 0;

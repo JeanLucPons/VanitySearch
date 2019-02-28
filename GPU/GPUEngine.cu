@@ -22,7 +22,6 @@
 // We need 1 extra block for Montgomey multiplication and ModInv
 #define NBBLOCK 5
 #define BIFULLSIZE 40
-#define MMSIZE 5
 
 #include "GPUEngine.h"
 #include <cuda.h>
@@ -595,7 +594,7 @@ __device__ void _MontgomeryMultR3(uint64_t *r) {
 
 __device__ void _MontgomeryMultR4(uint64_t *r) {
 
-  // R3 = (2^256)^4 mod p
+  // R4 = (2^256)^4 mod p
   // R4 = { 0xDE57DA9823518541ULL,0x00000F44005763C6ULL,0x1ULL,0ULL };
 
   uint64_t pr[NBBLOCK];
@@ -1173,7 +1172,7 @@ __device__ void _GetHash160(uint64_t *x, uint64_t *y, uint8_t *hash) {
   uint32_t publicKeyBytes[32];
   uint32_t s[16];
 
-  // Compressed public key
+  // Uncompressed public key
   publicKeyBytes[0] = __byte_perm(x32[7], 0x04, 0x4321);
   publicKeyBytes[1] = __byte_perm(x32[7], x32[6], 0x0765);
   publicKeyBytes[2] = __byte_perm(x32[6], x32[5], 0x0765);

@@ -35,7 +35,7 @@ Point Gn[CPU_GRP_SIZE];
 // ----------------------------------------------------------------------------
 
 VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, bool useGpu, 
-                           int gpuId, bool stop, int gridSize, string outputFile) {
+                           int gpuId, bool stop, int gridSize, string outputFile, bool useSSE) {
 
   this->vanityPrefix = prefix;
   this->secp = secp;
@@ -45,6 +45,7 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
   this->stopWhenFound = stop;
   this->gridSize = gridSize;
   this->outputFile = outputFile;
+  this->useSSE = useSSE;
   sPrefix = -1;
   std::vector<unsigned char> result;
 
@@ -379,34 +380,53 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
     }
 
     // Check addresses (compressed)
+    if (useSSE) {
 
-    for (int i = 0; i < CPU_GRP_SIZE; i += 4) {
+      for (int i = 0; i < CPU_GRP_SIZE; i += 4) {
 
-      secp.GetHash160(searchComp, pts[i], pts[i+1], pts[i+2], pts[i+3], h0, h1, h2, h3);
+        secp.GetHash160(searchComp, pts[i], pts[i + 1], pts[i + 2], pts[i + 3], h0, h1, h2, h3);
 
-      prefix_t pr0 = *(prefix_t *)h0;
-      prefix_t pr1 = *(prefix_t *)h1;
-      prefix_t pr2 = *(prefix_t *)h2;
-      prefix_t pr3 = *(prefix_t *)h3;
+        prefix_t pr0 = *(prefix_t *)h0;
+        prefix_t pr1 = *(prefix_t *)h1;
+        prefix_t pr2 = *(prefix_t *)h2;
+        prefix_t pr3 = *(prefix_t *)h3;
 
-      if (pr0 == sPrefix) {
-        string addr = secp.GetAddress(pts[i], searchComp);
-        endOfSearch = checkAddr(addr, key, i) && stopWhenFound;
+        if (pr0 == sPrefix) {
+          string addr = secp.GetAddress(pts[i], searchComp);
+          endOfSearch = checkAddr(addr, key, i) && stopWhenFound;
+        }
+        if (pr1 == sPrefix) {
+          string addr = secp.GetAddress(pts[i + 1], searchComp);
+          endOfSearch = checkAddr(addr, key, i + 1) && stopWhenFound;
+        }
+        if (pr2 == sPrefix) {
+          string addr = secp.GetAddress(pts[i + 2], searchComp);
+          endOfSearch = checkAddr(addr, key, i + 2) && stopWhenFound;
+        }
+        if (pr3 == sPrefix) {
+          string addr = secp.GetAddress(pts[i + 3], searchComp);
+          endOfSearch = checkAddr(addr, key, i + 3) && stopWhenFound;
+        }
+
       }
-      if (pr1 == sPrefix) {
-        string addr = secp.GetAddress(pts[i+1], searchComp);
-        endOfSearch = checkAddr(addr, key, i + 1) && stopWhenFound;
-      }
-      if (pr2 == sPrefix) {
-        string addr = secp.GetAddress(pts[i+2], searchComp);
-        endOfSearch = checkAddr(addr, key, i + 2) && stopWhenFound;
-      }
-      if (pr3 == sPrefix) {
-        string addr = secp.GetAddress(pts[i+3], searchComp);
-        endOfSearch = checkAddr(addr, key, i + 3) && stopWhenFound;
+
+    } else {
+
+      for (int i = 0; i < CPU_GRP_SIZE; i ++) {
+
+        secp.GetHash160(pts[i], searchComp, h0);
+
+        prefix_t pr0 = *(prefix_t *)h0;
+
+        if (pr0 == sPrefix) {
+          string addr = secp.GetAddress(pts[i], searchComp);
+          endOfSearch = checkAddr(addr, key, i) && stopWhenFound;
+        }
+
       }
 
     }
+
 
     key.Add((uint64_t)CPU_GRP_SIZE);
     startP = p;

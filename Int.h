@@ -153,6 +153,10 @@ public:
   std::string GetBlockStr();
   std::string GetC64Str(int nbDigit);
 
+  // Check function
+  static void Int::Check();
+
+
   /*
   // Align to 16 bytes boundary
   union {

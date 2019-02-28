@@ -16,8 +16,10 @@
 */
 
 #include "Int.h"
+#include "IntGroup.h"
 #include <string.h>
 #include <emmintrin.h>
+#include "Timer.h"
 
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #define MIN(x,y) (((x)<(y))?(x):(y))
@@ -1086,5 +1088,191 @@ std::string Int::GetBase2() {
   ret[k]=0;
 
   return std::string(ret);
+
+}
+
+
+// ------------------------------------------------
+
+void Int::Check() {
+
+  double t0;
+  double t1;
+  double tTotal;
+  double tTotal2;
+  int   i;
+  bool ok;
+
+  Int a, b, c, d, e, R;
+
+  a.SetBase10("4743256844168384767987");
+  b.SetBase10("1679314142928575978367");
+  if (strcmp(a.GetBase10().c_str(), "4743256844168384767987") != 0) {
+    printf(" GetBase10() failed ! %s!=4743256844168384767987\n", a.GetBase10().c_str());
+  }
+  if (strcmp(b.GetBase10().c_str(), "1679314142928575978367") != 0) {
+    printf(" GetBase10() failed ! %s!=1679314142928575978367\n", b.GetBase10().c_str());
+  }
+
+  printf("GetBase10() Results OK\n");
+
+  // Add -------------------------------------------------------------------------------------------
+  t0 = Timer::get_tick();
+  for (i = 0; i < 10000; i++) c.Add(&a, &b);
+  t1 = Timer::get_tick();
+
+  if (c.GetBase10() == "6422570987096960746354") {
+    printf("Add() Results OK : ");
+    Timer::printResult("Add", 10000, t0, t1);
+  } else {
+    printf("Add() Results Wrong\nR=%s\nT=6422570987096960746354\n", c.GetBase10().c_str());
+  }
+
+  // Mult -------------------------------------------------------------------------------------------
+  a.SetBase10("25788151703741741859559789197707857");
+  b.SetBase10("150879472214070274535718959598325831");
+
+  t0 = Timer::get_tick();
+  for (i = 0; i < 10000; i++) c.Mult(&a, &b);
+  t1 = Timer::get_tick();
+
+  if (c.GetBase10() == "3890902718436931151119442452387018319292503094706912504064239834754167") {
+    printf("Mult() Results OK : ");
+    Timer::printResult("Mult", 10000, t0, t1);
+  } else {
+    printf("Mult() Results Wrong\nR=%s\nT=3890902718436931151119442452387018319292503094706912504064239834754167\n", c.GetBase10().c_str());
+  }
+
+  // Div -------------------------------------------------------------------------------------------
+  tTotal = 0.0;
+  for (int i = 0; i < 1000; i++) {
+
+    a.Rand(BISIZE);
+    b.Rand(BISIZE / 2);
+    d.Set(&a);
+    e.Set(&b);
+
+    t0 = Timer::get_tick();
+    a.Div(&b, &c);
+    t1 = Timer::get_tick();
+    tTotal += (t1 - t0);
+
+    a.Mult(&e);
+    a.Add(&c);
+    if (!a.IsEqual(&d)) {
+      printf("Div() Results Wrong %d\n", i);
+    }
+
+  }
+  printf("Div() Results OK : ");
+  Timer::printResult("Div", 1000, 0, tTotal);
+
+  // Modular arithmetic -------------------------------------------------------------------------------
+  // SecpK1 prime (needed for specific optimisation on the montgomery multiplication)
+  b.SetBase16("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
+  Int::SetupField(&b);
+
+  // ModInv -------------------------------------------------------------------------------------------
+
+  for (int i = 0; i < 1000; i++) {
+    a.Rand(BISIZE);
+    b = a;
+    a.ModInv();
+    a.ModMul(&b);
+    if (!a.IsOne()) {
+      printf("ModInv() Results Wrong %s\n", a.GetBase16().c_str());
+    }
+  }
+
+  ok = true;
+  for (int i = 0; i < 100 && ok; i++) {
+
+    // Euler a^-1 = a^(p-2) mod p (p is prime)
+    Int e(Int::GetFieldCharacteristic());
+    e.Sub(2ULL);
+    a.Rand(BISIZE);
+    b = a;
+    b.ModExp(&e);
+
+    a.ModInv();
+    if (!a.IsEqual(&b)) {
+      ok =false;
+    }
+
+  }
+
+  if (!ok) {
+    printf("ModInv()/ModExp() Results Wrong %s\n", a.GetBase16().c_str());
+  } else {
+    printf("ModInv()/ModExp() Results OK\n");
+  }
+
+  t0 = Timer::get_tick();
+  for (int i = 0; i < 100000; i++) {
+    a.Rand(BISIZE);
+    a.ModInv();
+  }
+  t1 = Timer::get_tick();
+
+  printf("ModInv() : ");
+  Timer::printResult("Inv", 100000, 0, t1 - t0);
+
+  // IntGroup -----------------------------------------------------------------------------------
+
+  Int m[CPU_GRP_SIZE];
+  Int chk[CPU_GRP_SIZE];
+  IntGroup g;
+
+  g.Set(m);
+  for (int i = 0; i < CPU_GRP_SIZE; i++) {
+    m[i].Rand(256);
+    chk[i].Set(m + i);
+    chk[i].ModInv();
+  }
+  g.ModInv();
+  ok = true;
+  for (int i = 0; i < CPU_GRP_SIZE; i++) {
+    if (!m[i].IsEqual(chk + i)) {
+      ok = false;
+      printf("IntGroup.ModInv() Wrong !\n");
+      printf("[%d] %s\n", i, m[i].GetBase16().c_str());
+      printf("[%d] %s\n", i, chk[i].GetBase16().c_str());
+    }
+  }
+
+  t0 = Timer::get_tick();
+  for (int j = 0; j < 10000; j++) {
+    for (int i = 0; i < CPU_GRP_SIZE; i++) {
+      m[i].Rand(256);
+    }
+    g.ModInv();
+  }
+  t1 = Timer::get_tick();
+
+  printf("IntGroup.ModInv() : ");
+  Timer::printResult("Inv", 10000 * CPU_GRP_SIZE, 0, t1 - t0);
+
+
+  // ModSqrt ------------------------------------------------------------------------------------
+
+  ok = true;
+  for (int i = 0; i < 100 && ok; i++) {
+
+    bool hasSqrt = false;
+    while (!hasSqrt) {
+      a.Rand(BISIZE);
+      hasSqrt = !a.IsZero() && a.IsLower(Int::GetFieldCharacteristic()) && a.HasSqrt();
+    }
+
+    c.Set(&a);
+    a.ModSqrt();
+    b.ModSquare(&a);
+    if (!b.IsEqual(&c)) {
+      printf("ModSqrt() wrong !\n");
+      ok = false;
+    }
+
+  }
+  printf("ModSqrt() OK !\n");
 
 }
