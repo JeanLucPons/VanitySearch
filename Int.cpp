@@ -480,9 +480,9 @@ void Int::ShiftL32BitAndSub(Int *a,int n) {
 // ------------------------------------------------
 
 void Int::ShiftL(uint32_t n) {
-
+    
   if( n<64 ) {
-	  shiftL((unsigned char)n, bits64);
+	shiftL((unsigned char)n, bits64);
   } else {
     uint32_t nb64 = n/64;
     uint32_t nb   = n%64;
@@ -520,10 +520,10 @@ void Int::ShiftR64Bit() {
 
 }
 
-// ------------------------------------------------
+// ---------------------------------D---------------
 
 void Int::ShiftR(uint32_t n) {
-
+    
   if( n<64 ) {
     shiftR((unsigned char)n, bits64);
   } else {
@@ -772,9 +772,9 @@ void Int::Div(Int *a,Int *mod) {
   CLEAR();
 
   // Size
-  int dSize = d.GetSize();
-  int tSize = rem.GetSize();
-  int qSize = tSize - dSize + 1;
+  uint32_t dSize = d.GetSize();
+  uint32_t tSize = rem.GetSize();
+  uint32_t qSize = tSize - dSize + 1;
 
   // D1 normalize the divisor
   uint32_t shift = bitLength(d.bits[dSize-1]);
@@ -1129,26 +1129,28 @@ void Int::Check() {
   }
 
   // Mult -------------------------------------------------------------------------------------------
-  a.SetBase10("25788151703741741859559789197707857");
-  b.SetBase10("150879472214070274535718959598325831");
+  a.SetBase10("3890902718436931151119442452387018319292503094706912504064239834754167");
+  b.SetBase10("474325684416838476798716793141429285759783676422570987096960746354");
+  e.SetBase10("1845555094921934741640873731771879197054909502699192730283220486240724687661257894226660948002650341240452881231721004292250660431557118");
 
   t0 = Timer::get_tick();
   for (i = 0; i < 10000; i++) c.Mult(&a, &b);
   t1 = Timer::get_tick();
 
-  if (c.GetBase10() == "3890902718436931151119442452387018319292503094706912504064239834754167") {
+  if (c.IsEqual(&e)) {
     printf("Mult() Results OK : ");
     Timer::printResult("Mult", 10000, t0, t1);
   } else {
-    printf("Mult() Results Wrong\nR=%s\nT=3890902718436931151119442452387018319292503094706912504064239834754167\n", c.GetBase10().c_str());
+    printf("Mult() Results Wrong\nR=%s\nT=%s\n",e.GetBase10().c_str(), c.GetBase10().c_str());
   }
-
+  
   // Div -------------------------------------------------------------------------------------------
   tTotal = 0.0;
-  for (int i = 0; i < 1000; i++) {
+  ok = true;
+  for (int i = 0; i < 1000 && ok; i++) {
 
     a.Rand(BISIZE);
-    b.Rand(BISIZE / 2);
+    b.Rand(BISIZE/2);
     d.Set(&a);
     e.Set(&b);
 
@@ -1160,12 +1162,22 @@ void Int::Check() {
     a.Mult(&e);
     a.Add(&c);
     if (!a.IsEqual(&d)) {
-      printf("Div() Results Wrong %d\n", i);
+	  ok = false;
+      printf("Div() Results Wrong \nN: %s\nD: %s\nQ: %s\nR: %s\n", 
+        d.GetBase16().c_str(),
+        b.GetBase16().c_str(),
+        a.GetBase16().c_str(),
+        c.GetBase16().c_str()
+        
+      );
     }
 
   }
-  printf("Div() Results OK : ");
-  Timer::printResult("Div", 1000, 0, tTotal);
+  
+  if(ok) {
+    printf("Div() Results OK : ");
+    Timer::printResult("Div", 1000, 0, tTotal);
+  }
 
   // Modular arithmetic -------------------------------------------------------------------------------
   // SecpK1 prime (needed for specific optimisation on the montgomery multiplication)
@@ -1241,7 +1253,7 @@ void Int::Check() {
   }
 
   t0 = Timer::get_tick();
-  for (int j = 0; j < 10000; j++) {
+  for (int j = 0; j < 1000; j++) {
     for (int i = 0; i < CPU_GRP_SIZE; i++) {
       m[i].Rand(256);
     }
@@ -1250,7 +1262,7 @@ void Int::Check() {
   t1 = Timer::get_tick();
 
   printf("IntGroup.ModInv() : ");
-  Timer::printResult("Inv", 10000 * CPU_GRP_SIZE, 0, t1 - t0);
+  Timer::printResult("Inv", 1000 * CPU_GRP_SIZE, 0, t1 - t0);
 
 
   // ModSqrt ------------------------------------------------------------------------------------

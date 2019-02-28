@@ -154,7 +154,7 @@ public:
   std::string GetC64Str(int nbDigit);
 
   // Check function
-  static void Int::Check();
+  static void Check();
 
 
   /*
@@ -201,9 +201,10 @@ static uint64_t inline __shiftright128(uint64_t a, uint64_t b,unsigned char n) {
   return  c;
 }
 
+
 static uint64_t inline __shiftleft128(uint64_t a, uint64_t b,unsigned char n) {
   uint64_t c;
-  __asm__ ("movq %1,%0;shldq %3,%2,%0;" : "=D"(c) : "r"(a),"r"(b),"c"(n));
+  __asm__ ("movq %1,%0;shldq %3,%2,%0;" : "=D"(c) : "r"(b),"r"(a),"c"(n));
   return  c;
 }
 
