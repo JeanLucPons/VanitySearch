@@ -18,14 +18,25 @@ OBJET = $(addprefix $(OBJDIR)/, \
         hash/ripemd160_sse.o hash/sha256_sse.o)
 
 CXX        = g++
+CUDA       = /usr/local/cuda-8.0
+NVCC       = $(CUDA)/bin/nvcc
 
-#CXXFLAGS   = -m64  -Wno-write-strings -g -I.
-CXXFLAGS   =  -m64  -Wno-write-strings -O2 -I.
+ifdef gpu
+#CXXFLAGS   = -DWIDTHGPU -m64  -Wno-write-strings -g -I. -I$(CUDA)/include
+CXXFLAGS   =  -m64  -Wno-write-strings -O2 -I. -I$(CUDA)/include
+else
+#CXXFLAGS   = -m64  -Wno-write-strings -g -I. -I$(CUDA)/include
+CXXFLAGS   =  -m64 -msse -Wno-write-strings -O2 -I. -I$(CUDA)/include
+endif
 
 LFLAGS     = -lpthread
 
 #--------------------------------------------------------------------
 
+ifdef gpu
+$(OBJDIR)/GPUEngine.o: GPU/GPUEngine.cu
+	$(NVCC) -ccbin g++ -m64 -O2 -I$(CUDA)/include -gencode=arch=compute_20,code=sm_20 -o GPU/Engine.o -c GPU/GPUEngine.cu
+endif
 
 $(OBJDIR)/%.o : %.cpp
 	$(CXX) $(CXXFLAGS) -o $@ -c $<
