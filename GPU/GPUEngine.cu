@@ -15,6 +15,11 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef WIN64
+#include <unistd.h>
+#include <stdio.h>
+#endif
+
 // ---------------------------------------------------------------------------------
 // 256(+64) bits integer CUDA libray for SECPK1
 // ---------------------------------------------------------------------------------
@@ -926,8 +931,9 @@ __device__ void RIPEMD160Initialize(uint32_t s[5]) {
 #define f5(x, y, z) (x ^ (y | ~z))
 
 #define RPRound(a,b,c,d,e,f,x,k,r) \
-  a = ROL(a + f + x + k, r) + e; \
-  c = ROL(c, 10);              
+  u = a + f + x + k; \
+  a = ROL(u, r) + e; \
+  c = ROL(c, 10);
 
 #define R11(a,b,c,d,e,x,r) RPRound(a, b, c, d, e, f1(b, c, d), x, 0, r)
 #define R21(a,b,c,d,e,x,r) RPRound(a, b, c, d, e, f2(b, c, d), x, 0x5A827999ul, r)
@@ -941,9 +947,9 @@ __device__ void RIPEMD160Initialize(uint32_t s[5]) {
 #define R52(a,b,c,d,e,x,r) RPRound(a, b, c, d, e, f1(b, c, d), x, 0, r)
 
 /** Perform a RIPEMD-160 transformation, processing a 64-byte chunk. */
-__device__ void RIPEMD160Transform(uint32_t s[5], const uint32_t* w) {
+__device__ void RIPEMD160Transform(uint32_t s[5],uint32_t* w) {
 
-
+  uint32_t u;
   uint32_t a1 = s[0], b1 = s[1], c1 = s[2], d1 = s[3], e1 = s[4];
   uint32_t a2 = a1, b2 = b1, c2 = c1, d2 = d1, e2 = e1;
 
@@ -1259,6 +1265,34 @@ __global__ void comp_keys_uncomp(uint16_t prefix, uint64_t *keys, uint8_t *found
 
 }
 
+// ---------------------------------------------------------------------------------------
+
+__global__ void chekc_mult(uint64_t *a, uint64_t *b, uint64_t *r) {
+
+  _MontgomeryMult(r, a, b);
+  r[4]=0;
+
+}
+
+// ---------------------------------------------------------------------------------------
+
+__global__ void chekc_hash160(uint64_t *x, uint64_t *y, uint8_t *h) {
+
+  _GetHash160Comp(x, y, h);
+
+}
+
+// ---------------------------------------------------------------------------------------
+
+__global__ void get_endianness(uint8_t *endian) {
+
+  uint32_t a = 0x01020304;
+  uint8_t fb = *(uint8_t *)(&a);
+  *endian = (fb==0x04);
+
+}
+
+// ---------------------------------------------------------------------------------------
 
 using namespace std;
 
@@ -1299,6 +1333,8 @@ int _ConvertSMVer2Cores(int major, int minor) {
   } sSMtoCores;
 
   sSMtoCores nGpuArchCoresPerSM[] = {
+      {0x20, 32}, // Fermi Generation (SM 2.0) GF100 class
+      {0x21, 48}, // Fermi Generation (SM 2.1) GF10x class
       {0x30, 192},
       {0x32, 192},
       {0x35, 192},
@@ -1361,12 +1397,15 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
     nbThreadGroup = deviceProp.multiProcessorCount * 16;
 
   nbThread = nbThreadGroup * NB_TRHEAD_PER_GROUP;
-
-  deviceName = "GPU #" + to_string(gpuId) + " " + deviceProp.name + 
-               " ("+  std::to_string(deviceProp.multiProcessorCount) + 
-               "x" + std::to_string(_ConvertSMVer2Cores(deviceProp.major, deviceProp.minor)) +" cores)" +
-               " Grid(" + to_string(nbThread / NB_TRHEAD_PER_GROUP) + "x" + to_string(NB_TRHEAD_PER_GROUP) + ")";
-
+  
+  char tmp[256];
+  sprintf(tmp,"GPU #%d %s (%dx%d cores) Grid(%dx%d)",
+  gpuId,deviceProp.name,deviceProp.multiProcessorCount,
+  _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor),
+  nbThread / NB_TRHEAD_PER_GROUP,
+  NB_TRHEAD_PER_GROUP);
+  deviceName = std::string(tmp);
+  
   size_t stackSize = 32768;
   err = cudaDeviceSetLimit(cudaLimitStackSize, stackSize);
   if (err != cudaSuccess) {
@@ -1508,7 +1547,11 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
     cudaEventRecord(evt, 0);
     while (cudaEventQuery(evt) == cudaErrorNotReady) {
       // Sleep 1 ms to free the CPU
+#ifdef WIN64
       Sleep(1);
+#else
+      usleep(1000);
+#endif
     }
     cudaEventDestroy(evt);
 
@@ -1538,6 +1581,19 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
 
 }
 
+std::string toHex(unsigned char *data,int length) {
+
+  string ret;
+  char tmp[3];
+  for (int i = 0; i < length; i++) {
+    if(i && i%4==0) ret.append(" ");
+    sprintf(tmp, "%02x", (int)data[i]);
+    ret.append(tmp);
+  }
+  return ret;
+
+}
+
 bool GPUEngine::Check(Secp256K1 &secp) {
 
   int i = 0;
@@ -1549,11 +1605,63 @@ bool GPUEngine::Check(Secp256K1 &secp) {
 
   printf("GPU: %s\n",deviceName.c_str());
 
+  // Get endianess
+  get_endianness<<<1,1>>>(outputPrefix);
+  cudaError_t err = cudaGetLastError();
+  if (err != cudaSuccess) {
+    printf("GPUEngine: get_endianness: %s\n", cudaGetErrorString(err));
+    return false;
+  }
+  cudaMemcpy(outputPrefixPinned, outputPrefix,1,cudaMemcpyDeviceToHost);
+  littleEndian = *outputPrefixPinned != 0;
+  printf("Endianness: %s\n",(littleEndian?"Little":"Big"));
+
+  // Check modular mult
+  Int a;
+  Int b;
+  Int r;
+  Int c;
+  a.Rand(256);
+  b.Rand(256);
+  c.MontgomeryMult(&a,&b);
+  memcpy(inputKeyPinned,a.bits64,BIFULLSIZE);
+  memcpy(inputKeyPinned+5,b.bits64,BIFULLSIZE);
+  cudaMemcpy(inputKey, inputKeyPinned, BIFULLSIZE*2, cudaMemcpyHostToDevice);
+  chekc_mult<<<1,1>>>(inputKey,inputKey+5,(uint64_t *)outputPrefix);
+  cudaMemcpy(outputPrefixPinned, outputPrefix, BIFULLSIZE, cudaMemcpyDeviceToHost);
+  memcpy(r.bits64,outputPrefixPinned,BIFULLSIZE);
+
+  if(!c.IsEqual(&r)) {
+    printf("\nModular Mult wrong:\nR=%s\nC=%s\n",
+    toHex((uint8_t *)r.bits64,BIFULLSIZE).c_str(),
+    toHex((uint8_t *)c.bits64,BIFULLSIZE).c_str());
+    return false;
+  }
+
+  // Check hash 160
+  uint8_t h[20];
+  Point pi;
+  pi.x.Rand(256);
+  pi.y.Rand(256);
+  secp.GetHash160(pi, true, h);
+  memcpy(inputKeyPinned,pi.x.bits64,BIFULLSIZE);
+  memcpy(inputKeyPinned+5,pi.y.bits64,BIFULLSIZE);
+  cudaMemcpy(inputKey, inputKeyPinned, BIFULLSIZE*2, cudaMemcpyHostToDevice);
+  chekc_hash160<<<1,1>>>(inputKey,inputKey+5,outputPrefix);
+  cudaMemcpy(outputPrefixPinned, outputPrefix, 64, cudaMemcpyDeviceToHost);
+
+  if(!ripemd160_comp_hash(outputPrefixPinned,h)) {
+    printf("\nGetHask160 wrong:\n%s\n%s\n",
+    toHex(outputPrefixPinned,20).c_str(),
+    toHex(h,20).c_str());
+    return false;
+  }
+
   // Check kernel
+  int nbFoundCPU = 0;
   Int k;
   Point *p = new Point[nbThread];
   vector<ITEM> found;
-  uint8_t h[20];
 
   for (int i = 0; i < nbThread; i++) {
     k.Rand(256);
@@ -1570,27 +1678,29 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   printf("ComputeKeys() found %d items , CPU check:",(int)found.size());
 
   // Check with CPU
-  for (j = 0; (j<nbThread) && ok;j++) {
+  for (j = 0; (j<nbThread); j++) {
     for (i = 0; i < STEP_SIZE; i++) {
       secp.GetHash160(p[j], searchComp, h);
       prefix_t pr = *(prefix_t *)h;
       if (pr == 0xFEFE) {
 
+	nbFoundCPU++;
+
         // Search in found by GPU
-        boolean f = false;
+        bool f = false;
         int l = 0;
-        //printf("Search: %s\n", ripemd160_hex(h).c_str());
+        //printf("Search: %s\n", toHex(h,20).c_str());
         while (l < found.size() && !f) {
           f = ripemd160_comp_hash(found[l].hash,h);
-          //printf("[%d]: %s\n", l,ripemd160_hex(found[l].hash).c_str());
+          //printf("[%d]: %s\n", l,toHex(found[l].hash,20).c_str());
           if(!f) l++;
         }
         if (f) {
           found.erase(found.begin() + l);
         } else {
           ok = false;
-          printf("\nComputeKeys() Results Wrong ! Expected item not found %s\n", 
-            ripemd160_hex(h).c_str());
+          printf("\nExpected item not found %s\n", 
+            toHex(h,20).c_str());
         }
       }
       p[j] = secp.NextKey(p[j]);
@@ -1599,7 +1709,11 @@ bool GPUEngine::Check(Secp256K1 &secp) {
 
   if (ok && found.size()!=0) {
     ok = false;
-    printf("\nComputeKeys() Unexpected item found !\n");
+    printf("\nUnexpected item found !\n");
+  }
+
+  if( !ok ) {
+    printf("CPU found %d items\n",nbFoundCPU); 
   }
 
   if(ok) printf("OK\n");

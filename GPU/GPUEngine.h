@@ -73,6 +73,7 @@ private:
   uint8_t *outputPrefixPinned;
   bool initialised;
   bool searchComp;
+  bool littleEndian;
 
 };
 

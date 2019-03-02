@@ -11,31 +11,45 @@ SRC = Base58.cpp IntGroup.cpp main.cpp Random.cpp \
 
 OBJDIR = obj
 
+ifdef gpu
+
+OBJET = $(addprefix $(OBJDIR)/, \
+        Base58.o IntGroup.o main.o Random.o Timer.o Int.o \
+        IntMod.o Point.o SECP256K1.o Vanity.o GPU/GPUGenerate.o \
+        hash/ripemd160.o hash/sha256.o hash/sha512.o \
+        hash/ripemd160_sse.o hash/sha256_sse.o \
+        GPU/GPUEngine.o)
+
+else
+
 OBJET = $(addprefix $(OBJDIR)/, \
         Base58.o IntGroup.o main.o Random.o Timer.o Int.o \
         IntMod.o Point.o SECP256K1.o Vanity.o GPU/GPUGenerate.o \
         hash/ripemd160.o hash/sha256.o hash/sha512.o \
         hash/ripemd160_sse.o hash/sha256_sse.o)
 
+endif
+
 CXX        = g++
 CUDA       = /usr/local/cuda-8.0
 NVCC       = $(CUDA)/bin/nvcc
 
 ifdef gpu
-#CXXFLAGS   = -DWIDTHGPU -m64  -Wno-write-strings -g -I. -I$(CUDA)/include
-CXXFLAGS   =  -m64  -Wno-write-strings -O2 -I. -I$(CUDA)/include
+#CXXFLAGS   = -DWITHGPU -m64  -Wno-write-strings -g -I. -I$(CUDA)/include
+CXXFLAGS   =  -DWITHGPU -m64  -Wno-write-strings -O2 -I. -I$(CUDA)/include
+LFLAGS     = -lpthread -L$(CUDA)/lib64 -lcudart
 else
 #CXXFLAGS   = -m64  -Wno-write-strings -g -I. -I$(CUDA)/include
 CXXFLAGS   =  -m64 -msse -Wno-write-strings -O2 -I. -I$(CUDA)/include
+LFLAGS     = -lpthread
 endif
 
-LFLAGS     = -lpthread
 
 #--------------------------------------------------------------------
 
 ifdef gpu
-$(OBJDIR)/GPUEngine.o: GPU/GPUEngine.cu
-	$(NVCC) -ccbin g++ -m64 -O2 -I$(CUDA)/include -gencode=arch=compute_20,code=sm_20 -o GPU/Engine.o -c GPU/GPUEngine.cu
+$(OBJDIR)/GPU/GPUEngine.o: GPU/GPUEngine.cu
+	$(NVCC) -cudart static --compiler-options -fPIC -ccbin g++ -m64 -O2 -I$(CUDA)/include -gencode=arch=compute_20,code=sm_20 -o $(OBJDIR)/GPU/GPUEngine.o -c GPU/GPUEngine.cu
 endif
 
 $(OBJDIR)/%.o : %.cpp
