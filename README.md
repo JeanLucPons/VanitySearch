@@ -3,7 +3,6 @@
 VanitySearch is a bitcoin address prefix finder. It uses fixed size arithmethic in order to get best performances. 
 Secure hash algorithms (SHA256 and RIPEMD160) are performed using SSE on the CPU. The GPU kernel has been written using
 CUDA in order to take advantage of inline PTX assembly. VanitySearch may not compute a good grid size for your hardware, so try different values using -g option. If you want to use GPU and CPU together, you may have best performance by keeping one CPU core for handling GPU/CPU exchanges (use -t option to set the number of CPU threads).
-Linux release does not support GPU yet.
 
 # Usage
 
@@ -38,6 +37,39 @@ VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-
   Check   : 16rXQ3Rvzb1oxdTn1JSPbYXBniPU1uzHBe
   Check   : 1trymeffDV5eAJMANdFs3vVAq6oEjdzK6 (comp)
   ```
+
+# Compilation
+
+## Windows
+
+Intall CUDA SDK and open VanitySearch.sln in Visual C++ 2017.\
+You may need to reset your *Windows SDK version* in project properties.\
+In Build->Configuration Manager, select the *Release* configuration.\
+Build and enjoy.\
+\
+Note: The current relase has been compiled with CUDA SDK 10.0, if you have a different release of the CUDA SDK, you may need to update CUDA SDK paths in VanitySearch.vcxproj using a text editor.
+
+## Linux
+
+Intall CUDA SDK.\
+Depenging on the CUDA SDK version and on your Linux distribution you may need to install an older gcc (just for the CUDA SDK).\
+Add a link to the good gcc in /usr/local/cuda, nvcc will use this path first.\
+
+```
+lrwxrwxrwx 1 root root      16 mars   1 10:54 /usr/local/cuda/bin/g++ -> /usr/bin/g++-4.8*
+lrwxrwxrwx 1 root root      16 mars   1 10:53 /usr/local/cuda/bin/gcc -> /usr/bin/gcc-4.8*
+```
+
+VanitySearch need to be compiled with a recent gcc. The current release has been compiled with gcc 7.3.0.\
+Go to the VanitySearch directory.\
+
+```
+$ g++ -v
+gcc version 7.3.0 (Ubuntu 7.3.0-27ubuntu1~18.04)
+$ make all (for build without CUDA support)
+or
+$ make gpu=1 all
+```
 
 # License
 
