@@ -65,7 +65,7 @@ Edit the makefile and set up the good compute capabilites for your hardware, you
 -gencode=arch=compute_20,code=sm_20
 ```
 
-VanitySearch need to be compiled with a recent gcc. The current release has been compiled with gcc 7.3.0.\
+VanitySearch need to be compiled and linked with a recent gcc. The current release has been compiled with gcc 7.3.0.\
 Go to the VanitySearch directory.
 
 ```
@@ -74,6 +74,23 @@ gcc version 7.3.0 (Ubuntu 7.3.0-27ubuntu1~18.04)
 $ make all (for build without CUDA support)
 or
 $ make gpu=1 all
+```
+Runnig VanitySearch.
+```
+$export LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64
+$./VanitySearch -stop -gpu 1Happy
+Start Sat Mar  2 14:50:56 2019
+Search: 1Happy
+Difficulty: 264104224
+Base Key:E5157A2C7E69B82E807A63582B694CA6537687F55FD0240D80FA1309D8DC4BDA
+Number of CPU thread: 1
+GPU: GPU #0 Quadro 600 (2x48 cores) Grid(32x64)
+5.406 MK/s (GPU 4.718 MK/s) (2^25.11) [P 12.85%][50.00% in 00:00:27]
+Pub Addr: 1HappyEUfSip2dS1wi7SLiHnX7daXsYahf
+Prv Addr: 5KZBDqaxrXYLCBQctrBegLzY2tkTKkDtvDgPmhknC8xpXSjj4oe
+Prv Key : 0xE5157A2C7E69B82E807A63582B694CA653768B005FD0240D80FA1309D8DC9939
+Check   : 1Fz3rj7Pf3nTbtrLRjPcCV8pnBA7jwf4Y2
+Check   : 1HappyEUfSip2dS1wi7SLiHnX7daXsYahf (comp)
 ```
 
 # License
