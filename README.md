@@ -53,7 +53,7 @@ Note: The current relase has been compiled with CUDA SDK 10.0, if you have a dif
 
 Intall CUDA SDK.\
 Depenging on the CUDA SDK version and on your Linux distribution you may need to install an older gcc (just for the CUDA SDK).\
-Add a link to the good gcc in /usr/local/cuda, nvcc will use this path first.\
+Add a link to the good gcc in /usr/local/cuda, nvcc will use this path first.
 
 ```
 lrwxrwxrwx 1 root root      16 mars   1 10:54 /usr/local/cuda/bin/g++ -> /usr/bin/g++-4.8*
@@ -61,7 +61,7 @@ lrwxrwxrwx 1 root root      16 mars   1 10:53 /usr/local/cuda/bin/gcc -> /usr/bi
 ```
 
 VanitySearch need to be compiled with a recent gcc. The current release has been compiled with gcc 7.3.0.\
-Go to the VanitySearch directory.\
+Go to the VanitySearch directory.
 
 ```
 $ g++ -v
