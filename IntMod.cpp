@@ -776,28 +776,17 @@ static inline void mulP(uint64_t a,uint64_t *dst) {
   // Multiply a by (2^256 - 2^32 - 977) (Secpk1 prime field)
   unsigned char c = 0;
 
-  uint64_t a32h = a >> 32;
-  uint64_t a32l = a << 32;
-  uint64_t a977h;
-  uint64_t a977l;
+  uint64_t ah;
+  uint64_t al;
 
-  a977l = _umul128(a,977,&a977h);
+  al = _umul128(a, 0x1000003D1ULL,&ah);
 
-  // Compute a.2^256 - a.2^32
-  c = _subborrow_u64(c,0,a32l,dst + 0);
-  c = _subborrow_u64(c,0,a32h,dst + 1);
+  // Compute a.2^256 - a.(2^32 + 977)
+  c = _subborrow_u64(c,0,al,dst + 0);
+  c = _subborrow_u64(c,0,ah,dst + 1);
   c = _subborrow_u64(c,0,0,dst + 2);
   c = _subborrow_u64(c,0,0,dst + 3);
   _subborrow_u64(c,a,0,dst + 4);
-
-  c = 0;
-
-  // Compute (a.2^256 - a.2^32) - a.977
-  c = _subborrow_u64(c,dst[0],a977l,dst + 0);
-  c = _subborrow_u64(c,dst[1],a977h,dst + 1);
-  c = _subborrow_u64(c,dst[2],0,dst + 2);
-  c = _subborrow_u64(c,dst[3],0,dst + 3);
-  _subborrow_u64(c,dst[4],0,dst + 4);
 
 }
 

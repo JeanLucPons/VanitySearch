@@ -54,7 +54,7 @@ int getInt(string name,char *v) {
 
     r = std::stoi(string(v));
 
-  } catch(std::invalid_argument &ex) {
+  } catch(std::invalid_argument&) {
 
     printf("Invalid %s argument, number expected\n",name.c_str());
     exit(-1);
@@ -82,7 +82,7 @@ void getInts(string name,vector<int> &tokens, const string &text, char sep) {
     item = std::stoi(text.substr(start));
     tokens.push_back(item);
 
-  } catch(std::invalid_argument &ex) {
+  } catch(std::invalid_argument &) {
 
     printf("Invalid %s argument, number expected\n",name.c_str());
     exit(-1);

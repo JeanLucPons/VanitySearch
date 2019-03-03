@@ -789,7 +789,7 @@ void Int::Div(Int *a,Int *mod) {
   int sb = tSize-1;
         
   // D2 Initialize j
-  for(int j=0; j<qSize; j++) {
+  for(int j=0; j<(int)qSize; j++) {
 
     // D3 Estimate qhat
     uint32_t qhat = 0;
@@ -1099,7 +1099,6 @@ void Int::Check() {
   double t0;
   double t1;
   double tTotal;
-  double tTotal2;
   int   i;
   bool ok;
 

@@ -542,7 +542,7 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
   double t1;
   endOfSearch = false;
   nbCPUThread = nbThread;
-  nbGPUThread = (useGpu?gpuId.size():0);
+  nbGPUThread = (useGpu?(int)gpuId.size():0);
   nbFoundKey = 0;
 
   memset(counters,0,sizeof(counters));
