@@ -35,17 +35,16 @@ Point Gn[CPU_GRP_SIZE];
 // ----------------------------------------------------------------------------
 
 VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, bool useGpu, 
-                           int gpuId, bool stop, int gridSize, string outputFile, bool useSSE) {
+                           bool stop, string outputFile, bool useSSE) {
 
   this->vanityPrefix = prefix;
   this->secp = secp;
   this->searchComp = comp;
   this->useGpu = useGpu;
-  this->gpuId = gpuId;
   this->stopWhenFound = stop;
-  this->gridSize = gridSize;
   this->outputFile = outputFile;
   this->useSSE = useSSE;
+  this->nbGPUThread = 0;
   sPrefix = -1;
   std::vector<unsigned char> result;
 
@@ -133,13 +132,12 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
 
   // Seed
   if (seed.length() == 0) {
-#ifdef WIN64
     // Default seed
+#ifdef WIN64
     seed = to_string(Timer::qwTicksPerSec.LowPart) + to_string(Timer::perfTickStart.HighPart) +
            to_string(Timer::perfTickStart.LowPart) + to_string(time(NULL));
 #else
-    // TODO
-    seed = to_string(time(NULL));
+    seed = to_string(time(NULL)) + to_string(Timer::get_tick());
 #endif
   }
 
@@ -309,7 +307,8 @@ DWORD WINAPI _FindKeyGPU(LPVOID lpParam) {
 #else
 void *_FindKeyGPU(void *lpParam) {
 #endif
-  ((VanitySearch *)lpParam)->FindKeyGPU();
+  TH_PARAM *p = (TH_PARAM *)lpParam;
+  p->obj->FindKeyGPU(p);
   return 0;
 }
 
@@ -331,8 +330,7 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
   // Group Init
   Int key(&startKey);
-  Int off((int64_t)0);
-  off.Add((uint64_t)thId);
+  Int off((int64_t)thId);
   off.ShiftL(64);
   key.Add(&off);
   Point startP = secp.ComputePublicKey(&key);
@@ -356,7 +354,7 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
     // Grouped ModInv
     grp->ModInv();
 
-    for (int i = 0; i < CPU_GRP_SIZE; i++) {
+    for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i++) {
 
       pts[i] = p;
       p = startP;
@@ -379,10 +377,10 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
     }
 
-    // Check addresses (compressed)
+    // Check addresses
     if (useSSE) {
 
-      for (int i = 0; i < CPU_GRP_SIZE; i += 4) {
+      for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i += 4) {
 
         secp.GetHash160(searchComp, pts[i], pts[i + 1], pts[i + 2], pts[i + 3], h0, h1, h2, h3);
 
@@ -412,7 +410,7 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
     } else {
 
-      for (int i = 0; i < CPU_GRP_SIZE; i ++) {
+      for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i ++) {
 
         secp.GetHash160(pts[i], searchComp, h0);
 
@@ -434,19 +432,21 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
   }
 
+  ph->isRunning = false;
 
 }
 
 // ----------------------------------------------------------------------------
 
-void VanitySearch::FindKeyGPU() {
+void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
 
   bool ok = true;
 
 #ifdef WITHGPU
 
   // Global init
-  GPUEngine g(gridSize, gpuId);
+  int thId = ph->threadId;
+  GPUEngine g(ph->gridSize, ph->gpuId);
   int nbThread = g.GetNbThread();
   Point *p = new Point[nbThread];
   Int *keys = new Int[nbThread];
@@ -454,13 +454,16 @@ void VanitySearch::FindKeyGPU() {
 
   printf("GPU: %s\n",g.deviceName.c_str());
 
-  counters[0xFF] = 0;
+  counters[thId] = 0;
 
   for (int i = 0; i < nbThread; i++) {
     keys[i].Set(&startKey);
-    Int off((uint64_t)i);
-    off.ShiftL(96);
-    keys[i].Add(&off);
+    Int offT((uint64_t)i);
+    offT.ShiftL(80);
+    Int offG((uint64_t)thId);
+    offG.ShiftL(112);
+    keys[i].Add(&offT);
+    keys[i].Add(&offG);
     p[i] = secp.ComputePublicKey(&keys[i]);
   }
   g.SetSearchMode(searchComp);
@@ -485,14 +488,10 @@ void VanitySearch::FindKeyGPU() {
       for (int i = 0; i < nbThread; i++) {
         keys[i].Add((uint64_t)STEP_SIZE);
       }
-      counters[0xFF] += STEP_SIZE * nbThread;
+      counters[thId] += STEP_SIZE * nbThread;
     }
 
   }
-
-  // GPU thread may exit on error
-  if(nbCpuThread==0)
-    endOfSearch = true;
 
   delete[] keys;
   delete[] p;
@@ -501,27 +500,63 @@ void VanitySearch::FindKeyGPU() {
   printf("GPU code not compiled, use -DWITHGPU when compiling.\n");
 #endif
 
+  ph->isRunning = false;
+
+}
+// ----------------------------------------------------------------------------
+
+bool VanitySearch::isAlive(TH_PARAM *p) {
+
+  bool isAlive = true;
+  int total = nbCPUThread + nbGPUThread;
+  for(int i=0;i<total;i++)
+    isAlive = isAlive && p[i].isRunning;
+
+  return isAlive;
+
+}
+
+uint64_t VanitySearch::getGPUCount() {
+
+  uint64_t count = 0;
+  for(int i=0;i<nbGPUThread;i++)
+    count += counters[0x80L+i];
+  return count;
+
+}
+
+uint64_t VanitySearch::getCPUCount() {
+
+  uint64_t count = 0;
+  for(int i=0;i<nbCPUThread;i++)
+    count += counters[i];
+  return count;
+
 }
 
 // ----------------------------------------------------------------------------
 
-void VanitySearch::Search(int nbThread) {
+void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize) {
 
   double t0;
   double t1;
   endOfSearch = false;
-  nbCpuThread = nbThread;
+  nbCPUThread = nbThread;
+  nbGPUThread = (useGpu?gpuId.size():0);
   nbFoundKey = 0;
 
   memset(counters,0,sizeof(counters));
 
-  printf("Number of CPU thread: %d\n", nbThread);
+  printf("Number of CPU thread: %d\n", nbCPUThread);
 
-  TH_PARAM *params = (TH_PARAM *)malloc((nbThread + (useGpu?1:0)) * sizeof(TH_PARAM));
+  TH_PARAM *params = (TH_PARAM *)malloc((nbCPUThread + nbGPUThread) * sizeof(TH_PARAM));
+  memset(params,0,(nbCPUThread + nbGPUThread) * sizeof(TH_PARAM));
 
-  for (int i = 0; i < nbThread; i++) {
+  // Launch CPU threads
+  for (int i = 0; i < nbCPUThread; i++) {
     params[i].obj = this;
     params[i].threadId = i;
+    params[i].isRunning = true;
 
 #ifdef WIN64
     DWORD thread_id;
@@ -534,15 +569,19 @@ void VanitySearch::Search(int nbThread) {
 #endif
   }
 
-  if (useGpu) {
-    params[nbThread].obj = this;
-    params[nbThread].threadId = 255;
+  // Launch GPU threads
+  for (int i = 0; i < nbGPUThread; i++) {
+    params[nbCPUThread+i].obj = this;
+    params[nbCPUThread+i].threadId = 0x80L+i;
+    params[nbCPUThread+i].isRunning = true;
+    params[nbCPUThread+i].gpuId = gpuId[i];
+    params[nbCPUThread+i].gridSize = gridSize[i];
 #ifdef WIN64
     DWORD thread_id;
-    CreateThread(NULL, 0, _FindKeyGPU, (void*)(this), 0, &thread_id);
+    CreateThread(NULL, 0, _FindKeyGPU, (void*)(params+(nbCPUThread+i)), 0, &thread_id);
 #else
     pthread_t thread_id;
-    pthread_create(&thread_id, NULL, &_FindKeyGPU, (void*)(this));  
+    pthread_create(&thread_id, NULL, &_FindKeyGPU, (void*)(params+(nbCPUThread+i)));  
 #endif
   }
 
@@ -553,11 +592,12 @@ void VanitySearch::Search(int nbThread) {
   t0 = Timer::get_tick();
   startTime = t0;
   uint64_t lastCount = 0;
+  uint64_t gpuCount = 0;
   uint64_t lastGPUCount = 0;
-  while (!endOfSearch) {
+  while (isAlive(params)) {
 
     int delay = 2000;
-    while (!endOfSearch && delay>0) {
+    while (isAlive(params) && delay>0) {
 #ifdef WIN64
       Sleep(500);
 #else
@@ -566,17 +606,14 @@ void VanitySearch::Search(int nbThread) {
       delay -= 500;
     }
 
-    uint64_t count = 0;
-    for (int i = 0; i < nbThread; i++)
-      count += counters[i];
-    if(useGpu)
-      count += counters[0xFF];
+    gpuCount = getGPUCount();
+    uint64_t count = getCPUCount() + gpuCount;
 
     t1 = Timer::get_tick();
     double keyRate = (double)(count - lastCount) / (t1 - t0);
-    double gpuKeyRate = (double)(counters[0xFF] - lastGPUCount) / (t1 - t0);
+    double gpuKeyRate = (double)(gpuCount - lastGPUCount) / (t1 - t0);
 
-    if (!endOfSearch) {
+    if (isAlive(params)) {
       if (stopWhenFound) {
         printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s\r",
           keyRate / 1000000.0, gpuKeyRate / 1000000.0,
@@ -589,7 +626,7 @@ void VanitySearch::Search(int nbThread) {
     }
 
     lastCount = count;
-    lastGPUCount = counters[0xFF];
+    lastGPUCount = gpuCount;
     t0 = t1;
 
   }

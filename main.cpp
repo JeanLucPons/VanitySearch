@@ -15,12 +15,14 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <string.h>
 #include "Timer.h"
 #include "Vanity.h"
 #include "SECP256k1.h"
+#include <string>
+#include <string.h>
+#include <stdexcept>
 
-#define RELEASE "1.4"
+#define RELEASE "1.5"
 
 using namespace std;
 
@@ -33,22 +35,59 @@ void printUsage() {
   printf(" -u: Search uncompressed addresses\n");
   printf(" -o outputfile: Output results to the specified file\n");
   printf(" -gpu: Enable gpu calculation\n");
-  printf(" -gpu gpuId: Use gpu gpuId, default is 0\n");
-  printf(" -g gridSize: Specify GPU kernel gridsize, default is 16*(MP number)\n");
+  printf(" -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0\n");
+  printf(" -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 16*(MP number)\n");
   printf(" -s seed: Specify a seed for the base key, default is random\n");
   printf(" -t threadNumber: Specify number of CPU thread, default is number of core\n");
   printf(" -nosse : Disable SSE hash function\n");
+  printf(" -l : List cuda enabled devices\n");
   printf(" -stop: Stop when prefix is found\n");
   exit(-1);
 
 }
 
-int getInt(char *v) {
+int getInt(string name,char *v) {
 
-  int r = strtol(v, NULL, 10);
-  if (errno == EINVAL)
-    printUsage();
+  int r;
+
+  try {
+
+    r = std::stoi(string(v));
+
+  } catch(std::invalid_argument &ex) {
+
+    printf("Invalid %s argument, number expected\n",name.c_str());
+    exit(-1);
+
+  }
+
   return r;
+
+}
+
+void getInts(string name,vector<int> &tokens, const string &text, char sep) {
+
+  size_t start = 0, end = 0;
+  tokens.clear();
+  int item;
+
+  try {
+
+    while ((end = text.find(sep, start)) != string::npos) {
+      item = std::stoi(text.substr(start, end - start));
+      tokens.push_back(item);
+      start = end + 1;
+    }
+
+    item = std::stoi(text.substr(start));
+    tokens.push_back(item);
+
+  } catch(std::invalid_argument &ex) {
+
+    printf("Invalid %s argument, number expected\n",name.c_str());
+    exit(-1);
+
+  }
 
 }
 
@@ -73,12 +112,12 @@ int main(int argc, char* argv[]) {
   bool gpuEnable = false;
   bool stop = false;
   bool uncomp = false;
-  int gpuId = 0;
-  int gridSize = -1;
+  vector<int> gpuId = {0};
+  vector<int> gridSize = {-1};
   string seed = "";
   string prefix = "";
   string outputFile = "";
-  int nbThread = Timer::getCoreNumber();
+  int nbCPUThread = Timer::getCoreNumber();
   bool tSpecified = false;
   bool sse = true;
 
@@ -89,7 +128,7 @@ int main(int argc, char* argv[]) {
       a++;
     } else if (strcmp(argv[a], "-gpuId")==0) {
       a++;
-      gpuId = getInt(argv[a]);
+      getInts("gpuId",gpuId,string(argv[a]),',');
       a++;
     } else if (strcmp(argv[a], "-stop") == 0) {
       stop = true;
@@ -103,13 +142,22 @@ int main(int argc, char* argv[]) {
       secp.Check();
 
 #ifdef WITHGPU
-      GPUEngine g(gridSize,gpuId);
+      GPUEngine g(gridSize[0],gpuId[0]);
       g.SetSearchMode(!uncomp);
       g.Check(secp);
 #else
   printf("GPU code not compiled, use -DWITHGPU when compiling.\n");
 #endif
       exit(0);
+    } else if (strcmp(argv[a], "-l") == 0) {
+
+#ifdef WITHGPU
+      GPUEngine::PrintCudaInfo();
+#else
+  printf("GPU code not compiled, use -DWITHGPU when compiling.\n");
+#endif
+      exit(0);
+
     } else if (strcmp(argv[a], "-u") == 0) {
       uncomp = true;
       a++;
@@ -118,7 +166,7 @@ int main(int argc, char* argv[]) {
       a++;
     } else if (strcmp(argv[a], "-g") == 0) {
       a++;
-      gridSize = getInt(argv[a]);
+      getInts("gridSize",gridSize,string(argv[a]),',');
       a++;
     } else if (strcmp(argv[a], "-s") == 0) {
       a++;
@@ -130,7 +178,7 @@ int main(int argc, char* argv[]) {
       a++;
     } else if (strcmp(argv[a], "-t") == 0) {
       a++;
-      nbThread = getInt(argv[a]);
+      nbCPUThread = getInt("nbCPUThread",argv[a]);
       a++;
       tSpecified = true;
     } else if (a == argc - 1) {
@@ -143,13 +191,24 @@ int main(int argc, char* argv[]) {
 
   }
 
+  if(gpuId.size()!=gridSize.size()) {
+    if(gridSize.size()==1 && gridSize[0]==-1) {
+      gridSize.clear();
+      for(int i=0;i<gpuId.size();i++)
+        gridSize.push_back(-1);
+    } else {
+      printf("Invalid gridSize or gpuId argument, must have same size\n");
+      printUsage();
+    }
+  }
+
   // Let one CPU core free if gpu is enabled
   // It will avoid to hang the system
-  if( !tSpecified && nbThread>1 && gpuEnable)
-    nbThread--;
+  if( !tSpecified && nbCPUThread>1 && gpuEnable)
+    nbCPUThread--;
 
-  VanitySearch *v = new VanitySearch(secp, prefix, seed,!uncomp,gpuEnable,gpuId,stop,gridSize,outputFile,sse);
-  v->Search(nbThread);
+  VanitySearch *v = new VanitySearch(secp, prefix, seed,!uncomp,gpuEnable,stop,outputFile,sse);
+  v->Search(nbCPUThread,gpuId,gridSize);
 
   return 0;
 }

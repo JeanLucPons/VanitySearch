@@ -32,6 +32,9 @@ typedef struct {
 
   VanitySearch *obj;
   int threadId;
+  bool isRunning;
+  int gridSize;
+  int gpuId;
 
 } TH_PARAM;
 
@@ -40,11 +43,10 @@ class VanitySearch {
 public:
 
   VanitySearch(Secp256K1 &secp, std::string prefix, std::string seed, bool compressed, 
-               bool useGpu, int gpuId, bool stop,int gridSize,std::string outputFile,
-               bool useSSE);
-  void Search(int nbThread);
+               bool useGpu,bool stop,std::string outputFile, bool useSSE);
+  void Search(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize);
   void FindKeyCPU(TH_PARAM *p);
-  void FindKeyGPU();
+  void FindKeyGPU(TH_PARAM *p);
 
 private:
 
@@ -52,6 +54,9 @@ private:
   std::string GetExpectedTime(double keyRate, double keyCount);
   bool checkAddr(std::string &addr, Int &key, uint64_t incr);
   void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string chkAddr, std::string chkAddrC);
+  bool isAlive(TH_PARAM *p);
+  uint64_t getGPUCount();
+  uint64_t getCPUCount();
 
   Secp256K1 secp;
   double _difficulty;
@@ -62,11 +67,10 @@ private:
   double startTime;
   bool searchComp;
   bool useGpu;
-  int gpuId;
   bool stopWhenFound;
   bool endOfSearch;
-  int gridSize;
-  int nbCpuThread;
+  int nbCPUThread;
+  int nbGPUThread;
   int nbFoundKey;
   std::string outputFile;
   bool useSSE;

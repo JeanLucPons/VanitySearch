@@ -57,6 +57,8 @@ public:
 
   bool Check(Secp256K1 &secp);
   std::string deviceName;
+
+  static void PrintCudaInfo();
   static void GenerateCode(Secp256K1 &secp, int size);
 
 private:

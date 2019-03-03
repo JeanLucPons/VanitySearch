@@ -270,26 +270,18 @@ __device__ void IMult(uint64_t *r, uint64_t *a, int64_t b) {
 
 __device__ void MulP(uint64_t *r,uint64_t a) {
 
-  uint64_t a32h = a >> 32;
-  uint64_t a32l = a << 32;
-  uint64_t a977h;
-  uint64_t a977l;
+  uint64_t ah;
+  uint64_t al;
 
-  UMULLO(a977l,a,977ULL);
-  UMULHI(a977h,a,977ULL);
+  UMULLO(al,a,0x1000003D1ULL);
+  UMULHI(ah,a,0x1000003D1ULL);
 
-  USUBO(r[0], 0ULL, a32l);
-  USUBC(r[1], 0ULL, a32h);
+  USUBO(r[0], 0ULL, al);
+  USUBC(r[1], 0ULL, ah);
   USUBC(r[2], 0ULL, 0ULL);
   USUBC(r[3], 0ULL, 0ULL);
   USUB(r[4],  a, 0ULL);
-  
-  USUBO(r[0], r[0], a977l);
-  USUBC(r[1], r[1], a977h);
-  USUBC(r[2], r[2], 0ULL);
-  USUBC(r[3], r[3], 0ULL);
-  USUB(r[4],  r[4], 0ULL);
-  
+    
 }
 
 // ---------------------------------------------------------------------------------------
@@ -1457,6 +1449,54 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
 
   searchComp = true;
   initialised = true;
+
+}
+
+void GPUEngine::PrintCudaInfo() {
+
+  cudaError_t err;
+
+  const char *sComputeMode[] =
+  {
+    "Multiple host threads",
+    "Only one host thread",
+    "No host thread",
+    "Multiple process threads",
+    "Unknown",
+     NULL
+  };
+
+  int deviceCount = 0;
+  cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
+
+  if (error_id != cudaSuccess) {
+    printf("GPUEngine: CudaGetDeviceCount %s\n", cudaGetErrorString(error_id));
+    return;
+  }
+
+  // This function call returns 0 if there are no CUDA capable devices.
+  if (deviceCount == 0) {
+    printf("GPUEngine: There are no available device(s) that support CUDA\n");
+    return;
+  }
+
+  for(int i=0;i<deviceCount;i++) {
+
+    err = cudaSetDevice(i);
+    if (err != cudaSuccess) {
+      printf("GPUEngine: cudaSetDevice(%d) %s\n", i, cudaGetErrorString(err));
+      return;
+    }
+
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, i);
+    printf("GPU #%d %s (%dx%d cores) (Cap %d.%d) (%.1f MB) (%s)\n",
+      i,deviceProp.name,deviceProp.multiProcessorCount,
+      _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor),
+      deviceProp.major, deviceProp.minor,(double)deviceProp.totalGlobalMem/1048576.0,
+      sComputeMode[deviceProp.computeMode]);
+
+  }
 
 }
 
