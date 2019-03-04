@@ -1386,7 +1386,7 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
   cudaGetDeviceProperties(&deviceProp, gpuId);
 
   if (nbThreadGroup == -1)
-    nbThreadGroup = deviceProp.multiProcessorCount * 16;
+    nbThreadGroup = deviceProp.multiProcessorCount * 8;
 
   nbThread = nbThreadGroup * NB_TRHEAD_PER_GROUP;
   

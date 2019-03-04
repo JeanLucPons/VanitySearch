@@ -25,7 +25,7 @@
 #define STEP_SIZE 256
 
 // Number of thread per block
-#define NB_TRHEAD_PER_GROUP 64
+#define NB_TRHEAD_PER_GROUP 128
 
 // Maximum number of prefix found per thread (MAX_FOUND<=STEP_SIZE)
 // If MAX_FOUND is too large it may crash and slow down the kernel
