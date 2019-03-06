@@ -1395,9 +1395,9 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
     return;
   }
 
-  double P = 1/65536.0;
-  double Plost = Psk(STEP_SIZE,MAX_FOUND,P);
-  printf("Plost=%g\n",Plost);
+  //double P = 1/65536.0;
+  //double Plost = Psk(STEP_SIZE,MAX_FOUND,P);
+  //printf("Plost=%g\n",Plost);
 
   searchComp = true;
   initialised = true;
