@@ -770,26 +770,6 @@ void Int::AddAndShift(Int *a, Int *b, uint64_t cH) {
 
 }
 
-
-static inline void mulP(uint64_t a,uint64_t *dst) {
-
-  // Multiply a by (2^256 - 2^32 - 977) (Secpk1 prime field)
-  unsigned char c = 0;
-
-  uint64_t ah;
-  uint64_t al;
-
-  al = _umul128(a, 0x1000003D1ULL,&ah);
-
-  // Compute a.2^256 - a.(2^32 + 977)
-  c = _subborrow_u64(c,0,al,dst + 0);
-  c = _subborrow_u64(c,0,ah,dst + 1);
-  c = _subborrow_u64(c,0,0,dst + 2);
-  c = _subborrow_u64(c,0,0,dst + 3);
-  _subborrow_u64(c,a,0,dst + 4);
-
-}
-
 // ------------------------------------------------
 void Int::MontgomeryMult(Int *a) {
 
@@ -806,9 +786,7 @@ void Int::MontgomeryMult(Int *a) {
   // i = 0
   imm_umul(a->bits64, bits64[0], pr.bits64);
   ML = pr.bits64[0] * MM64;
-  //imm_umul(_P.bits64, ML, p.bits64);
-  // specific secpk1 optimisation here
-  mulP(ML,p.bits64);
+  imm_umul(_P.bits64, ML, p.bits64);
   c = pr.AddC(&p);
   memcpy(t.bits64, pr.bits64 + 1, 8 * (NB64BLOCK - 1));
   t.bits64[NB64BLOCK - 1] = c;
@@ -817,9 +795,7 @@ void Int::MontgomeryMult(Int *a) {
 
     imm_umul(a->bits64, bits64[i], pr.bits64);
     ML = (pr.bits64[0] + t.bits64[0]) * MM64;
-    //imm_umul(_P.bits64, ML, p.bits64);
-    // specific secpk1 optimisation here
-	  mulP(ML,p.bits64);
+    imm_umul(_P.bits64, ML, p.bits64);
 	  c = pr.AddC(&p);
     t.AddAndShift(&t, &pr, c);
 
@@ -847,9 +823,7 @@ void Int::MontgomeryMult(Int *a, Int *b) {
   // i = 0
   imm_umul(a->bits64, b->bits64[0], pr.bits64);
   ML = pr.bits64[0] * MM64;
-  //imm_umul(_P.bits64, ML, p.bits64);
-  // specific secpk1 optimisation here
-  mulP(ML,p.bits64);
+  imm_umul(_P.bits64, ML, p.bits64);
   c = pr.AddC(&p);
   memcpy(bits64,pr.bits64 + 1,8*(NB64BLOCK-1));
   bits64[NB64BLOCK-1] = c;
@@ -858,9 +832,7 @@ void Int::MontgomeryMult(Int *a, Int *b) {
 
     imm_umul(a->bits64, b->bits64[i], pr.bits64);
     ML = (pr.bits64[0] + bits64[0]) * MM64;
-    //imm_umul(_P.bits64, ML, p.bits64);
-    // specific secpk1 optimisation here
-	  mulP(ML,p.bits64);
+    imm_umul(_P.bits64, ML, p.bits64);
 	  c = pr.AddC(&p);
     AddAndShift(this, &pr, c);
 
@@ -869,5 +841,109 @@ void Int::MontgomeryMult(Int *a, Int *b) {
   p.Sub(this, &_P);
   if (p.IsPositive())
     Set(&p);
+
+}
+
+void Int::ModMulK1(Int *a, Int *b) {
+
+  unsigned char c;
+  uint64_t ah, al;
+  uint64_t t[5];
+  uint64_t r512[8];
+  r512[5] = 0;
+  r512[6] = 0;
+  r512[7] = 0;
+
+  // 256*256 multiplier
+  imm_umul(a->bits64, b->bits64[0], r512);
+  imm_umul(a->bits64, b->bits64[1], t);
+  c = _addcarry_u64(0, r512[1], t[0], r512 + 1);
+  c = _addcarry_u64(c, r512[2], t[1], r512 + 2);
+  c = _addcarry_u64(c, r512[3], t[2], r512 + 3);
+  c = _addcarry_u64(c, r512[4], t[3], r512 + 4);
+  c = _addcarry_u64(c, r512[5], t[4], r512 + 5);
+  imm_umul(a->bits64, b->bits64[2], t);
+  c = _addcarry_u64(0, r512[2], t[0], r512 + 2);
+  c = _addcarry_u64(c, r512[3], t[1], r512 + 3);
+  c = _addcarry_u64(c, r512[4], t[2], r512 + 4);
+  c = _addcarry_u64(c, r512[5], t[3], r512 + 5);
+  c = _addcarry_u64(c, r512[6], t[4], r512 + 6);
+  imm_umul(a->bits64, b->bits64[3], t);
+  c = _addcarry_u64(0, r512[3], t[0], r512 + 3);
+  c = _addcarry_u64(c, r512[4], t[1], r512 + 4);
+  c = _addcarry_u64(c, r512[5], t[2], r512 + 5);
+  c = _addcarry_u64(c, r512[6], t[3], r512 + 6);
+  c = _addcarry_u64(c, r512[7], t[4], r512 + 7);
+
+  // Reduce from 512 to 320 
+  imm_umul(r512 + 4, 0x1000003D1ULL, t);
+  c = _addcarry_u64(0, r512[0], t[0], r512 + 0);
+  c = _addcarry_u64(c, r512[1], t[1], r512 + 1);
+  c = _addcarry_u64(c, r512[2], t[2], r512 + 2);
+  c = _addcarry_u64(c, r512[3], t[3], r512 + 3);
+
+  // Reduce from 320 to 256 
+  al = _umul128(t[4] + c, 0x1000003D1ULL, &ah);
+  c = _addcarry_u64(0, r512[0], al, bits64 + 0);
+  c = _addcarry_u64(c, r512[1], ah, bits64 + 1);
+  c = _addcarry_u64(c, r512[2], 0, bits64 + 2);
+  c = _addcarry_u64(c, r512[3], 0, bits64 + 3);
+  bits64[4] = 0;
+
+}
+
+void Int::ModMulK1(Int *a) {
+
+  unsigned char c;
+  uint64_t ah, al;
+  uint64_t t[5];
+  uint64_t r512[8];
+  r512[5] = 0;
+  r512[6] = 0;
+  r512[7] = 0;
+
+  // 256*256 multiplier
+  imm_umul(a->bits64, bits64[0], r512);
+  imm_umul(a->bits64, bits64[1], t);
+  c = _addcarry_u64(0, r512[1], t[0], r512 + 1);
+  c = _addcarry_u64(c, r512[2], t[1], r512 + 2);
+  c = _addcarry_u64(c, r512[3], t[2], r512 + 3);
+  c = _addcarry_u64(c, r512[4], t[3], r512 + 4);
+  c = _addcarry_u64(c, r512[5], t[4], r512 + 5);
+  imm_umul(a->bits64, bits64[2], t);
+  c = _addcarry_u64(0, r512[2], t[0], r512 + 2);
+  c = _addcarry_u64(c, r512[3], t[1], r512 + 3);
+  c = _addcarry_u64(c, r512[4], t[2], r512 + 4);
+  c = _addcarry_u64(c, r512[5], t[3], r512 + 5);
+  c = _addcarry_u64(c, r512[6], t[4], r512 + 6);
+  imm_umul(a->bits64, bits64[3], t);
+  c = _addcarry_u64(0, r512[3], t[0], r512 + 3);
+  c = _addcarry_u64(c, r512[4], t[1], r512 + 4);
+  c = _addcarry_u64(c, r512[5], t[2], r512 + 5);
+  c = _addcarry_u64(c, r512[6], t[3], r512 + 6);
+  c = _addcarry_u64(c, r512[7], t[4], r512 + 7);
+
+  // Reduce from 512 to 320 
+  imm_umul(r512 + 4, 0x1000003D1ULL, t);
+  c = _addcarry_u64(0, r512[0], t[0], r512 + 0);
+  c = _addcarry_u64(c, r512[1], t[1], r512 + 1);
+  c = _addcarry_u64(c, r512[2], t[2], r512 + 2);
+  c = _addcarry_u64(c, r512[3], t[3], r512 + 3);
+
+  // Reduce from 320 to 256 
+  al = _umul128(t[4] + c, 0x1000003D1ULL, &ah);
+  c = _addcarry_u64(0, r512[0], al, bits64 + 0);
+  c = _addcarry_u64(c, r512[1], ah, bits64 + 1);
+  c = _addcarry_u64(c, r512[2], 0, bits64 + 2);
+  c = _addcarry_u64(c, r512[3], 0, bits64 + 3);
+  bits64[4] = 0;
+
+}
+
+void Int::ModSquareK1(Int *a) {
+
+  // TODO
+  // Implement optimization for squaring
+  ModMulK1(a,a);
 
 }

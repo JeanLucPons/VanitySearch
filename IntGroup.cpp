@@ -19,8 +19,9 @@
 
 using namespace std;
 
-IntGroup::IntGroup() {
-  subp = (Int *)malloc(CPU_GRP_SIZE * sizeof(Int));
+IntGroup::IntGroup(int size) {
+  this->size = size;
+  subp = (Int *)malloc(size * sizeof(Int));
 }
 
 IntGroup::~IntGroup() {
@@ -38,17 +39,17 @@ void IntGroup::ModInv() {
   Int inverse;
 
   subp[0].Set(&ints[0]);
-  for (unsigned int i = 1; i < CPU_GRP_SIZE; i++) {
-    subp[i].MontgomeryMult(&subp[i - 1], &ints[i]);
+  for (unsigned int i = 1; i < size; i++) {
+    subp[i].ModMulK1(&subp[i - 1], &ints[i]);
   }
 
   // Do the inversion
-  inverse.Set(&subp[CPU_GRP_SIZE - 1]);
+  inverse.Set(&subp[size - 1]);
   inverse.ModInv();
 
-  for (int i = CPU_GRP_SIZE - 1; i > 0; i--) {
-    newValue.MontgomeryMult(&subp[i - 1], &inverse);
-    inverse.MontgomeryMult(&ints[i]);
+  for (int i = size - 1; i > 0; i--) {
+    newValue.ModMulK1(&subp[i - 1], &inverse);
+    inverse.ModMulK1(&ints[i]);
     ints[i].Set(&newValue);
   }
 

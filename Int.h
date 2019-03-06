@@ -122,6 +122,12 @@ public:
   void ModSqrt();                            // this <- +/-sqrt(this) (mod n)
   bool HasSqrt();                            // true if this admit a square root
 
+  // Specific SecpK1 modular mult
+  void Int::ModMulK1(Int *a, Int *b);
+  void Int::ModMulK1(Int *a);
+  void Int::ModMulK1_2(Int *a, Int *b);
+  void Int::ModSquareK1(Int *a);
+
   // Size
   int GetSize();
   int GetBitLength();

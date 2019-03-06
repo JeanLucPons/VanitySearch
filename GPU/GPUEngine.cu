@@ -24,7 +24,7 @@
 // 256(+64) bits integer CUDA libray for SECPK1
 // ---------------------------------------------------------------------------------
 
-// We need 1 extra block for Montgomey multiplication and ModInv
+// We need 1 extra block for ModInv
 #define NBBLOCK 5
 #define BIFULLSIZE 40
 
@@ -67,6 +67,8 @@ __device__ __constant__ uint64_t _1[] = { 1ULL,0ULL,0ULL,0ULL,0ULL };
 __device__ __constant__ uint64_t _P[] = { 0xFFFFFFFEFFFFFC2F,0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF,0ULL };
 __device__ __constant__ uint64_t MM64 = 0xD838091DD2253531; // 64bits lsb negative inverse of P (mod 2^64)
 #include "GPUGroup.h"
+
+#define HSIZE (GRP_SIZE / 2 - 1)
 
 // ---------------------------------------------------------------------------------------
 
@@ -266,22 +268,19 @@ __device__ void IMult(uint64_t *r, uint64_t *a, int64_t b) {
 
 }
 // ---------------------------------------------------------------------------------------
-// Multiply a by (2^256 - 2^32 - 977) (Secpk1 prime field)
 
-__device__ void MulP(uint64_t *r,uint64_t a) {
+__device__ void ModNeg256(uint64_t *r, uint64_t *a) {
 
-  uint64_t ah;
-  uint64_t al;
+  uint64_t t[5];
+  USUBO(t[0], 0ULL, a[0]);
+  USUBC(t[1], 0ULL, a[1]);
+  USUBC(t[2], 0ULL, a[2]);
+  USUBC(t[3], 0ULL, a[3]);
+  UADDO(r[0], t[0], _P[0]);
+  UADDC(r[1], t[1], _P[1]);
+  UADDC(r[2], t[2], _P[2]);
+  UADD(r[3], t[3], _P[3]);
 
-  UMULLO(al,a,0x1000003D1ULL);
-  UMULHI(ah,a,0x1000003D1ULL);
-
-  USUBO(r[0], 0ULL, al);
-  USUBC(r[1], 0ULL, ah);
-  USUBC(r[2], 0ULL, 0ULL);
-  USUBC(r[3], 0ULL, 0ULL);
-  USUB(r[4],  a, 0ULL);
-    
 }
 
 // ---------------------------------------------------------------------------------------
@@ -299,6 +298,28 @@ __device__ void ModSub256(uint64_t *r, uint64_t *a, uint64_t *b) {
     UADDC1(r[1], _P[1]);
     UADDC1(r[2], _P[2]);
     UADD1(r[3], _P[3]);
+  }
+
+}
+
+// ---------------------------------------------------------------------------------------
+
+__device__ void ModAdd256(uint64_t *r, uint64_t *b) {
+
+  uint64_t t[5];
+  uint64_t c;
+  UADDO(t[0], r[0], b[0]);
+  UADDC(t[1], r[1], b[1]);
+  UADDC(t[2], r[2], b[2]);
+  UADDC(t[3], r[3], b[3]);
+  UADD(t[4], 0ULL, 0ULL);
+  USUBO(r[0], t[0], _P[0]);
+  USUBC(r[1], t[1], _P[1]);
+  USUBC(r[2], t[2], _P[2]);
+  USUBC(r[3], t[3], _P[3]);
+  USUB(c, t[4], 0ULL);
+  if ((int64_t)c<0) {
+    Load256(r,t);
   }
 
 }
@@ -462,202 +483,133 @@ __device__ void _ModInv(uint64_t *R) {
 }
 
 // ---------------------------------------------------------------------------------------
-// _MontgomeryMult
-// Compute a*b*R^-1 (mod n),  R=2^256 (mod n)
+// Compute a*b*(mod n)
 // a and b must be lower than n
 // ---------------------------------------------------------------------------------------
 
-__device__ void _MontgomeryMult(uint64_t *r, uint64_t *a, uint64_t *b) {
+__device__ void _ModMult(uint64_t *r, uint64_t *a, uint64_t *b) {
 
-  uint64_t pr[NBBLOCK];
-  uint64_t p[NBBLOCK];
+  uint64_t r512[8];
   uint64_t t[NBBLOCK];
-  uint64_t ML;
-  uint64_t c;
+  uint64_t ah,al;
+  r512[5] = 0;
+  r512[6] = 0;
+  r512[7] = 0;
 
-  UMult(pr, a, b[0]);
-  ML = pr[0] * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  Shift64(t, pr, c);
+  // 256*256 multiplier
+  UMult(r512, a, b[0]);
+  UMult(t, a, b[1]);
+  UADDO1(r512[1], t[0]);
+  UADDC1(r512[2], t[1]);
+  UADDC1(r512[3], t[2]);
+  UADDC1(r512[4], t[3]);
+  UADD1(r512[5], t[4]);
+  UMult(t, a, b[2]);
+  UADDO1(r512[2], t[0]);
+  UADDC1(r512[3], t[1]);
+  UADDC1(r512[4], t[2]);
+  UADDC1(r512[5], t[3]);
+  UADD1(r512[6], t[4]);
+  UMult(t, a, b[3]);
+  UADDO1(r512[3], t[0]);
+  UADDC1(r512[4], t[1]);
+  UADDC1(r512[5], t[2]);
+  UADDC1(r512[6], t[3]);
+  UADD1(r512[7], t[4]);
+ 
+  // Reduce from 512 to 320 
+  UMult(t,(r512 + 4), 0x1000003D1ULL);
+  UADDO1(r512[0], t[0]);
+  UADDC1(r512[1], t[1]);
+  UADDC1(r512[2], t[2]);
+  UADDC1(r512[3], t[3]);
 
-  UMult(pr, a, b[1]);
-  ML = (pr[0] + t[0]) * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  AddAndShift(t, pr, t, c);
-
-  UMult(pr, a, b[2]);
-  ML = (pr[0] + t[0]) * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  AddAndShift(t, pr, t, c);
-
-  UMult(pr, a, b[3]);
-  ML = (pr[0] + t[0]) * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  AddAndShift(t, pr, t, c);
-
-  Sub2(p, t, _P);
-  if (_IsPositive(p))
-    Load256(r, p)
-  else
-    Load256(r, t)
+  // Reduce from 320 to 256 
+  UADD1(t[4],0ULL);
+  UMULLO(al,t[4], 0x1000003D1ULL);
+  UMULHI(ah,t[4], 0x1000003D1ULL);
+  UADDO(r[0],r512[0], al);
+  UADDC(r[1],r512[1], ah);
+  UADDC(r[2],r512[2], 0ULL);
+  UADDC(r[3],r512[3], 0ULL);
+  UADD(r[4],0ULL, 0ULL);
 
 }
 
 
-__device__ void _MontgomeryMult(uint64_t *r, uint64_t *a) {
+__device__ void _ModMult(uint64_t *r, uint64_t *a) {
 
-  uint64_t pr[NBBLOCK];
-  uint64_t p[NBBLOCK];
+  uint64_t r512[8];
   uint64_t t[NBBLOCK];
-  uint64_t ML;
-  uint64_t c;
+  uint64_t ah, al;
+  r512[5] = 0;
+  r512[6] = 0;
+  r512[7] = 0;
 
-  UMult(pr, a, r[0]);
-  ML = pr[0] * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  Shift64(t, pr, c);
+  // 256*256 multiplier
+  UMult(r512, a, r[0]);
+  UMult(t, a, r[1]);
+  UADDO1(r512[1], t[0]);
+  UADDC1(r512[2], t[1]);
+  UADDC1(r512[3], t[2]);
+  UADDC1(r512[4], t[3]);
+  UADD1(r512[5], t[4]);
+  UMult(t, a, r[2]);
+  UADDO1(r512[2], t[0]);
+  UADDC1(r512[3], t[1]);
+  UADDC1(r512[4], t[2]);
+  UADDC1(r512[5], t[3]);
+  UADD1(r512[6], t[4]);
+  UMult(t, a, r[3]);
+  UADDO1(r512[3], t[0]);
+  UADDC1(r512[4], t[1]);
+  UADDC1(r512[5], t[2]);
+  UADDC1(r512[6], t[3]);
+  UADD1(r512[7], t[4]);
 
-  UMult(pr, a, r[1]);
-  ML = (pr[0] + t[0]) * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  AddAndShift(t, pr, t, c);
+  // Reduce from 512 to 320 
+  UMult(t, (r512 + 4), 0x1000003D1ULL);
+  UADDO1(r512[0], t[0]);
+  UADDC1(r512[1], t[1]);
+  UADDC1(r512[2], t[2]);
+  UADDC1(r512[3], t[3]);
 
-  UMult(pr, a, r[2]);
-  ML = (pr[0] + t[0]) * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  AddAndShift(t, pr, t, c);
-
-  UMult(pr, a, r[3]);
-  ML = (pr[0] + t[0]) * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  AddAndShift(t, pr, t, c);
-
-  Sub2(p, t, _P);
-  if (_IsPositive(p))
-    Load256(r, p)
-  else
-    Load256(r, t)
+  // Reduce from 320 to 256
+  UADD1(t[4], 0ULL);
+  UMULLO(al, t[4], 0x1000003D1ULL);
+  UMULHI(ah, t[4], 0x1000003D1ULL);
+  UADDO(r[0],r512[0], al);
+  UADDC(r[1],r512[1], ah);
+  UADDC(r[2],r512[2], 0ULL);
+  UADDC(r[3],r512[3], 0ULL);
+  UADD(r[4], 0ULL, 0ULL);
 
 }
 
-__device__ void _MontgomeryMultR3(uint64_t *r) {
-  
-  // R3 = (2^256)^3 mod p
-  // R3 = { 0x002BB1E33795F671ULL, 0x0000000100000B73ULL, 0ULL, 0ULL };
-
-  uint64_t pr[NBBLOCK];
-  uint64_t p[NBBLOCK];
-  uint64_t t[NBBLOCK];
-  uint64_t ML;
-  uint64_t c;
-
-  UMult(pr, r, 0x002BB1E33795F671ULL);
-  ML = pr[0] * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  Shift64(t, pr, c);
-
-  UMult(pr, r, 0x0000000100000B73ULL);
-  ML = (pr[0] + t[0]) * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  AddAndShift(t, pr, t, c);
-
-  ML = t[0] * MM64;
-  MulP(p, ML);
-  AddC(t, p, c);
-  Shift64(t, t, c);
-
-  ML = t[0] * MM64;
-  MulP(p, ML);
-  AddC(t, p, c);
-  Shift64(t, t, c);
-
-  Sub2(p, t, _P);
-  if (_IsPositive(p))
-    Load256(r, p)
-  else
-    Load256(r, t)
-
-}
-
-__device__ void _MontgomeryMultR4(uint64_t *r) {
-
-  // R4 = (2^256)^4 mod p
-  // R4 = { 0xDE57DA9823518541ULL,0x00000F44005763C6ULL,0x1ULL,0ULL };
-
-  uint64_t pr[NBBLOCK];
-  uint64_t p[NBBLOCK];
-  uint64_t t[NBBLOCK];
-  uint64_t ML;
-  uint64_t c;
-
-  UMult(pr, r, 0xDE57DA9823518541ULL);
-  ML = pr[0] * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  Shift64(t, pr, c);
-
-  UMult(pr, r, 0x00000F44005763C6ULL);
-  ML = (pr[0] + t[0]) * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  AddAndShift(t, pr, t, c);
-
-  Load256(pr, r);
-  pr[4] = 0ULL;
-  ML = (pr[0] + t[0]) * MM64;
-  MulP(p, ML);
-  AddC(pr, p, c);
-  AddAndShift(t, pr, t, c);
-
-  ML = t[0] * MM64;
-  MulP(p, ML);
-  AddC(t, p, c);
-  Shift64(t, t, c);
-
-  Sub2(p, t, _P);
-  if (_IsPositive(p))
-    Load256(r, p)
-  else
-    Load256(r, t)
-
-}
 
 // ---------------------------------------------------------------------------------------
 // Compute all ModInv of the group
 // ---------------------------------------------------------------------------------------
 
-__device__ void _ModInvGrouped(uint64_t r[GRP_SIZE][4]) {
+__device__ void _ModInvGrouped(uint64_t r[GRP_SIZE / 2 + 1][4]) {
 
-  uint64_t subp[GRP_SIZE][4];
+  uint64_t subp[GRP_SIZE / 2 + 1][4];
   uint64_t newValue[4];
   uint64_t inverse[5];
 
-  // Number of _MontgomeryMult must be equal before and after the inversion of each item
-  // in order that power of R vanish
-
   Load256(subp[0], r[0]);
-  for (uint32_t i = 1; i < GRP_SIZE; i++) {
-    _MontgomeryMult(subp[i], subp[i - 1], r[i]);
+  for (uint32_t i = 1; i < (GRP_SIZE / 2 + 1); i++) {
+    _ModMult(subp[i], subp[i - 1], r[i]);
   }
 
   // We need 320bit signed int for ModInv
-  Load256(inverse, subp[GRP_SIZE - 1]);
+  Load256(inverse, subp[(GRP_SIZE / 2 + 1) - 1]);
   inverse[4] = 0;
   _ModInv(inverse);
 
-  for (uint32_t i = GRP_SIZE - 1; i > 0; i--) {
-    _MontgomeryMult(newValue, subp[i - 1], inverse);
-    _MontgomeryMult(inverse, r[i]);
+  for (uint32_t i = (GRP_SIZE / 2 + 1) - 1; i > 0; i--) {
+    _ModMult(newValue, subp[i - 1], inverse);
+    _ModMult(inverse, r[i]);
     Load256(r[i], newValue);
   }
 
@@ -1261,7 +1213,7 @@ __global__ void comp_keys_uncomp(uint16_t prefix, uint64_t *keys, uint8_t *found
 
 __global__ void chekc_mult(uint64_t *a, uint64_t *b, uint64_t *r) {
 
-  _MontgomeryMult(r, a, b);
+  _ModMult(r, a, b);
   r[4]=0;
 
 }
@@ -1443,13 +1395,17 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
     return;
   }
 
-  //double P = 1/65536.0;
-  //double Plost = Psk(STEP_SIZE,MAX_FOUND,P);
-  //printf("Plost=%g\n",Plost);
+  double P = 1/65536.0;
+  double Plost = Psk(STEP_SIZE,MAX_FOUND,P);
+  printf("Plost=%g\n",Plost);
 
   searchComp = true;
   initialised = true;
 
+}
+
+int GPUEngine::GetGroupSize() {
+  return GRP_SIZE;
 }
 
 void GPUEngine::PrintCudaInfo() {
@@ -1663,7 +1619,7 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   Int c;
   a.Rand(256);
   b.Rand(256);
-  c.MontgomeryMult(&a,&b);
+  c.ModMulK1(&a,&b);
   memcpy(inputKeyPinned,a.bits64,BIFULLSIZE);
   memcpy(inputKeyPinned+5,b.bits64,BIFULLSIZE);
   cudaMemcpy(inputKey, inputKeyPinned, BIFULLSIZE*2, cudaMemcpyHostToDevice);
@@ -1701,15 +1657,22 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   int nbFoundCPU = 0;
   Int k;
   Point *p = new Point[nbThread];
+  Point *p2 = new Point[nbThread];
   vector<ITEM> found;
 
+  uint32_t seed = (uint32_t)(Timer::get_tick() * 1000.0);
+  printf("Seed: %u\n",seed);
+  rseed(seed);
   for (int i = 0; i < nbThread; i++) {
     k.Rand(256);
     p[i] = secp.ComputePublicKey(&k);
+    // Group start is at the middle
+    k.Add((uint64_t)GRP_SIZE/2);
+    p2[i] = secp.ComputePublicKey(&k);
   }
 
   SetPrefix(0xFEFE);
-  SetKeys(p);
+  SetKeys(p2);
   double t0 = Timer::get_tick();
   Launch(found,true);
   double t1 = Timer::get_tick();
@@ -1724,7 +1687,7 @@ bool GPUEngine::Check(Secp256K1 &secp) {
       prefix_t pr = *(prefix_t *)h;
       if (pr == 0xFEFE) {
 
-	nbFoundCPU++;
+	      nbFoundCPU++;
 
         // Search in found by GPU
         bool f = false;

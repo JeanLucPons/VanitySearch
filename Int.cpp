@@ -1111,6 +1111,7 @@ void Int::Check() {
   }
   if (strcmp(b.GetBase10().c_str(), "1679314142928575978367") != 0) {
     printf(" GetBase10() failed ! %s!=1679314142928575978367\n", b.GetBase10().c_str());
+    return;
   }
 
   printf("GetBase10() Results OK\n");
@@ -1125,6 +1126,7 @@ void Int::Check() {
     Timer::printResult("Add", 10000, t0, t1);
   } else {
     printf("Add() Results Wrong\nR=%s\nT=6422570987096960746354\n", c.GetBase10().c_str());
+    return;
   }
 
   // Mult -------------------------------------------------------------------------------------------
@@ -1141,6 +1143,7 @@ void Int::Check() {
     Timer::printResult("Mult", 10000, t0, t1);
   } else {
     printf("Mult() Results Wrong\nR=%s\nT=%s\n",e.GetBase10().c_str(), c.GetBase10().c_str());
+    return;
   }
   
   // Div -------------------------------------------------------------------------------------------
@@ -1169,6 +1172,7 @@ void Int::Check() {
         c.GetBase16().c_str()
         
       );
+      return;
     }
 
   }
@@ -1192,6 +1196,7 @@ void Int::Check() {
     a.ModMul(&b);
     if (!a.IsOne()) {
       printf("ModInv() Results Wrong %s\n", a.GetBase16().c_str());
+      return;
     }
   }
 
@@ -1214,6 +1219,7 @@ void Int::Check() {
 
   if (!ok) {
     printf("ModInv()/ModExp() Results Wrong %s\n", a.GetBase16().c_str());
+    return;
   } else {
     printf("ModInv()/ModExp() Results OK\n");
   }
@@ -1230,30 +1236,31 @@ void Int::Check() {
 
   // IntGroup -----------------------------------------------------------------------------------
 
-  Int m[CPU_GRP_SIZE];
-  Int chk[CPU_GRP_SIZE];
-  IntGroup g;
+  Int m[256];
+  Int chk[256];
+  IntGroup g(256);
 
   g.Set(m);
-  for (int i = 0; i < CPU_GRP_SIZE; i++) {
+  for (int i = 0; i < 256; i++) {
     m[i].Rand(256);
     chk[i].Set(m + i);
     chk[i].ModInv();
   }
   g.ModInv();
   ok = true;
-  for (int i = 0; i < CPU_GRP_SIZE; i++) {
+  for (int i = 0; i < 256; i++) {
     if (!m[i].IsEqual(chk + i)) {
       ok = false;
       printf("IntGroup.ModInv() Wrong !\n");
       printf("[%d] %s\n", i, m[i].GetBase16().c_str());
       printf("[%d] %s\n", i, chk[i].GetBase16().c_str());
+      return;
     }
   }
 
   t0 = Timer::get_tick();
   for (int j = 0; j < 1000; j++) {
-    for (int i = 0; i < CPU_GRP_SIZE; i++) {
+    for (int i = 0; i < 256; i++) {
       m[i].Rand(256);
     }
     g.ModInv();
@@ -1261,8 +1268,33 @@ void Int::Check() {
   t1 = Timer::get_tick();
 
   printf("IntGroup.ModInv() : ");
-  Timer::printResult("Inv", 1000 * CPU_GRP_SIZE, 0, t1 - t0);
+  Timer::printResult("Inv", 1000 * 256, 0, t1 - t0);
 
+  // ModMulK1 ------------------------------------------------------------------------------------
+
+  for (int i = 0; i < 100000; i++) {
+    a.Rand(BISIZE);
+    b.Rand(BISIZE);
+    c.ModMul(&a,&b);
+    d.ModMulK1(&a,&b);
+    if (!c.IsEqual(&d)) {
+      printf("ModMulK1() Wrong !\n");
+      printf("[%d] %s\n", i, c.GetBase16().c_str());
+      printf("[%d] %s\n", i, d.GetBase16().c_str());
+      return;
+    }
+  }
+
+  t0 = Timer::get_tick();
+  for (int i = 0; i < 1000000; i++) {
+    a.Rand(BISIZE);
+    b.Rand(BISIZE);
+    c.ModMulK1(&a, &b);
+  }
+  t1 = Timer::get_tick();
+
+  printf("ModMulK1() : ");
+  Timer::printResult("Mult", 1000000, 0, t1 - t0);
 
   // ModSqrt ------------------------------------------------------------------------------------
 
@@ -1284,6 +1316,8 @@ void Int::Check() {
     }
 
   }
+  if(!ok) return;
+
   printf("ModSqrt() OK !\n");
 
 }

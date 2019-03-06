@@ -22,7 +22,7 @@
 #include "../SECP256k1.h"
 
 // Number of key per thread (must be a multiple of GRP_SIZE) per kernel call
-#define STEP_SIZE 256
+#define STEP_SIZE 512
 
 // Number of thread per block
 #define NB_TRHEAD_PER_GROUP 128
@@ -30,7 +30,7 @@
 // Maximum number of prefix found per thread (MAX_FOUND<=STEP_SIZE)
 // If MAX_FOUND is too large it may crash and slow down the kernel
 // Probability to lost 1 (or more) can be calculated using Psk
-#define MAX_FOUND 4 // Plost(256,4) = 2.3e-09 (very unlikely)
+#define MAX_FOUND 4 // Plost(512,4) = 7.7e-08 (very unlikely)
 
 #define ITEM_SIZE 22
 #define MEMOUT_PER_THREAD (1+MAX_FOUND*ITEM_SIZE)
@@ -54,6 +54,7 @@ public:
   void SetSearchMode(bool compressed);
   bool Launch(std::vector<ITEM> &prefixFound,bool spinWait=false);
   int GetNbThread();
+  int GetGroupSize();
 
   bool Check(Secp256K1 &secp);
   std::string deviceName;

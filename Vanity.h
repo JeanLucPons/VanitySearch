@@ -26,6 +26,8 @@
 #include <Windows.h>
 #endif
 
+#define CPU_GRP_SIZE 256
+
 class VanitySearch;
 
 typedef struct {
@@ -52,7 +54,7 @@ private:
 
   std::string GetHex(std::vector<unsigned char> &buffer);
   std::string GetExpectedTime(double keyRate, double keyCount);
-  bool checkAddr(std::string &addr, Int &key, uint64_t incr);
+  bool checkAddr(std::string &addr, Int &key, int64_t incr);
   void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string chkAddr, std::string chkAddrC);
   bool isAlive(TH_PARAM *p);
   uint64_t getGPUCount();

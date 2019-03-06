@@ -66,7 +66,8 @@ namespace ripemd160sse {
 #define add4(x0, x1, x2, x3) _mm_add_epi32(_mm_add_epi32(x0, x1), _mm_add_epi32(x2, x3))
 
 #define Round(a,b,c,d,e,f,x,k,r) \
-  a = _mm_add_epi32(ROL(add4(a,f,x,_mm_set1_epi32(k)), r),e); \
+  u = add4(a,f,x,_mm_set1_epi32(k)); \
+  a = _mm_add_epi32(ROL(u, r),e); \
   c = ROL(c, 10);              
 
 #define R11(a,b,c,d,e,x,r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
@@ -100,6 +101,7 @@ namespace ripemd160sse {
     __m128i c2 = c1;
     __m128i d2 = d1;
     __m128i e2 = e1;
+    __m128i u;
     __m128i w[16];
 
 

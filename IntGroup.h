@@ -21,13 +21,11 @@
 #include "Int.h"
 #include <vector>
 
-#define CPU_GRP_SIZE 256
-
 class IntGroup {
 
 public:
 
-	IntGroup();
+	IntGroup(int size);
 	~IntGroup();
 	void Set(Int *pts);
 	void ModInv();
@@ -36,7 +34,7 @@ private:
 
 	Int *ints;
   Int *subp;
-  int log2n;                  // log2(n)
+  int size;
 
 };
 

@@ -30,7 +30,8 @@
 
 using namespace std;
 
-Point Gn[CPU_GRP_SIZE];
+Point Gn[CPU_GRP_SIZE / 2];
+Point _2Gn;
 
 // ----------------------------------------------------------------------------
 
@@ -125,10 +126,12 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
   Gn[0] = g;
   g = secp.DoubleDirect(g);
   Gn[1] = g;
-  for (int i = 2; i < CPU_GRP_SIZE; i++) {
+  for (int i = 2; i < CPU_GRP_SIZE/2; i++) {
     g = secp.AddDirect(g,secp.G);
     Gn[i] = g;
   }
+  // _2Gn = CPU_GRP_SIZE*G
+  _2Gn = secp.DoubleDirect(Gn[CPU_GRP_SIZE/2-1]);
 
   // Seed
   if (seed.length() == 0) {
@@ -210,8 +213,6 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
 
   }
 
-
-
   return ret + string(tmp);
 
 }
@@ -255,7 +256,7 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex, string chkAd
 
 }
 
-bool VanitySearch::checkAddr(string &addr, Int &key, uint64_t incr) {
+bool VanitySearch::checkAddr(string &addr, Int &key, int64_t incr) {
 
   char p[64];
   char a[64];
@@ -267,7 +268,11 @@ bool VanitySearch::checkAddr(string &addr, Int &key, uint64_t incr) {
   if (strcmp(p, a) == 0) {
     // Found it
     Int k(&key);
-    k.Add(incr);
+    if (incr < 0) {
+      k.Sub((uint64_t)-incr);
+    } else {
+      k.Add((uint64_t)incr);
+    }
     Point p = secp.ComputePublicKey(&k);
     output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
     nbFoundKey++;
@@ -326,60 +331,144 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
   counters[thId] = 0;
 
   // CPU Thread
-  IntGroup *grp = new IntGroup();
+  IntGroup *grp = new IntGroup(CPU_GRP_SIZE/2+1);
 
   // Group Init
   Int key(&startKey);
   Int off((int64_t)thId);
   off.ShiftL(64);
   key.Add(&off);
-  Point startP = secp.ComputePublicKey(&key);
+  Int km(&key);
+  km.Add((uint64_t)CPU_GRP_SIZE/2);
+  Point startP = secp.ComputePublicKey(&km);
 
-  Int dx[CPU_GRP_SIZE];
+  Int dx[CPU_GRP_SIZE/2+1];
   Point pts[CPU_GRP_SIZE];
   Int dy;
+  Int dyn;
   Int _s;
   Int _p;
-  Point p = startP;
+  Point pp;
+  Point pn;
   grp->Set(dx);
 
   while (!endOfSearch) {
 
     // Fill group
+    int i;
+    int hLength = (CPU_GRP_SIZE / 2 - 1);
 
-    for (int i = 0; i < CPU_GRP_SIZE; i++) {
+    for (i = 0; i < hLength; i++) {
       dx[i].ModSub(&Gn[i].x, &startP.x);
     }
+    dx[i].ModSub(&Gn[i].x, &startP.x);  // For the first point
+    dx[i+1].ModSub(&_2Gn.x, &startP.x); // For the next center point
 
     // Grouped ModInv
     grp->ModInv();
 
-    for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i++) {
+    // We use the fact that P + i*G and P - i*G has the same deltax, so the same inverse
+    // We compute key in the positive and negative way from the center of the group
 
-      pts[i] = p;
-      p = startP;
+    // center point
+    pts[CPU_GRP_SIZE/2] = startP;
 
-      dy.ModSub(&Gn[i].y, &p.y);
+    for (i = 0; i<hLength && !endOfSearch; i++) {
 
-      _s.MontgomeryMult(&dy, &dx[i]);     // s = (p2.y-p1.y)*inverse(p2.x-p1.x);
-      _p.MontgomeryMult(&_s, &_s);        // _p = pow2(s)*R^-3
-      _p.MontgomeryMult(Int::GetR4());    // _p = pow2(s)
+      pp = startP;
+      pn = startP;
 
-      p.x.ModNeg();
-      p.x.ModAdd(&_p);
-      p.x.ModSub(&Gn[i].x);               // rx = pow2(s) - p1.x - p2.x;
+      // P = startP + i*G
+      dy.ModSub(&Gn[i].y,&pp.y);
 
-      p.y.ModSub(&Gn[i].x, &p.x);
-      p.y.MontgomeryMult(&_s);
-      p.y.MontgomeryMult(Int::GetR3());
-      p.y.ModSub(&Gn[i].y);               // ry = - p2.y - s*(ret.x-p2.x);  
+      _s.ModMulK1(&dy, &dx[i]);       // s = (p2.y-p1.y)*inverse(p2.x-p1.x);
+      _p.ModSquareK1(&_s);            // _p = pow2(s)
 
+      pp.x.ModNeg();
+      pp.x.ModAdd(&_p);
+      pp.x.ModSub(&Gn[i].x);           // rx = pow2(s) - p1.x - p2.x;
+
+      pp.y.ModSub(&Gn[i].x, &pp.x);
+      pp.y.ModMulK1(&_s);
+      pp.y.ModSub(&Gn[i].y);           // ry = - p2.y - s*(ret.x-p2.x);  
+
+      // P = startP - i*G  , if (x,y) = i*G then (x,-y) = -i*G
+      dyn.Set(&Gn[i].y);
+      dyn.ModNeg();
+      dyn.ModSub(&pn.y);
+
+      _s.ModMulK1(&dyn, &dx[i]);      // s = (p2.y-p1.y)*inverse(p2.x-p1.x);
+      _p.ModSquareK1(&_s);            // _p = pow2(s)
+
+      pn.x.ModNeg();
+      pn.x.ModAdd(&_p);
+      pn.x.ModSub(&Gn[i].x);          // rx = pow2(s) - p1.x - p2.x;
+
+      pn.y.ModSub(&Gn[i].x, &pn.x);
+      pn.y.ModMulK1(&_s);
+      pn.y.ModAdd(&Gn[i].y);          // ry = - p2.y - s*(ret.x-p2.x);  
+
+      pts[CPU_GRP_SIZE/2 + (i+1)] = pp;
+      pts[CPU_GRP_SIZE/2 - (i+1)] = pn;
 
     }
 
+    // First point (startP - (GRP_SZIE/2)*G)
+    pn = startP;
+    dyn.Set(&Gn[i].y);
+    dyn.ModNeg();
+    dyn.ModSub(&pn.y);
+
+    _s.ModMulK1(&dyn, &dx[i]);
+    _p.ModSquareK1(&_s);
+
+    pn.x.ModNeg();
+    pn.x.ModAdd(&_p);
+    pn.x.ModSub(&Gn[i].x);
+
+    pn.y.ModSub(&Gn[i].x, &pn.x);
+    pn.y.ModMulK1(&_s);
+    pn.y.ModAdd(&Gn[i].y);
+
+    pts[0] = pn;
+
+    // Next start point (startP + GRP_SIZE*G)
+    pp = startP;
+    dy.ModSub(&_2Gn.y, &pp.y);
+
+    _s.ModMulK1(&dy, &dx[i+1]);
+    _p.ModSquareK1(&_s);
+
+    pp.x.ModNeg();
+    pp.x.ModAdd(&_p);
+    pp.x.ModSub(&_2Gn.x);
+
+    pp.y.ModSub(&_2Gn.x, &pp.x);
+    pp.y.ModMulK1(&_s);
+    pp.y.ModSub(&_2Gn.y);
+    startP = pp;
+
+#if 0
+    // Check
+    {
+      bool wrong = false;
+      Point p0 = secp.ComputePublicKey(&key);
+      for (int i = 0; i < CPU_GRP_SIZE; i++) {
+        if (!p0.equals(pts[i])) {
+          wrong = true;
+          printf("[%d] wrong point\n",i);
+        }
+        p0 = secp.NextKey(p0);
+      }
+      if(wrong) exit(0);
+    }
+#endif
+
     // Check addresses
+
     if (useSSE) {
 
+      // Positive
       for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i += 4) {
 
         secp.GetHash160(searchComp, pts[i], pts[i + 1], pts[i + 2], pts[i + 3], h0, h1, h2, h3);
@@ -410,6 +499,7 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
     } else {
 
+      // Positive
       for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i ++) {
 
         secp.GetHash160(pts[i], searchComp, h0);
@@ -427,7 +517,6 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
 
     key.Add((uint64_t)CPU_GRP_SIZE);
-    startP = p;
     counters[thId]+= CPU_GRP_SIZE;
 
   }
@@ -464,7 +553,10 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
     offG.ShiftL(112);
     keys[i].Add(&offT);
     keys[i].Add(&offG);
-    p[i] = secp.ComputePublicKey(&keys[i]);
+    Int k(keys+i);
+    // Starting key is at the middle of the group
+    k.Add((uint64_t)(g.GetGroupSize()/2));
+    p[i] = secp.ComputePublicKey(&k);
   }
   g.SetSearchMode(searchComp);
   g.SetPrefix(sPrefix);
