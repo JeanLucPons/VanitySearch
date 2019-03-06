@@ -4,6 +4,14 @@ VanitySearch is a bitcoin address prefix finder. It uses fixed size arithmethic 
 Secure hash algorithms (SHA256 and RIPEMD160) are performed using SSE on the CPU. The GPU kernel has been written using
 CUDA in order to take advantage of inline PTX assembly. VanitySearch may not compute a good grid size for your hardware, so try different values using -g option. If you want to use GPUs and CPUs together, you may have best performance by keeping one CPU core for handling GPUs/CPU exchanges (use -t option to set the number of CPU threads).
 
+# Feature
+
+<ul>
+  <li>Fast Modular Inversion (Delayed Right Shift 62 bits)</li>
+  <li>SecpK1 Fast Modular multiplication (2 steps folding 512bits to 256bits using 64 bits digits)</li>
+  <li>Use some properties of elliptic curve to generate more keys</li>
+</ul>
+
 # Usage
 
 You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/releases
