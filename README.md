@@ -1,15 +1,19 @@
 # VanitySearch
 
-VanitySearch is a bitcoin address prefix finder. It uses fixed size arithmethic in order to get best performances. 
-Secure hash algorithms (SHA256 and RIPEMD160) are performed using SSE on the CPU. The GPU kernel has been written using
-CUDA in order to take advantage of inline PTX assembly. VanitySearch may not compute a good grid size for your hardware, so try different values using -g option. If you want to use GPUs and CPUs together, you may have best performance by keeping one CPU core for handling GPUs/CPU exchanges (use -t option to set the number of CPU threads).
+VanitySearch is a bitcoin address prefix finder. If you want to generate safe private keys, use the -s option to enter your passphrase which will be used for generating a base key as for BIP38 standard (*VanitySeacrh.exe -s "My PassPhrase" 1MyPrefix*).\
+VanitySearch may not compute a good grid size for your GPU, so try different values using -g option in order to get the best performances. If you want to use GPUs and CPUs together, you may have best performances by keeping one CPU core for handling GPU(s)/CPU exchanges (use -t option to set the number of CPU threads).
 
 # Feature
 
 <ul>
+  <li>Fixed size arithmetic</li>
   <li>Fast Modular Inversion (Delayed Right Shift 62 bits)</li>
-  <li>SecpK1 Fast Modular multiplication (2 steps folding 512bits to 256bits using 64 bits digits)</li>
+  <li>SecpK1 Fast modular multiplication (2 steps folding 512bits to 256bits using 64 bits digits)</li>
   <li>Use some properties of elliptic curve to generate more keys</li>
+  <li>SSE Secure Hash Algorithm SHA256 and RIPEMD160 (CPU)</li>
+  <li>Multi-GPU support</li>
+  <li>CUDA optimisation via inline PTX assembly</li>
+  <li>Seed protected by pbkdf2_hmac_sha512 (BIP38)</li>
 </ul>
 
 # Usage
