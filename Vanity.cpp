@@ -136,12 +136,7 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
   // Seed
   if (seed.length() == 0) {
     // Default seed
-#ifdef WIN64
-    seed = to_string(Timer::qwTicksPerSec.LowPart) + to_string(Timer::perfTickStart.HighPart) +
-           to_string(Timer::perfTickStart.LowPart) + to_string(time(NULL));
-#else
-    seed = to_string(time(NULL)) + to_string(Timer::get_tick());
-#endif
+    seed = to_string(Timer::getSeedFromTimer());
   }
 
   // Protect seed against "seed search attack" using pbkdf2_hmac_sha512

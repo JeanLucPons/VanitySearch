@@ -32,6 +32,7 @@ public:
   static void printResult(char *unit, int nbTry, double t0, double t1);
   static std::string getResult(char *unit, int nbTry, double t0, double t1);
   static int getCoreNumber();
+  static uint64_t getSeedFromTimer();
 
 #ifdef WIN64
   static LARGE_INTEGER perfTickStart;

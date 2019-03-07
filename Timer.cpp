@@ -54,6 +54,22 @@ double Timer::get_tick() {
 #endif
 
 }
+uint64_t Timer::getSeedFromTimer() {
+
+#ifdef WIN64
+
+  uint64_t now = (uint64_t)time(NULL);
+  return (now<<32) | (uint64_t)(perfTickStart.LowPart);
+
+#else
+
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return (uint64_t)(tv.tv_sec<<32) | (uint64_t)(tv.tv_usec);
+
+#endif
+
+}
 
 
 std::string Timer::getResult(char *unit, int nbTry, double t0, double t1) {

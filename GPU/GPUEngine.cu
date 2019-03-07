@@ -1660,13 +1660,13 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   Point *p2 = new Point[nbThread];
   vector<ITEM> found;
 
-  uint32_t seed = (uint32_t)(Timer::get_tick() * 1000.0);
+  uint32_t seed = (uint32_t)(Timer::getSeedFromTimer());
   printf("Seed: %u\n",seed);
   rseed(seed);
   for (int i = 0; i < nbThread; i++) {
     k.Rand(256);
     p[i] = secp.ComputePublicKey(&k);
-    // Group start is at the middle
+    // Group starts at the middle
     k.Add((uint64_t)GRP_SIZE/2);
     p2[i] = secp.ComputePublicKey(&k);
   }
