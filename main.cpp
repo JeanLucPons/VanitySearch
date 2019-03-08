@@ -18,6 +18,7 @@
 #include "Timer.h"
 #include "Vanity.h"
 #include "SECP256k1.h"
+#include <fstream>
 #include <string>
 #include <string.h>
 #include <stdexcept>
@@ -26,14 +27,17 @@
 
 using namespace std;
 
+// ------------------------------------------------------------------------------------------
+
 void printUsage() {
 
-  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix\n");
+  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-i inputfile] [-o outputfile] [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]] [-s seed] [-t threadNumber] prefix\n");
   printf(" prefix: prefix to search\n");
   printf(" -v: Print version\n");
   printf(" -check: Check CPU and GPU kernel vs CPU\n");
   printf(" -u: Search uncompressed addresses\n");
   printf(" -o outputfile: Output results to the specified file\n");
+  printf(" -i inputfile: Get list of prefixes to search from specified file\n");
   printf(" -gpu: Enable gpu calculation\n");
   printf(" -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0\n");
   printf(" -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 16*(MP number)\n");
@@ -45,6 +49,8 @@ void printUsage() {
   exit(-1);
 
 }
+
+// ------------------------------------------------------------------------------------------
 
 int getInt(string name,char *v) {
 
@@ -64,6 +70,8 @@ int getInt(string name,char *v) {
   return r;
 
 }
+
+// ------------------------------------------------------------------------------------------
 
 void getInts(string name,vector<int> &tokens, const string &text, char sep) {
 
@@ -91,6 +99,19 @@ void getInts(string name,vector<int> &tokens, const string &text, char sep) {
 
 }
 
+// ------------------------------------------------------------------------------------------
+
+void parseFile(string fileName, vector<string> &lines) {
+
+  string line;
+  ifstream inFile(fileName);
+  while (getline(inFile, line)) {
+    lines.push_back(line);
+  }
+
+}
+
+// ------------------------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
 
@@ -115,7 +136,7 @@ int main(int argc, char* argv[]) {
   vector<int> gpuId = {0};
   vector<int> gridSize = {-1};
   string seed = "";
-  string prefix = "";
+  vector<string> prefix;
   string outputFile = "";
   int nbCPUThread = Timer::getCoreNumber();
   bool tSpecified = false;
@@ -176,13 +197,17 @@ int main(int argc, char* argv[]) {
       a++;
       outputFile = string(argv[a]);
       a++;
+    } else if (strcmp(argv[a], "-i") == 0) {
+      a++;
+      parseFile(string(argv[a]),prefix);
+      a++;
     } else if (strcmp(argv[a], "-t") == 0) {
       a++;
       nbCPUThread = getInt("nbCPUThread",argv[a]);
       a++;
       tSpecified = true;
     } else if (a == argc - 1) {
-      prefix = string(argv[a]);
+      prefix.push_back(string(argv[a]));
       a++;
     } else {
       printf("Unexpected %s argument\n",argv[a]);

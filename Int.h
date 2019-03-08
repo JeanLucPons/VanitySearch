@@ -24,7 +24,7 @@
 #include <string>
 #include <inttypes.h>
 
-// We need 1 extra block for Knuth div algorithm , Montgomey multiplication and ModInv
+// We need 1 extra block for Knuth div algorithm , Montgomery multiplication and ModInv
 #define BISIZE 256
 
 #if BISIZE==256
@@ -125,7 +125,6 @@ public:
   // Specific SecpK1 modular mult
   void ModMulK1(Int *a, Int *b);
   void ModMulK1(Int *a);
-  void ModMulK1_2(Int *a, Int *b);
   void ModSquareK1(Int *a);
 
   // Size

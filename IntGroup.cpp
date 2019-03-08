@@ -39,7 +39,7 @@ void IntGroup::ModInv() {
   Int inverse;
 
   subp[0].Set(&ints[0]);
-  for (unsigned int i = 1; i < size; i++) {
+  for (int i = 1; i < size; i++) {
     subp[i].ModMulK1(&subp[i - 1], &ints[i]);
   }
 

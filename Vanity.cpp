@@ -21,6 +21,7 @@
 #include "hash/sha512.h"
 #include "IntGroup.h"
 #include "Timer.h"
+#include "hash/ripemd160.h"
 #include <string.h>
 #include <math.h>
 #ifndef WIN64
@@ -35,10 +36,9 @@ Point _2Gn;
 
 // ----------------------------------------------------------------------------
 
-VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, bool useGpu, 
+VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string seed,bool comp, bool useGpu,
                            bool stop, string outputFile, bool useSSE) {
 
-  this->vanityPrefix = prefix;
   this->secp = secp;
   this->searchComp = comp;
   this->useGpu = useGpu;
@@ -46,78 +46,51 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
   this->outputFile = outputFile;
   this->useSSE = useSSE;
   this->nbGPUThread = 0;
-  sPrefix = -1;
-  std::vector<unsigned char> result;
-
-  if (prefix.length() < 2) {
-    printf("VanitySearch: Invalid prefix !");
-    exit(-1);
-  }
-
-  if (prefix.data()[0] != '1' ) {
-    printf("VanitySearch: Only prefix starting with 1 allowed !");
-    exit(-1);
-  }
-
-  string dummy1 = prefix;
-  int nbDigit = 0;
-  bool wrong = false;
+  prefixes.clear();
 
   char *ctimeBuff;
   time_t now = time(NULL);
   ctimeBuff = ctime(&now);
   printf("Start %s", ctimeBuff);
 
-  printf("Search: %s\n",dummy1.c_str());
+  // Create a 65536 items lookup table
+  PREFIX_TABLE_ITEM t;
+  t.found = true;
+  t.items = NULL;
+  for(int i=0;i<65536;i++)
+    prefixes.push_back(t);
 
-  // Search for highest hash160 16bit prefix (most probable)
-
-  while (result.size() < 25 && !wrong) {
-    wrong = !DecodeBase58(dummy1, result);
-    if (result.size() < 25) {
-      dummy1.append("1");
-      nbDigit++;
+  // Insert prefixes
+  int nbPrefix = 0;
+  onlyFull = true;
+  for (int i = 0; i < (int)prefix.size(); i++) {
+    PREFIX_ITEM it;
+    if (initPrefix(prefix[i], &it)) {
+      std::vector<PREFIX_ITEM> *items;
+      items = prefixes[it.sPrefix].items;
+      if (items == NULL) {
+        prefixes[it.sPrefix].items = new vector<PREFIX_ITEM>();
+        prefixes[it.sPrefix].found = false;
+        items = prefixes[it.sPrefix].items;
+        usedPrefix.push_back(it.sPrefix);
+      }
+      items->push_back(it);
+      onlyFull &= it.isFull;
+      nbPrefix++;
     }
   }
+  //dumpPrefixes();
 
-  if (wrong) {
-    printf("VanitySearch: Wrong character 0, I, O and l not allowed !");
-    exit(-1);
+  if (nbPrefix == 0) {
+    printf("VanitySearch: nothing to search !\n");
+    exit(1);
   }
 
-  if (result.size() != 25) {
-    printf("VanitySearch: Wrong prefix !");
-    exit(-1);
-  }
-
-  //printf("VanitySearch: Found prefix %s\n",GetHex(result).c_str() );
-  sPrefix = *(prefix_t *)(result.data()+1);
-
-  dummy1.append("1");
-  DecodeBase58(dummy1, result);
-
-  if (result.size() == 25) {
-    //printf("VanitySearch: Found prefix %s\n", GetHex(result).c_str());
-    sPrefix = *(prefix_t *)(result.data()+1);
-    nbDigit++;
-  }
-
-  // Try to attack a full address ?
-  DecodeBase58(prefix,result);
-  if(result.size()>21) {
-
-    if( !secp.CheckPudAddress(prefix) ) {
-      printf("Warning, prefix and address checksum may never match !\n");
-    }
-    _difficulty = pow(2,160);
-    printf("Difficulty: Full range (2^160)\n");
-
+  if (nbPrefix == 1) {
+    prefix_t p0 = usedPrefix[0];
+    printf("Search: %s\n", (*prefixes[p0].items)[0].prefix.c_str());
   } else {
-  
-    // Difficulty
-    _difficulty = pow(2,192) / pow(58,nbDigit);
-    printf("Difficulty: %.0f\n", _difficulty);
-
+    printf("Search: %d prefixes\n", nbPrefix);
   }
 
   // Compute Generator table G[n] = (n+1)*G
@@ -153,6 +126,123 @@ VanitySearch::VanitySearch(Secp256K1 &secp,string prefix,string seed,bool comp, 
 }
 
 // ----------------------------------------------------------------------------
+bool VanitySearch::initPrefix(std::string prefix,PREFIX_ITEM *it) {
+
+  std::vector<unsigned char> result;
+  string dummy1 = prefix;
+  int nbDigit = 0;
+  bool wrong = false;
+
+  if (prefix.length() < 2) {
+    printf("Ignoring prefix \"%s\" (too short)\n",prefix.c_str());
+    return false;
+  }
+
+  if (prefix.data()[0] != '1') {
+    printf("Ignoring prefix \"%s\" (must start with 1)\n", prefix.c_str());
+    return false;
+  }
+
+  // Search for highest hash160 16bit prefix (most probable)
+
+  while (result.size() < 25 && !wrong) {
+    wrong = !DecodeBase58(dummy1, result);
+    if (result.size() < 25) {
+      dummy1.append("1");
+      nbDigit++;
+    }
+  }
+
+  if (wrong) {
+    printf("Ignoring prefix \"%s\" (0, I, O and l not allowed)\n", prefix.c_str());
+    return false;
+  }
+
+  if (result.size() != 25) {
+    printf("Ignoring prefix \"%s\" (Invalid size)\n", prefix.c_str());
+    return false;
+  }
+
+  //printf("VanitySearch: Found prefix %s\n",GetHex(result).c_str() );
+  it->sPrefix = *(prefix_t *)(result.data() + 1);
+
+  dummy1.append("1");
+  DecodeBase58(dummy1, result);
+
+  if (result.size() == 25) {
+    //printf("VanitySearch: Found prefix %s\n", GetHex(result).c_str());
+    it->sPrefix = *(prefix_t *)(result.data() + 1);
+    nbDigit++;
+  }
+
+  // Try to attack a full address ?
+  DecodeBase58(prefix, result);
+  if (result.size() > 21) {
+
+    // mamma mia !
+    if (!secp.CheckPudAddress(prefix)) {
+      printf("Warning, \"%s\" (address checksum may never match)\n", prefix.c_str());
+    }
+    it->difficulty = pow(2, 160);
+    it->isFull = true;
+    memcpy(it->hash160, result.data() + 1, 20);
+
+  } else {
+
+    // Difficulty
+    it->difficulty = pow(2, 192) / pow(58, nbDigit);
+    it->isFull = false;
+
+  }
+
+  it->prefix = prefix;
+  it->found = false;
+
+  return true;
+
+}
+
+// ----------------------------------------------------------------------------
+
+void VanitySearch::dumpPrefixes() {
+
+  for (int i = 0; i < 0xFFFF; i++) {
+    if (prefixes[i].items) {
+      printf("%04X\n", i);
+      std::vector<PREFIX_ITEM> *items = prefixes[i].items;
+      for (int j = 0; j < (*items).size(); j++) {
+        printf("  %d\n", (*items)[j].sPrefix);
+        printf("  %g\n", (*items)[j].difficulty);
+        printf("  %s\n", (*items)[j].prefix.c_str());
+      }
+    }
+  }
+
+}
+
+// ----------------------------------------------------------------------------
+
+double VanitySearch::getDiffuclty() {
+
+  double min = pow(2,160);
+
+  if (onlyFull)
+    return min;
+
+  for (int i = 0; i < (int)usedPrefix.size(); i++) {
+    int p = usedPrefix[i];
+    std::vector<PREFIX_ITEM>& items = *prefixes[p].items;
+    for (int j = 0; j < items.size(); j++) {
+      if (!items[j].found) {
+        if(items[j].difficulty<min)
+          min = items[j].difficulty;
+      }
+    }
+  }
+
+  return min;
+
+}
 
 double log1(double x) {
   // Use taylor series to approximate log(1-x)
@@ -164,7 +254,7 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
   char tmp[128];
   string ret;
 
-  double P = 1.0/_difficulty;
+  double P = 1.0/ getDiffuclty();
   // pow(1-P,keyCount) is the probality of failure after keyCount tries
   double cP = 1.0 - pow(1-P,keyCount);
 
@@ -213,6 +303,7 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
 }
 
 // ----------------------------------------------------------------------------
+
 void VanitySearch::output(string addr,string pAddr,string pAddrHex, string chkAddr,string chkAddrC) {
 
 #ifdef WIN64
@@ -251,43 +342,85 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex, string chkAd
 
 }
 
-bool VanitySearch::checkAddr(string &addr, Int &key, int64_t incr) {
+// ----------------------------------------------------------------------------
 
-  char p[64];
-  char a[64];
+bool VanitySearch::isDone() {
 
-  strcpy(p,vanityPrefix.c_str());
-  strcpy(a,addr.c_str());
-  a[vanityPrefix.length()] = 0;
+  // Check if all prefixes has been found
+  // Needed only if stopWhenFound is asked
+  if (stopWhenFound && !onlyFull) {
 
-  if (strcmp(p, a) == 0) {
-    // Found it
-    Int k(&key);
-    if (incr < 0) {
-      k.Sub((uint64_t)-incr);
-    } else {
-      k.Add((uint64_t)incr);
+    bool allFound = true;
+    for (int i = 0; i < usedPrefix.size(); i++) {
+      bool iFound = true;
+      if (!prefixes[usedPrefix[i]].found) {
+        std::vector<PREFIX_ITEM>& items = *prefixes[usedPrefix[i]].items;
+        for (int j = 0; j < items.size(); j++)
+          iFound &= items[j].found;
+        prefixes[usedPrefix[i]].found = iFound;
+      }
+      allFound &= iFound;
     }
-    Point p = secp.ComputePublicKey(&k);
-    output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
-    nbFoundKey++;
-    return true;
-  }
+    return allFound;
 
-  /*
-  if (stricmp(p,a) == 0) {
-    // Found it (case unsensitive)
-    printf("\nFound address:\n");
-    printf("Pub Addr: %s\n", addr.c_str());
-    printf("Prv Addr: %s\n", secp.GetPrivAddress(key).c_str());
-    printf("Prv Key : 0x%s\n", key.GetBase16().c_str());
-    //Point p = secp.ComputePublicKey(&key);
-    //printf("Check :%s\n", secp.GetAddress(p,true).c_str());
-    return true;
   }
-  */
 
   return false;
+
+}
+
+// ----------------------------------------------------------------------------
+
+bool VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t incr) {
+
+  vector<PREFIX_ITEM>& items = *prefixes[prefIdx].items;
+
+  for (int i = 0; i < items.size(); i++) {
+
+    if(stopWhenFound && items[i].found)
+      continue;
+
+    if (items[i].isFull) {
+
+      if (ripemd160_comp_hash(items[i].hash160, hash160) ) {
+        // Found it !
+        // You believe it ?
+        Int k(&key);
+        k.Add((uint64_t)incr);
+        Point p = secp.ComputePublicKey(&k);
+        string addr = secp.GetAddress(hash160, searchComp);
+        output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
+        nbFoundKey++;
+        // Mark it as found
+        items[i].found = true;
+      }
+
+    } else {
+
+      char p[64];
+      char a[64];
+
+      strcpy(p, items[i].prefix.c_str());
+      string addr = secp.GetAddress(hash160,searchComp);
+      strcpy(a, addr.c_str());
+      a[items[i].prefix.length()] = 0;
+
+      if (strcmp(p, a) == 0) {
+        // Found it
+        Int k(&key);
+        k.Add((uint64_t)incr);
+        Point p = secp.ComputePublicKey(&k);
+        output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
+        nbFoundKey++;
+        // Mark it as found
+        items[i].found = true;
+      }
+
+    }
+
+  }
+
+  return isDone();
 }
 
 // ----------------------------------------------------------------------------
@@ -460,10 +593,8 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 #endif
 
     // Check addresses
-
     if (useSSE) {
 
-      // Positive
       for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i += 4) {
 
         secp.GetHash160(searchComp, pts[i], pts[i + 1], pts[i + 2], pts[i + 3], h0, h1, h2, h3);
@@ -473,43 +604,29 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
         prefix_t pr2 = *(prefix_t *)h2;
         prefix_t pr3 = *(prefix_t *)h3;
 
-        if (pr0 == sPrefix) {
-          string addr = secp.GetAddress(pts[i], searchComp);
-          endOfSearch = checkAddr(addr, key, i) && stopWhenFound;
-        }
-        if (pr1 == sPrefix) {
-          string addr = secp.GetAddress(pts[i + 1], searchComp);
-          endOfSearch = checkAddr(addr, key, i + 1) && stopWhenFound;
-        }
-        if (pr2 == sPrefix) {
-          string addr = secp.GetAddress(pts[i + 2], searchComp);
-          endOfSearch = checkAddr(addr, key, i + 2) && stopWhenFound;
-        }
-        if (pr3 == sPrefix) {
-          string addr = secp.GetAddress(pts[i + 3], searchComp);
-          endOfSearch = checkAddr(addr, key, i + 3) && stopWhenFound;
-        }
+        if (prefixes[pr0].items)
+          endOfSearch = checkAddr(pr0, h0, key, i) && stopWhenFound;
+        if (prefixes[pr1].items)
+          endOfSearch = checkAddr(pr1, h1, key, i+1) && stopWhenFound;
+        if (prefixes[pr2].items)
+          endOfSearch = checkAddr(pr2, h2, key, i+2) && stopWhenFound;
+        if (prefixes[pr3].items)
+          endOfSearch = checkAddr(pr3, h3, key, i+3) && stopWhenFound;
 
       }
 
     } else {
 
-      // Positive
       for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i ++) {
 
         secp.GetHash160(pts[i], searchComp, h0);
-
         prefix_t pr0 = *(prefix_t *)h0;
-
-        if (pr0 == sPrefix) {
-          string addr = secp.GetAddress(pts[i], searchComp);
-          endOfSearch = checkAddr(addr, key, i) && stopWhenFound;
-        }
+        if (prefixes[pr0].items)
+          endOfSearch = checkAddr(pr0,h0, key, i) && stopWhenFound;
 
       }
 
     }
-
 
     key.Add((uint64_t)CPU_GRP_SIZE);
     counters[thId]+= CPU_GRP_SIZE;
@@ -554,7 +671,8 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
     p[i] = secp.ComputePublicKey(&k);
   }
   g.SetSearchMode(searchComp);
-  g.SetPrefix(sPrefix);
+  // TODO
+  g.SetPrefix(usedPrefix[0]);
   ok = g.SetKeys(p);
 
   // GPU Thread
@@ -566,8 +684,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
     for(int i=0;i<(int)found.size() && !endOfSearch;i++) {
 
       ITEM it = found[i];
-      string addr = secp.GetAddress(it.hash, searchComp);
-      endOfSearch = checkAddr(addr, keys[it.thId], it.incr) && stopWhenFound;
+      endOfSearch = checkAddr(usedPrefix[0], it.hash, keys[it.thId], it.incr) && stopWhenFound;
  
     }
 
@@ -701,15 +818,9 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     double gpuKeyRate = (double)(gpuCount - lastGPUCount) / (t1 - t0);
 
     if (isAlive(params)) {
-      if (stopWhenFound) {
-        printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s\r",
-          keyRate / 1000000.0, gpuKeyRate / 1000000.0,
-          log2((double)count), GetExpectedTime(keyRate, (double)count).c_str());
-      } else {
-        printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]\r",
+      printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]\r",
           keyRate / 1000000.0, gpuKeyRate / 1000000.0,
           log2((double)count), GetExpectedTime(keyRate, (double)count).c_str(),nbFoundKey);
-      }
     }
 
     lastCount = count;

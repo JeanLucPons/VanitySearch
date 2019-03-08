@@ -40,11 +40,29 @@ typedef struct {
 
 } TH_PARAM;
 
+typedef struct {
+
+  std::string prefix;
+  prefix_t sPrefix;
+  double difficulty;
+  bool found;
+
+  // For dreamer ;)
+  bool isFull;
+  uint8_t hash160[20];
+
+} PREFIX_ITEM;
+
+typedef struct {
+  std::vector<PREFIX_ITEM> *items;
+  bool found;
+} PREFIX_TABLE_ITEM;
+
 class VanitySearch {
 
 public:
 
-  VanitySearch(Secp256K1 &secp, std::string prefix, std::string seed, bool compressed, 
+  VanitySearch(Secp256K1 &secp, std::vector<std::string> prefix, std::string seed, bool compressed, 
                bool useGpu,bool stop,std::string outputFile, bool useSSE);
   void Search(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize);
   void FindKeyCPU(TH_PARAM *p);
@@ -54,16 +72,17 @@ private:
 
   std::string GetHex(std::vector<unsigned char> &buffer);
   std::string GetExpectedTime(double keyRate, double keyCount);
-  bool checkAddr(std::string &addr, Int &key, int64_t incr);
+  bool checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t incr);
   void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string chkAddr, std::string chkAddrC);
   bool isAlive(TH_PARAM *p);
   uint64_t getGPUCount();
   uint64_t getCPUCount();
+  bool initPrefix(std::string prefix, PREFIX_ITEM *it);
+  void dumpPrefixes();
+  double getDiffuclty();
+  bool isDone();
 
   Secp256K1 secp;
-  double _difficulty;
-  std::string vanityPrefix;
-  prefix_t sPrefix;
   Int startKey;
   uint64_t counters[256];
   double startTime;
@@ -76,6 +95,11 @@ private:
   int nbFoundKey;
   std::string outputFile;
   bool useSSE;
+  bool onlyFull;
+  double _difficulty;
+  std::vector<PREFIX_TABLE_ITEM> prefixes;
+  std::vector<prefix_t> usedPrefix;
+  
 
 #ifdef WIN64
   HANDLE ghMutex;

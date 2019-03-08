@@ -883,12 +883,14 @@ void Int::ModMulK1(Int *a, Int *b) {
   c = _addcarry_u64(c, r512[3], t[3], r512 + 3);
 
   // Reduce from 320 to 256 
-  al = _umul128(t[4] + c, 0x1000003D1ULL, &ah);
+  // No overflow possible here t[4]+c<=0x1000003D1ULL
+  al = _umul128(t[4] + c, 0x1000003D1ULL, &ah); 
   c = _addcarry_u64(0, r512[0], al, bits64 + 0);
   c = _addcarry_u64(c, r512[1], ah, bits64 + 1);
   c = _addcarry_u64(c, r512[2], 0, bits64 + 2);
-  c = _addcarry_u64(c, r512[3], 0, bits64 + 3);
-  bits64[4] = 0;
+  c = _addcarry_u64(c, r512[3], 0, bits64 + 3); 
+  // Probability of carry here or that this>P is very very unlikely
+  bits64[4] = 0; 
 
 }
 
@@ -931,11 +933,13 @@ void Int::ModMulK1(Int *a) {
   c = _addcarry_u64(c, r512[3], t[3], r512 + 3);
 
   // Reduce from 320 to 256 
+  // No overflow possible here t[4]+c<=0x1000003D1ULL
   al = _umul128(t[4] + c, 0x1000003D1ULL, &ah);
   c = _addcarry_u64(0, r512[0], al, bits64 + 0);
   c = _addcarry_u64(c, r512[1], ah, bits64 + 1);
   c = _addcarry_u64(c, r512[2], 0, bits64 + 2);
   c = _addcarry_u64(c, r512[3], 0, bits64 + 3);
+  // Probability of carry here or that this>P is very very unlikely
   bits64[4] = 0;
 
 }
