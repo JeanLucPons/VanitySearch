@@ -86,8 +86,10 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
     exit(1);
   }
 
+  _difficulty = getDiffuclty();
   if (nbPrefix == 1) {
     prefix_t p0 = usedPrefix[0];
+    printf("Difficulty: %.0f", _difficulty);
     printf("Search: %s\n", (*prefixes[p0].items)[0].prefix.c_str());
   } else {
     printf("Search: %d prefixes\n", nbPrefix);
@@ -254,7 +256,7 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
   char tmp[128];
   string ret;
 
-  double P = 1.0/ getDiffuclty();
+  double P = 1.0/ _difficulty;
   // pow(1-P,keyCount) is the probality of failure after keyCount tries
   double cP = 1.0 - pow(1-P,keyCount);
 
@@ -344,11 +346,11 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex, string chkAd
 
 // ----------------------------------------------------------------------------
 
-bool VanitySearch::isDone() {
+void VanitySearch::updateFound() {
 
   // Check if all prefixes has been found
   // Needed only if stopWhenFound is asked
-  if (stopWhenFound && !onlyFull) {
+  if (stopWhenFound) {
 
     bool allFound = true;
     for (int i = 0; i < usedPrefix.size(); i++) {
@@ -361,17 +363,18 @@ bool VanitySearch::isDone() {
       }
       allFound &= iFound;
     }
-    return allFound;
+    endOfSearch = allFound;
+
+    // Update difficulty to the next most probable item
+    _difficulty = getDiffuclty();
 
   }
-
-  return false;
 
 }
 
 // ----------------------------------------------------------------------------
 
-bool VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t incr) {
+void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t incr) {
 
   vector<PREFIX_ITEM>& items = *prefixes[prefIdx].items;
 
@@ -385,14 +388,15 @@ bool VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t in
       if (ripemd160_comp_hash(items[i].hash160, hash160) ) {
         // Found it !
         // You believe it ?
+        // Mark it as found
+        items[i].found = true;
         Int k(&key);
         k.Add((uint64_t)incr);
         Point p = secp.ComputePublicKey(&k);
         string addr = secp.GetAddress(hash160, searchComp);
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
         nbFoundKey++;
-        // Mark it as found
-        items[i].found = true;
+        updateFound();
       }
 
     } else {
@@ -406,21 +410,20 @@ bool VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t in
       a[items[i].prefix.length()] = 0;
 
       if (strcmp(p, a) == 0) {
-        // Found it
+        // Mark it as found
+        items[i].found = true;
         Int k(&key);
         k.Add((uint64_t)incr);
         Point p = secp.ComputePublicKey(&k);
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
         nbFoundKey++;
-        // Mark it as found
-        items[i].found = true;
+        updateFound();
       }
 
     }
 
   }
 
-  return isDone();
 }
 
 // ----------------------------------------------------------------------------
@@ -605,13 +608,13 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
         prefix_t pr3 = *(prefix_t *)h3;
 
         if (prefixes[pr0].items)
-          endOfSearch = checkAddr(pr0, h0, key, i) && stopWhenFound;
+           checkAddr(pr0, h0, key, i);
         if (prefixes[pr1].items)
-          endOfSearch = checkAddr(pr1, h1, key, i+1) && stopWhenFound;
+           checkAddr(pr1, h1, key, i+1);
         if (prefixes[pr2].items)
-          endOfSearch = checkAddr(pr2, h2, key, i+2) && stopWhenFound;
+           checkAddr(pr2, h2, key, i+2);
         if (prefixes[pr3].items)
-          endOfSearch = checkAddr(pr3, h3, key, i+3) && stopWhenFound;
+           checkAddr(pr3, h3, key, i+3);
 
       }
 
@@ -622,7 +625,7 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
         secp.GetHash160(pts[i], searchComp, h0);
         prefix_t pr0 = *(prefix_t *)h0;
         if (prefixes[pr0].items)
-          endOfSearch = checkAddr(pr0,h0, key, i) && stopWhenFound;
+          checkAddr(pr0,h0, key, i);
 
       }
 
@@ -672,7 +675,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
   }
   g.SetSearchMode(searchComp);
   // TODO
-  g.SetPrefix(usedPrefix[0]);
+  g.SetPrefix(usedPrefix);
   ok = g.SetKeys(p);
 
   // GPU Thread
@@ -684,7 +687,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
     for(int i=0;i<(int)found.size() && !endOfSearch;i++) {
 
       ITEM it = found[i];
-      endOfSearch = checkAddr(usedPrefix[0], it.hash, keys[it.thId], it.incr) && stopWhenFound;
+      checkAddr(usedPrefix[0], it.hash, keys[it.thId], it.incr);
  
     }
 

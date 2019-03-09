@@ -22,18 +22,17 @@
 #include "../SECP256k1.h"
 
 // Number of key per thread (must be a multiple of GRP_SIZE) per kernel call
-#define STEP_SIZE 512
+#define STEP_SIZE 1024
 
 // Number of thread per block
 #define NB_TRHEAD_PER_GROUP 128
 
-// Maximum number of prefix found per thread (MAX_FOUND<=STEP_SIZE)
-// If MAX_FOUND is too large it may crash and slow down the kernel
-// Probability to lost 1 (or more) can be calculated using Psk
-#define MAX_FOUND 4 // Plost(512,4) = 7.7e-08 (very unlikely)
-
-#define ITEM_SIZE 22
-#define MEMOUT_PER_THREAD (1+MAX_FOUND*ITEM_SIZE)
+// Maximum number of 16bit prefix found per kernel 
+// Avg = (nbThread*STEP_SIZE*nbPrefix16)/65536
+#define MAX_FOUND 16384
+#define ITEM_SIZE 28
+#define ITEM_SIZE32 (ITEM_SIZE/4)
+#define OUTPUT_SIZE (MAX_FOUND*ITEM_SIZE+4)
 
 typedef uint16_t prefix_t;
 
@@ -49,7 +48,7 @@ public:
 
   GPUEngine(int nbThreadGroup,int gpuId); 
   ~GPUEngine();
-  void SetPrefix(prefix_t prefix);
+  void SetPrefix(std::vector<prefix_t> prefixes);
   bool SetKeys(Point *p);
   void SetSearchMode(bool compressed);
   bool Launch(std::vector<ITEM> &prefixFound,bool spinWait=false);
@@ -69,15 +68,16 @@ private:
   static void Browse(FILE *f,int depth, int max, int s);
 
   int nbThread;
-  prefix_t prefix;
+  prefix_t *inputPrefix;
+  prefix_t *inputPrefixPinned;
   uint64_t *inputKey;
   uint64_t *inputKeyPinned;
-  uint8_t *outputPrefix;
-  uint8_t *outputPrefixPinned;
+  uint32_t *outputPrefix;
+  uint32_t *outputPrefixPinned;
   bool initialised;
   bool searchComp;
   bool littleEndian;
-
+  bool lostWarning;
 };
 
 #endif // GPUENGINEH

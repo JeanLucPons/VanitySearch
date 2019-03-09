@@ -17,30 +17,35 @@
 
 // CUDA Kernel main function
 // Compute SecpK1 keys and calculate RIPEMD160(SHA256(key)) then check prefix
-// For the kernel, we use a 16 bits prefix which correspond to ~3 Base58 characters
-// Using 32bit prefix for long prefix search does not bring significant performance improvements
+// For the kernel, we use a 16 bits prefix lookup table which correspond to ~3 Base58 characters
 // (The CPU computes the full address and check the full prefix)
 // 
 // We use affine coordinates for elliptic curve point (ie Z=1)
 
+__device__ void __HASHFUNCC__(prefix_t *prefix,uint64_t *px,uint64_t *py,
+                              uint32_t incr,uint32_t tid,uint8_t *h,uint32_t *out) {
 
+  __HASHFUNC__(px, py, h);
+  prefix_t pr0 = *(prefix_t *)h;
+  if (prefix[pr0]) {
+    uint32_t *h20 = (uint32_t *)h;
+    uint32_t pos = atomicAdd(out, 1);
+    if (pos < MAX_FOUND) {
+      out[pos*ITEM_SIZE32 + 1] = tid;
+      out[pos*ITEM_SIZE32 + 2] = incr;
+      out[pos*ITEM_SIZE32 + 3] = h20[0];
+      out[pos*ITEM_SIZE32 + 4] = h20[1];
+      out[pos*ITEM_SIZE32 + 5] = h20[2];
+      out[pos*ITEM_SIZE32 + 6] = h20[3];
+      out[pos*ITEM_SIZE32 + 7] = h20[4];
+    }
+  }
 
-// Probabilty to lost a prefix can be calculated using Psk function
-// Even if a 16 bits prefix is lost, it is unlikely that this prefix matches the desired address
-// unless the desired prefix is short but in that case, an other prefix will be found quickly
-#define CHECK_PREFIX(incr)   \
-__HASHFUNC__(px, py, hash);  \
-pr0 = *(prefix_t *)hash;     \
-if (pr0 == sPrefix) {        \
-  if (nbFound < MAX_FOUND) { \
-    uint16_t _icr = (incr);   \
-    memcpy(out + (1 + nbFound * ITEM_SIZE), &_icr, 2);     \
-    memcpy(out + (1 + nbFound * ITEM_SIZE + 2), hash, 20); \
-    nbFound++; \
-  } \
 }
 
-__device__ void __COMPFUNC__(uint64_t *startx, uint64_t *starty, prefix_t sPrefix, uint8_t *out) {
+#define CHECK_PREFIX(incr) __HASHFUNCC__(sPrefix,px,py,(incr),tid,hash,out);
+
+__device__ void __COMPFUNC__(uint64_t *startx, uint64_t *starty, prefix_t *sPrefix, uint32_t *out) {
 
   uint64_t dx[GRP_SIZE/2+1][4];
   uint64_t px[4];
@@ -51,8 +56,7 @@ __device__ void __COMPFUNC__(uint64_t *startx, uint64_t *starty, prefix_t sPrefi
   uint64_t _s[4];
   uint64_t _p2[4];
   uint8_t  hash[20];
-  uint8_t  nbFound = 0;
-  prefix_t pr0;
+  uint32_t tid = (blockIdx.x*blockDim.x) + threadIdx.x;
 
 
   for (uint32_t j = 0; j < STEP_SIZE / GRP_SIZE; j++) {
@@ -160,8 +164,5 @@ __device__ void __COMPFUNC__(uint64_t *startx, uint64_t *starty, prefix_t sPrefi
     Store256A(starty, py);
 
   }
-
-  // First index is the number of prefix found
-  out[0] = nbFound;
 
 }

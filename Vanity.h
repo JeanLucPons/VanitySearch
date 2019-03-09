@@ -72,7 +72,7 @@ private:
 
   std::string GetHex(std::vector<unsigned char> &buffer);
   std::string GetExpectedTime(double keyRate, double keyCount);
-  bool checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t incr);
+  void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t incr);
   void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string chkAddr, std::string chkAddrC);
   bool isAlive(TH_PARAM *p);
   uint64_t getGPUCount();
@@ -80,7 +80,7 @@ private:
   bool initPrefix(std::string prefix, PREFIX_ITEM *it);
   void dumpPrefixes();
   double getDiffuclty();
-  bool isDone();
+  void updateFound();
 
   Secp256K1 secp;
   Int startKey;

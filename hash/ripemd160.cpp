@@ -274,7 +274,7 @@ void CRIPEMD160::Write(const unsigned char* data, size_t len)
     }
 }
 
-void CRIPEMD160::Finalize(unsigned char hash[OUTPUT_SIZE])
+void CRIPEMD160::Finalize(unsigned char hash[20])
 {
     static const unsigned char pad[64] = {0x80};
     unsigned char sizedesc[8];
@@ -303,16 +303,6 @@ void ripemd160(unsigned char *input,int length,unsigned char *digest) {
 	cripe.Write(input,length);
 	cripe.Finalize(digest);
 
-}
-
-bool ripemd160_comp_hash(uint8_t *h0, uint8_t *h1) {
-  bool e = true;
-  int i=0;
-  while (e && i < 20) {
-    e = (h0[i]==h1[i]);
-    i++;
-  }
-  return e;
 }
 
 std::string ripemd160_hex(unsigned char *digest) {
