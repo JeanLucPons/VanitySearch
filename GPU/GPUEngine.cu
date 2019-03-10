@@ -1751,7 +1751,10 @@ bool GPUEngine::Check(Secp256K1 &secp) {
     p2[i] = secp.ComputePublicKey(&k);
   }
 
-  SetPrefix({ 0xFEFE , 0x1234 });
+  std::vector<prefix_t> prefs;
+  prefs.push_back(0xFEFE);
+  prefs.push_back(0x1234);
+  SetPrefix(prefs);
   SetKeys(p2);
   double t0 = Timer::get_tick();
   Launch(found,true);
