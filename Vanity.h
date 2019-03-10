@@ -73,7 +73,7 @@ private:
 
   std::string GetHex(std::vector<unsigned char> &buffer);
   std::string GetExpectedTime(double keyRate, double keyCount);
-  void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t incr);
+  void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr);
   void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string chkAddr, std::string chkAddrC);
   bool isAlive(TH_PARAM *p);
   uint64_t getGPUCount();

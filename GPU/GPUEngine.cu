@@ -1653,12 +1653,36 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
     uint32_t *itemPtr = outputPrefixPinned + (i*ITEM_SIZE32 + 1);
     ITEM it;
     it.thId = itemPtr[0];
-    it.incr = itemPtr[1];
+    it.incr = (int32_t)(itemPtr[1]);
     it.hash = (uint8_t *)(itemPtr + 2);
     prefixFound.push_back(it);
   }
 
   return callKernel();
+
+}
+
+bool GPUEngine::CheckHash(uint8_t *h, vector<ITEM>& found) {
+
+  bool ok = true;
+
+  // Search in found by GPU
+  bool f = false;
+  int l = 0;
+  //printf("Search: %s\n", toHex(h,20).c_str());
+  while (l < found.size() && !f) {
+    f = ripemd160_comp_hash(found[l].hash, h);
+    if (!f) l++;
+  }
+  if (f) {
+    found.erase(found.begin() + l);
+  } else {
+    ok = false;
+    printf("Expected item not found %s\n",
+      toHex(h, 20).c_str());
+  }
+
+  return ok;
 
 }
 
@@ -1759,39 +1783,33 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   double t0 = Timer::get_tick();
   Launch(found,true);
   double t1 = Timer::get_tick();
-  Timer::printResult((char *)"Key", STEP_SIZE*nbThread, t0, t1);
+  Timer::printResult((char *)"Key", 2*STEP_SIZE*nbThread, t0, t1);
    
   //for (int i = 0; i < found.size(); i++) {
   //  printf("[%d]: thId=%d incr=%d\n", i, found[i].thId,found[i].incr);
   //  printf("[%d]: %s\n", i,toHex(found[i].hash,20).c_str());
   //}
-
+  
   printf("ComputeKeys() found %d items , CPU check...\n",(int)found.size());
 
   // Check with CPU
   for (j = 0; (j<nbThread); j++) {
     for (i = 0; i < STEP_SIZE; i++) {
+      // Point
       secp.GetHash160(p[j], searchComp, h);
       prefix_t pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
-
 	      nbFoundCPU++;
-
-        // Search in found by GPU
-        bool f = false;
-        int l = 0;
-        //printf("Search: %s\n", toHex(h,20).c_str());
-        while (l < found.size() && !f) {
-          f = ripemd160_comp_hash(found[l].hash,h);
-          if(!f) l++;
-        }
-        if (f) {
-          found.erase(found.begin() + l);
-        } else {
-          ok = false;
-          printf("Expected item not found %s\n", 
-            toHex(h,20).c_str());
-        }
+        ok &= CheckHash(h,found);
+      }
+      // Symetric
+      Point s = p[j];
+      s.y.ModNeg();
+      secp.GetHash160(s, searchComp, h);
+      pr = *(prefix_t *)h;
+      if (pr == 0xFEFE || pr == 0x1234) {
+        nbFoundCPU++;
+        ok &= CheckHash(h, found);
       }
       p[j] = secp.NextKey(p[j]);
     }

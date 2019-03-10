@@ -393,7 +393,7 @@ void VanitySearch::updateFound() {
 
 // ----------------------------------------------------------------------------
 
-void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t incr) {
+void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr) {
 
   vector<PREFIX_ITEM>& items = *prefixes[prefIdx].items;
 
@@ -410,7 +410,13 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t in
         // Mark it as found
         items[i].found = true;
         Int k(&key);
-        k.Add((uint64_t)incr);
+        if(incr<0) {
+          k.Add((uint64_t)(-incr));
+          k.Neg();
+          k.Add(&secp.order);
+        } else {
+          k.Add((uint64_t)incr);
+        }
         Point p = secp.ComputePublicKey(&k);
         string addr = secp.GetAddress(hash160, searchComp);
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
@@ -432,7 +438,13 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int64_t in
         // Mark it as found
         items[i].found = true;
         Int k(&key);
-        k.Add((uint64_t)incr);
+        if (incr < 0) {
+          k.Add((uint64_t)(-incr));
+          k.Neg();
+          k.Add(&secp.order);
+        } else {
+          k.Add((uint64_t)incr);
+        }
         Point p = secp.ComputePublicKey(&k);
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
         nbFoundKey++;
@@ -619,6 +631,7 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
       for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i += 4) {
 
+        // Point
         secp.GetHash160(searchComp, pts[i], pts[i + 1], pts[i + 2], pts[i + 3], h0, h1, h2, h3);
 
         prefix_t pr0 = *(prefix_t *)h0;
@@ -635,6 +648,29 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
         if (prefixes[pr3].items)
            checkAddr(pr3, h3, key, i+3);
 
+        // Curve symetrie
+        // if (x,y) = k*G, then (x, -y) is -k*G
+        pts[i].y.ModNeg();
+        pts[i+1].y.ModNeg();
+        pts[i+2].y.ModNeg();
+        pts[i+3].y.ModNeg();
+
+        secp.GetHash160(searchComp, pts[i], pts[i + 1], pts[i + 2], pts[i + 3], h0, h1, h2, h3);
+
+        pr0 = *(prefix_t *)h0;
+        pr1 = *(prefix_t *)h1;
+        pr2 = *(prefix_t *)h2;
+        pr3 = *(prefix_t *)h3;
+
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, -i);
+        if (prefixes[pr1].items)
+          checkAddr(pr1, h1, key, -(i + 1));
+        if (prefixes[pr2].items)
+          checkAddr(pr2, h2, key, -(i + 2));
+        if (prefixes[pr3].items)
+          checkAddr(pr3, h3, key, -(i + 3));
+
       }
 
     } else {
@@ -646,12 +682,20 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
         if (prefixes[pr0].items)
           checkAddr(pr0,h0, key, i);
 
+        // Curve symetrie
+        // if (x,y) = k*G, then (x, -y) is -k*G
+        pts[i].y.ModNeg();
+        secp.GetHash160(pts[i], searchComp, h0);
+        pr0 = *(prefix_t *)h0;
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, -i);
+
       }
 
     }
 
     key.Add((uint64_t)CPU_GRP_SIZE);
-    counters[thId]+= CPU_GRP_SIZE;
+    counters[thId]+= 2*CPU_GRP_SIZE; // Point + Symetric point
 
   }
 
@@ -717,7 +761,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
       for (int i = 0; i < nbThread; i++) {
         keys[i].Add((uint64_t)STEP_SIZE);
       }
-      counters[thId] += STEP_SIZE * nbThread;
+      counters[thId] += 2 * STEP_SIZE * nbThread; // Point + symetric
     }
 
   }
@@ -823,6 +867,11 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
   uint64_t lastCount = 0;
   uint64_t gpuCount = 0;
   uint64_t lastGPUCount = 0;
+  double lastkeyRate = 0.0;
+  double lastGpukeyRate = 0.0;
+  double keyRate = 0.0;
+  double gpuKeyRate = 0.0;
+
   while (isAlive(params)) {
 
     int delay = 2000;
@@ -839,13 +888,19 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     uint64_t count = getCPUCount() + gpuCount;
 
     t1 = Timer::get_tick();
-    double keyRate = (double)(count - lastCount) / (t1 - t0);
-    double gpuKeyRate = (double)(gpuCount - lastGPUCount) / (t1 - t0);
+    lastkeyRate = keyRate;
+    lastGpukeyRate = gpuKeyRate;
+    keyRate = (double)(count - lastCount) / (t1 - t0);
+    gpuKeyRate = (double)(gpuCount - lastGPUCount) / (t1 - t0);
+
+    // Slight averaging on keyRate
+    double avgKeyRate = (lastkeyRate + keyRate)/2.0;
+    double avgGpuKeyRate = (lastGpukeyRate + gpuKeyRate) / 2.0;
 
     if (isAlive(params)) {
       printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]\r",
-          keyRate / 1000000.0, gpuKeyRate / 1000000.0,
-          log2((double)count), GetExpectedTime(keyRate, (double)count).c_str(),nbFoundKey);
+        avgKeyRate / 1000000.0, avgGpuKeyRate / 1000000.0,
+          log2((double)count), GetExpectedTime(avgKeyRate, (double)count).c_str(),nbFoundKey);
     }
 
     lastCount = count;

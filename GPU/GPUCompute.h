@@ -23,39 +23,52 @@
 // 
 // We use affine coordinates for elliptic curve point (ie Z=1)
 
+#define LOOKUP32()                      \
+if (lookup32) {                         \
+  off = lookup32[pr0];                  \
+  l32 = h20[0];                         \
+  found = false;                        \
+  i = 0;                                \
+  while (!found && (i < hit) &&         \
+     (l32 >= lookup32[off + i])) {      \
+    found = (lookup32[off + i] == l32); \
+    i++;                                \
+  }                                     \
+  if (!found) return;                   \
+}
+
 __device__ void CheckHash(uint32_t mode,prefix_t *prefix,uint64_t *px,uint64_t *py,
-                          uint32_t incr,uint32_t tid,uint8_t *h,uint32_t *lookup32,uint32_t *out) {
+                          int32_t incr,uint32_t tid,uint32_t *lookup32,uint32_t *out) {
+
+  uint8_t   h[20];
+  uint8_t   hn[20];
+  bool      found;
+  uint32_t  off;
+  prefixl_t l32;
+  prefix_t  pr0;
+  prefix_t  hit;
+  uint32_t *h20;
+  uint32_t  pos;
+  int i;
 
   if (mode) {
     _GetHash160Comp(px, py, h);
+    ModNeg256(py,py);
+    _GetHash160Comp(px, py, hn);
   } else {
     _GetHash160(px, py, h);
+    ModNeg256(py, py);
+    _GetHash160(px, py, hn);
   }
 
-  prefix_t pr0 = *(prefix_t *)h;
-  prefix_t hit = prefix[pr0];
+  // Point
+  pr0 = *(prefix_t *)h;
+  hit = prefix[pr0];
   if (hit) {
 
-    uint32_t *h20 = (uint32_t *)h;
-
-    if (lookup32) {
-
-      // Search in lookup32
-      uint32_t off = lookup32[pr0];
-      prefixl_t l32 = h20[0];
-
-      bool found = false;
-      int i=0;
-      while (!found && (i < hit) && (l32 >= lookup32[off + i])) {
-        found = (lookup32[off+i]==l32);
-        i++;
-      }
-      if(!found)
-        return;
-
-    }
-
-    uint32_t pos = atomicAdd(out, 1);
+    h20 = (uint32_t *)h;
+    LOOKUP32();
+    pos = atomicAdd(out, 1);
     if (pos < MAX_FOUND) {
       out[pos*ITEM_SIZE32 + 1] = tid;
       out[pos*ITEM_SIZE32 + 2] = incr;
@@ -68,9 +81,29 @@ __device__ void CheckHash(uint32_t mode,prefix_t *prefix,uint64_t *px,uint64_t *
 
   }
 
+  // Symetric Point
+  pr0 = *(prefix_t *)hn;
+  hit = prefix[pr0];
+  if (hit) {
+
+    h20 = (uint32_t *)hn;
+    LOOKUP32();
+    pos = atomicAdd(out, 1);
+    if (pos < MAX_FOUND) {
+      out[pos*ITEM_SIZE32 + 1] = tid;
+      out[pos*ITEM_SIZE32 + 2] = -incr;
+      out[pos*ITEM_SIZE32 + 3] = h20[0];
+      out[pos*ITEM_SIZE32 + 4] = h20[1];
+      out[pos*ITEM_SIZE32 + 5] = h20[2];
+      out[pos*ITEM_SIZE32 + 6] = h20[3];
+      out[pos*ITEM_SIZE32 + 7] = h20[4];
+    }
+
+  }
+
 }
 
-#define CHECK_PREFIX(incr) CheckHash(mode, sPrefix, px, py, j*GRP_SIZE + (incr), tid, hash, lookup32, out);
+#define CHECK_PREFIX(incr) CheckHash(mode, sPrefix, px, py, j*GRP_SIZE + (incr), tid, lookup32, out);
 
 __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty, 
                              prefix_t *sPrefix, uint32_t *lookup32, uint32_t *out) {
@@ -83,7 +116,6 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
   uint64_t dy[4];
   uint64_t _s[4];
   uint64_t _p2[4];
-  uint8_t  hash[20];
   uint32_t tid = (blockIdx.x*blockDim.x) + threadIdx.x;
 
   // Load starting key

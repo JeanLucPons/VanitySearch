@@ -40,7 +40,7 @@ typedef uint32_t prefixl_t;
 
 typedef struct {
   uint32_t thId;
-  uint16_t incr;
+  int32_t  incr;
   uint8_t  *hash;
 } ITEM;
 
@@ -75,6 +75,7 @@ private:
   bool callKernel();
   static void ComputeIndex(std::vector<int> &s, int depth, int n);
   static void Browse(FILE *f,int depth, int max, int s);
+  bool CheckHash(uint8_t *h, std::vector<ITEM>& found);
 
   int nbThread;
   prefix_t *inputPrefix;
