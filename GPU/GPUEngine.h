@@ -33,14 +33,22 @@
 #define ITEM_SIZE 28
 #define ITEM_SIZE32 (ITEM_SIZE/4)
 #define OUTPUT_SIZE (MAX_FOUND*ITEM_SIZE+4)
+#define _64K 65536
 
 typedef uint16_t prefix_t;
+typedef uint32_t prefixl_t;
 
 typedef struct {
   uint32_t thId;
   uint16_t incr;
   uint8_t  *hash;
 } ITEM;
+
+// Second level lookup
+typedef struct {
+  prefix_t sPrefix;
+  std::vector<prefixl_t> lPrefixes;
+} LPREFIX;
 
 class GPUEngine {
 
@@ -49,6 +57,7 @@ public:
   GPUEngine(int nbThreadGroup,int gpuId); 
   ~GPUEngine();
   void SetPrefix(std::vector<prefix_t> prefixes);
+  void SetPrefix(std::vector<LPREFIX> prefixes,uint32_t totalPrefix);
   bool SetKeys(Point *p);
   void SetSearchMode(bool compressed);
   bool Launch(std::vector<ITEM> &prefixFound,bool spinWait=false);
@@ -70,6 +79,8 @@ private:
   int nbThread;
   prefix_t *inputPrefix;
   prefix_t *inputPrefixPinned;
+  uint32_t *inputPrefixLookUp;
+  uint32_t *inputPrefixLookUpPinned;
   uint64_t *inputKey;
   uint64_t *inputKeyPinned;
   uint32_t *outputPrefix;

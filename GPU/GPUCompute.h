@@ -18,17 +18,43 @@
 // CUDA Kernel main function
 // Compute SecpK1 keys and calculate RIPEMD160(SHA256(key)) then check prefix
 // For the kernel, we use a 16 bits prefix lookup table which correspond to ~3 Base58 characters
+// A second level lookup table contains 32 bits prefix (if used)
 // (The CPU computes the full address and check the full prefix)
 // 
 // We use affine coordinates for elliptic curve point (ie Z=1)
 
-__device__ void __HASHFUNCC__(prefix_t *prefix,uint64_t *px,uint64_t *py,
-                              uint32_t incr,uint32_t tid,uint8_t *h,uint32_t *out) {
+__device__ void CheckHash(uint32_t mode,prefix_t *prefix,uint64_t *px,uint64_t *py,
+                          uint32_t incr,uint32_t tid,uint8_t *h,uint32_t *lookup32,uint32_t *out) {
 
-  __HASHFUNC__(px, py, h);
+  if (mode) {
+    _GetHash160Comp(px, py, h);
+  } else {
+    _GetHash160(px, py, h);
+  }
+
   prefix_t pr0 = *(prefix_t *)h;
-  if (prefix[pr0]) {
+  prefix_t hit = prefix[pr0];
+  if (hit) {
+
     uint32_t *h20 = (uint32_t *)h;
+
+    if (lookup32) {
+
+      // Search in lookup32
+      uint32_t off = lookup32[pr0];
+      prefixl_t l32 = h20[0];
+
+      bool found = false;
+      int i=0;
+      while (!found && (i < hit) && (l32 >= lookup32[off + i])) {
+        found = (lookup32[off+i]==l32);
+        i++;
+      }
+      if(!found)
+        return;
+
+    }
+
     uint32_t pos = atomicAdd(out, 1);
     if (pos < MAX_FOUND) {
       out[pos*ITEM_SIZE32 + 1] = tid;
@@ -39,13 +65,15 @@ __device__ void __HASHFUNCC__(prefix_t *prefix,uint64_t *px,uint64_t *py,
       out[pos*ITEM_SIZE32 + 6] = h20[3];
       out[pos*ITEM_SIZE32 + 7] = h20[4];
     }
+
   }
 
 }
 
-#define CHECK_PREFIX(incr) __HASHFUNCC__(sPrefix,px,py,(incr),tid,hash,out);
+#define CHECK_PREFIX(incr) CheckHash(mode, sPrefix, px, py, j*GRP_SIZE + (incr), tid, hash, lookup32, out);
 
-__device__ void __COMPFUNC__(uint64_t *startx, uint64_t *starty, prefix_t *sPrefix, uint32_t *out) {
+__device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty, 
+                             prefix_t *sPrefix, uint32_t *lookup32, uint32_t *out) {
 
   uint64_t dx[GRP_SIZE/2+1][4];
   uint64_t px[4];
@@ -58,13 +86,12 @@ __device__ void __COMPFUNC__(uint64_t *startx, uint64_t *starty, prefix_t *sPref
   uint8_t  hash[20];
   uint32_t tid = (blockIdx.x*blockDim.x) + threadIdx.x;
 
+  // Load starting key
+  __syncthreads();
+  Load256A(sx, startx);
+  Load256A(sy, starty);
 
   for (uint32_t j = 0; j < STEP_SIZE / GRP_SIZE; j++) {
-
-    // Load starting key
-    __syncthreads();
-    Load256A(sx, startx);
-    Load256A(sy, starty);
 
     // Fill group with delta x
     uint32_t i;
@@ -158,11 +185,14 @@ __device__ void __COMPFUNC__(uint64_t *startx, uint64_t *starty, prefix_t *sPref
     _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
     ModSub256(py, _2Gny);         // py = - p2.y - s*(ret.x-p2.x);  
 
-    // Update starting point
-    __syncthreads();
-    Store256A(startx, px);
-    Store256A(starty, py);
+    Load256(sx, px);
+    Load256(sy, py);
 
   }
+
+  // Update starting point
+  __syncthreads();
+  Store256A(startx, sx);
+  Store256A(starty, sy);
 
 }

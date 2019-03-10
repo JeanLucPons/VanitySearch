@@ -24,6 +24,7 @@
 #include "hash/ripemd160.h"
 #include <string.h>
 #include <math.h>
+#include <algorithm>
 #ifndef WIN64
 #include <pthread.h>
 #include <unistd.h>
@@ -36,8 +37,8 @@ Point _2Gn;
 
 // ----------------------------------------------------------------------------
 
-VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string seed,bool comp, bool useGpu,
-                           bool stop, string outputFile, bool useSSE) {
+VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string seed,bool comp, 
+                           bool useGpu, bool stop, string outputFile, bool useSSE) {
 
   this->secp = secp;
   this->searchComp = comp;
@@ -61,7 +62,7 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
     prefixes.push_back(t);
 
   // Insert prefixes
-  int nbPrefix = 0;
+  nbPrefix = 0;
   onlyFull = true;
   for (int i = 0; i < (int)prefix.size(); i++) {
     PREFIX_ITEM it;
@@ -86,13 +87,29 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
     exit(1);
   }
 
+  // Second level lookup
+  uint16_t unique_sPrefix = 0;
+  for (int i = 0; i < prefixes.size(); i++) {
+    std::vector<PREFIX_ITEM> *items;
+    items = prefixes[i].items;
+    if (items) {
+      LPREFIX lit;
+      lit.sPrefix = i;
+      for (int j = 0; j < items->size(); j++)
+        lit.lPrefixes.push_back((*items)[j].lPrefix);
+      sort(lit.lPrefixes.begin(), lit.lPrefixes.end());
+      usedPrefixL.push_back(lit);
+      unique_sPrefix++;
+    }
+  }
+
   _difficulty = getDiffuclty();
   if (nbPrefix == 1) {
     prefix_t p0 = usedPrefix[0];
     printf("Difficulty: %.0f", _difficulty);
     printf("Search: %s\n", (*prefixes[p0].items)[0].prefix.c_str());
   } else {
-    printf("Search: %d prefixes\n", nbPrefix);
+    printf("Search: %d prefixes (Lookup size %d)\n", nbPrefix, unique_sPrefix);
   }
 
   // Compute Generator table G[n] = (n+1)*G
@@ -188,12 +205,14 @@ bool VanitySearch::initPrefix(std::string prefix,PREFIX_ITEM *it) {
     it->difficulty = pow(2, 160);
     it->isFull = true;
     memcpy(it->hash160, result.data() + 1, 20);
+    it->lPrefix = *(prefixl_t *)(it->hash160);
 
   } else {
 
     // Difficulty
     it->difficulty = pow(2, 192) / pow(58, nbDigit);
     it->isFull = false;
+    it->lPrefix = 0;
 
   }
 
@@ -674,8 +693,11 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
     p[i] = secp.ComputePublicKey(&k);
   }
   g.SetSearchMode(searchComp);
-  // TODO
-  g.SetPrefix(usedPrefix);
+  if (onlyFull) {
+    g.SetPrefix(usedPrefixL,nbPrefix);
+  } else {
+    g.SetPrefix(usedPrefix);
+  }
   ok = g.SetKeys(p);
 
   // GPU Thread
@@ -687,7 +709,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
     for(int i=0;i<(int)found.size() && !endOfSearch;i++) {
 
       ITEM it = found[i];
-      checkAddr(usedPrefix[0], it.hash, keys[it.thId], it.incr);
+      checkAddr(*(prefix_t *)(it.hash), it.hash, keys[it.thId], it.incr);
  
     }
 

@@ -1177,36 +1177,15 @@ __device__ void _GetHash160(uint64_t *x, uint64_t *y, uint8_t *hash) {
 
 // ---------------------------------------------------------------------------------------
 
-#define __COMPFUNC__ ComputeKeysComp
-#define __HASHFUNC__ _GetHash160Comp
-#define __HASHFUNCC__ _CheckComp
 #include "GPUCompute.h"
-#undef __COMPFUNC__
-#undef __HASHFUNC__
-#undef __HASHFUNCC__
-#define __COMPFUNC__ ComputeKeysUncomp
-#define __HASHFUNC__ _GetHash160
-#define __HASHFUNCC__ _CheckUncomp
-#include "GPUCompute.h"
-
 
 // ---------------------------------------------------------------------------------------
 
-__global__ void comp_keys_comp(prefix_t *prefix, uint64_t *keys, uint32_t *found) {
-
-  int xPtr = (blockIdx.x*blockDim.x)*8;
-  int yPtr = xPtr + 4*NB_TRHEAD_PER_GROUP;
-  ComputeKeysComp(keys+xPtr, keys+yPtr, prefix, found);
-
-}
-
-// ---------------------------------------------------------------------------------------
-
-__global__ void comp_keys_uncomp(prefix_t *prefix, uint64_t *keys, uint32_t *found) {
+__global__ void comp_keys(uint32_t mode,prefix_t *prefix, uint32_t *lookup32, uint64_t *keys, uint32_t *found) {
 
   int xPtr = (blockIdx.x*blockDim.x) * 8;
   int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
-  ComputeKeysUncomp(keys + xPtr, keys + yPtr, prefix, found);
+  ComputeKeys(mode, keys + xPtr, keys + yPtr, prefix, lookup32, found);
 
 }
 
@@ -1223,7 +1202,8 @@ __global__ void chekc_mult(uint64_t *a, uint64_t *b, uint64_t *r) {
 
 __global__ void chekc_hash160(uint64_t *x, uint64_t *y, uint32_t *h) {
 
-  _GetHash160Comp(x, y, (uint8_t *)h);
+  _GetHash160(x, y, (uint8_t *)h);
+  _GetHash160Comp(x, y, (uint8_t *)(h+5));
 
 }
 
@@ -1388,12 +1368,12 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
   */
 
   // Allocate memory
-  err = cudaMalloc((void **)&inputPrefix, 65536 * 2);
+  err = cudaMalloc((void **)&inputPrefix, _64K * 2);
   if (err != cudaSuccess) {
     printf("GPUEngine: Allocate prefix memory: %s\n", cudaGetErrorString(err));
     return;
   }
-  err = cudaHostAlloc(&inputPrefixPinned, 65536 * 2, cudaHostAllocWriteCombined | cudaHostAllocMapped);
+  err = cudaHostAlloc(&inputPrefixPinned, _64K * 2, cudaHostAllocWriteCombined | cudaHostAllocMapped);
   if (err != cudaSuccess) {
     printf("GPUEngine: Allocate prefix pinned memory: %s\n", cudaGetErrorString(err));
     return;
@@ -1425,6 +1405,7 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
 
   searchComp = true;
   initialised = true;
+  inputPrefixLookUp = NULL;
 
 }
 
@@ -1483,6 +1464,8 @@ void GPUEngine::PrintCudaInfo() {
 GPUEngine::~GPUEngine() {
 
   cudaFree(inputKey);
+  cudaFree(inputPrefix);
+  if(inputPrefixLookUp) cudaFree(inputPrefixLookUp);
   cudaFreeHost(outputPrefixPinned);
   cudaFree(outputPrefix);
 
@@ -1498,12 +1481,12 @@ void GPUEngine::SetSearchMode(bool compressed) {
 
 void GPUEngine::SetPrefix(std::vector<prefix_t> prefixes) {
 
-  memset(inputPrefixPinned, 0, 65536 * 2);
+  memset(inputPrefixPinned, 0, _64K * 2);
   for(int i=0;i<(int)prefixes.size();i++)
     inputPrefixPinned[prefixes[i]]=1;
 
   // Fill device memory
-  cudaMemcpy(inputPrefix, inputPrefixPinned, 65536 * 2, cudaMemcpyHostToDevice);
+  cudaMemcpy(inputPrefix, inputPrefixPinned, _64K * 2, cudaMemcpyHostToDevice);
 
   // We do not need the input pinned memory anymore
   cudaFreeHost(inputPrefixPinned);
@@ -1517,6 +1500,54 @@ void GPUEngine::SetPrefix(std::vector<prefix_t> prefixes) {
 
 }
 
+void GPUEngine::SetPrefix(std::vector<LPREFIX> prefixes, uint32_t totalPrefix) {
+
+  // Allocate memory for the second level of lookup tables
+  cudaError_t err = cudaMalloc((void **)&inputPrefixLookUp, (_64K+totalPrefix) * 4);
+  if (err != cudaSuccess) {
+    printf("GPUEngine: Allocate prefix lookup memory: %s\n", cudaGetErrorString(err));
+    return;
+  }
+  err = cudaHostAlloc(&inputPrefixLookUpPinned, (_64K+totalPrefix) * 4, cudaHostAllocWriteCombined | cudaHostAllocMapped);
+  if (err != cudaSuccess) {
+    printf("GPUEngine: Allocate prefix lookup pinned memory: %s\n", cudaGetErrorString(err));
+    return;
+  }
+
+  uint32_t offset = _64K;
+  memset(inputPrefixPinned, 0, _64K * 2);
+  memset(inputPrefixLookUpPinned, 0, _64K * 4);
+  for (int i = 0; i < (int)prefixes.size(); i++) {
+    int nbLPrefix = (int)prefixes[i].lPrefixes.size();
+    inputPrefixPinned[prefixes[i].sPrefix] = (uint16_t)nbLPrefix;
+    inputPrefixLookUpPinned[prefixes[i].sPrefix] = offset;
+    for (int j = 0; j < nbLPrefix; j++) {
+      inputPrefixLookUpPinned[offset++]=prefixes[i].lPrefixes[j];
+    }
+  }
+
+  if (offset != (_64K+totalPrefix)) {
+    printf("GPUEngine: Wrong totalPrefix %d!=%d!\n",offset- _64K, totalPrefix);
+    return;
+  }
+
+  // Fill device memory
+  cudaMemcpy(inputPrefix, inputPrefixPinned, _64K * 2, cudaMemcpyHostToDevice);
+  cudaMemcpy(inputPrefixLookUp, inputPrefixLookUpPinned, (_64K+totalPrefix) * 4, cudaMemcpyHostToDevice);
+
+  // We do not need the input pinned memory anymore
+  cudaFreeHost(inputPrefixPinned);
+  inputPrefixPinned = NULL;
+  cudaFreeHost(inputPrefixLookUpPinned);
+  inputPrefixLookUpPinned = NULL;
+  lostWarning = false;
+
+  err = cudaGetLastError();
+  if (err != cudaSuccess) {
+    printf("GPUEngine: SetPrefix (large): %s\n", cudaGetErrorString(err));
+  }
+
+}
 bool GPUEngine::callKernel() {
 
   // Reset nbFound
@@ -1524,10 +1555,9 @@ bool GPUEngine::callKernel() {
   cudaMemcpy(outputPrefix, outputPrefixPinned, 4, cudaMemcpyHostToDevice);
 
   // Call the kernel (Perform STEP_SIZE keys per thread)
-  if(searchComp)
-    comp_keys_comp << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> > (inputPrefix, inputKey, outputPrefix);
-  else
-    comp_keys_uncomp << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> > (inputPrefix, inputKey, outputPrefix);
+  comp_keys<<< nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >>>
+      ((uint32_t)searchComp, inputPrefix, inputPrefixLookUp, inputKey, outputPrefix);
+
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
     printf("GPUEngine: Kernel: %s\n", cudaGetErrorString(err));
@@ -1678,10 +1708,12 @@ bool GPUEngine::Check(Secp256K1 &secp) {
 
   // Check hash 160
   uint8_t h[20];
+  uint8_t hc[20];
   Point pi;
   pi.x.Rand(256);
   pi.y.Rand(256);
-  secp.GetHash160(pi, true, h);
+  secp.GetHash160(pi, false, h);
+  secp.GetHash160(pi, true, hc);
   memcpy(inputKeyPinned,pi.x.bits64,BIFULLSIZE);
   memcpy(inputKeyPinned+5,pi.y.bits64,BIFULLSIZE);
   cudaMemcpy(inputKey, inputKeyPinned, BIFULLSIZE*2, cudaMemcpyHostToDevice);
@@ -1692,6 +1724,12 @@ bool GPUEngine::Check(Secp256K1 &secp) {
     printf("\nGetHask160 wrong:\n%s\n%s\n",
     toHex((uint8_t *)outputPrefixPinned,20).c_str(),
     toHex(h,20).c_str());
+    return false;
+  }
+  if (!ripemd160_comp_hash((uint8_t *)(outputPrefixPinned+5), hc)) {
+    printf("\nGetHask160Comp wrong:\n%s\n%s\n",
+      toHex((uint8_t *)(outputPrefixPinned + 5), 20).c_str(),
+      toHex(h, 20).c_str());
     return false;
   }
 
@@ -1713,10 +1751,7 @@ bool GPUEngine::Check(Secp256K1 &secp) {
     p2[i] = secp.ComputePublicKey(&k);
   }
 
-  vector<prefix_t> prefixes;
-  prefixes.push_back(0xFEFE);
-  prefixes.push_back(0x1234);
-  SetPrefix(prefixes);
+  SetPrefix({ 0xFEFE , 0x1234 });
   SetKeys(p2);
   double t0 = Timer::get_tick();
   Launch(found,true);

@@ -49,6 +49,7 @@ typedef struct {
 
   // For dreamer ;)
   bool isFull;
+  prefixl_t lPrefix;
   uint8_t hash160[20];
 
 } PREFIX_ITEM;
@@ -93,13 +94,14 @@ private:
   int nbCPUThread;
   int nbGPUThread;
   int nbFoundKey;
+  uint32_t nbPrefix;
   std::string outputFile;
   bool useSSE;
   bool onlyFull;
   double _difficulty;
   std::vector<PREFIX_TABLE_ITEM> prefixes;
   std::vector<prefix_t> usedPrefix;
-  
+  std::vector<LPREFIX> usedPrefixL;
 
 #ifdef WIN64
   HANDLE ghMutex;
