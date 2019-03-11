@@ -37,7 +37,7 @@ if (lookup32) {                         \
   if (!found) return;                   \
 }
 
-__device__ void CheckHash(uint32_t mode,prefix_t *prefix,uint64_t *px,uint64_t *py,
+__device__ __noinline__ void CheckHash(uint32_t mode,prefix_t *prefix,uint64_t *px,uint64_t *py,
                           int32_t incr,uint32_t tid,uint32_t *lookup32,uint32_t *out) {
 
   uint32_t   h[20];

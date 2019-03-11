@@ -608,7 +608,7 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a) {
 // Compute all ModInv of the group
 // ---------------------------------------------------------------------------------------
 
-__device__ void _ModInvGrouped(uint64_t r[GRP_SIZE / 2 + 1][4]) {
+__device__ __noinline__ void _ModInvGrouped(uint64_t r[GRP_SIZE / 2 + 1][4]) {
 
   uint64_t subp[GRP_SIZE / 2 + 1][4];
   uint64_t newValue[4];
@@ -1091,7 +1091,7 @@ __device__ void RIPEMD160Transform(uint32_t s[5],uint32_t* w) {
 // EC
 // ---------------------------------------------------------------------------------
 
-__device__ void _GetHash160Comp(uint64_t *x, uint64_t *y, uint8_t *hash) {
+__device__ __noinline__ void _GetHash160Comp(uint64_t *x, uint64_t *y, uint8_t *hash) {
 
   uint32_t *x32 = (uint32_t *)(x);
   uint32_t publicKeyBytes[16];
@@ -1132,7 +1132,7 @@ __device__ void _GetHash160Comp(uint64_t *x, uint64_t *y, uint8_t *hash) {
 
 }
 
-__device__ void _GetHash160(uint64_t *x, uint64_t *y, uint8_t *hash) {
+__device__ __noinline__ void _GetHash160(uint64_t *x, uint64_t *y, uint8_t *hash) {
 
   uint32_t *x32 = (uint32_t *)(x);
   uint32_t *y32 = (uint32_t *)(y);
