@@ -267,15 +267,32 @@ __device__ void IMult(uint64_t *r, uint64_t *a, int64_t b) {
   Mult2(r, t, b)
 
 }
+
 // ---------------------------------------------------------------------------------------
 
 __device__ void ModNeg256(uint64_t *r, uint64_t *a) {
 
-  uint64_t t[5];
+  uint64_t t[4];
   USUBO(t[0], 0ULL, a[0]);
   USUBC(t[1], 0ULL, a[1]);
   USUBC(t[2], 0ULL, a[2]);
   USUBC(t[3], 0ULL, a[3]);
+  UADDO(r[0], t[0], _P[0]);
+  UADDC(r[1], t[1], _P[1]);
+  UADDC(r[2], t[2], _P[2]);
+  UADD(r[3], t[3], _P[3]);
+
+}
+
+// ---------------------------------------------------------------------------------------
+
+__device__ void ModNeg256(uint64_t *r) {
+
+  uint64_t t[4];
+  USUBO(t[0], 0ULL, r[0]);
+  USUBC(t[1], 0ULL, r[1]);
+  USUBC(t[2], 0ULL, r[2]);
+  USUBC(t[3], 0ULL, r[3]);
   UADDO(r[0], t[0], _P[0]);
   UADDC(r[1], t[1], _P[1]);
   UADDC(r[2], t[2], _P[2]);
@@ -1189,6 +1206,8 @@ __global__ void comp_keys(uint32_t mode,prefix_t *prefix, uint32_t *lookup32, ui
 
 }
 
+#ifdef FULLCHECK
+
 // ---------------------------------------------------------------------------------------
 
 __global__ void chekc_mult(uint64_t *a, uint64_t *b, uint64_t *r) {
@@ -1216,6 +1235,8 @@ __global__ void get_endianness(uint32_t *endian) {
   *endian = (fb==0x04);
 
 }
+
+#endif //FULLCHECK
 
 // ---------------------------------------------------------------------------------------
 
@@ -1688,6 +1709,7 @@ bool GPUEngine::CheckHash(uint8_t *h, vector<ITEM>& found) {
 
 bool GPUEngine::Check(Secp256K1 &secp) {
 
+  uint8_t h[20];
   int i = 0;
   int j = 0;
   bool ok = true;
@@ -1696,6 +1718,8 @@ bool GPUEngine::Check(Secp256K1 &secp) {
     return false;
 
   printf("GPU: %s\n",deviceName.c_str());
+
+#ifdef FULLCHECK
 
   // Get endianess
   get_endianness<<<1,1>>>(outputPrefix);
@@ -1731,7 +1755,6 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   }
 
   // Check hash 160
-  uint8_t h[20];
   uint8_t hc[20];
   Point pi;
   pi.x.Rand(256);
@@ -1756,6 +1779,8 @@ bool GPUEngine::Check(Secp256K1 &secp) {
       toHex(h, 20).c_str());
     return false;
   }
+
+#endif //FULLCHECK
 
   // Check kernel
   int nbFoundCPU = 0;

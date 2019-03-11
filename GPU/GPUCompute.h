@@ -23,10 +23,10 @@
 // 
 // We use affine coordinates for elliptic curve point (ie Z=1)
 
-#define LOOKUP32()                      \
+#define LOOKUP32(_h)                    \
 if (lookup32) {                         \
   off = lookup32[pr0];                  \
-  l32 = h20[0];                         \
+  l32 = _h[0];                          \
   found = false;                        \
   i = 0;                                \
   while (!found && (i < hit) &&         \
@@ -40,25 +40,24 @@ if (lookup32) {                         \
 __device__ void CheckHash(uint32_t mode,prefix_t *prefix,uint64_t *px,uint64_t *py,
                           int32_t incr,uint32_t tid,uint32_t *lookup32,uint32_t *out) {
 
-  uint8_t   h[20];
-  uint8_t   hn[20];
-  bool      found;
-  uint32_t  off;
-  prefixl_t l32;
-  prefix_t  pr0;
-  prefix_t  hit;
-  uint32_t *h20;
-  uint32_t  pos;
+  uint32_t   h[20];
+  uint32_t   hn[20];
+  bool       found;
+  uint32_t   off;
+  prefixl_t  l32;
+  prefix_t   pr0;
+  prefix_t   hit;
+  uint32_t   pos;
   int i;
 
   if (mode) {
-    _GetHash160Comp(px, py, h);
-    ModNeg256(py,py);
-    _GetHash160Comp(px, py, hn);
+    _GetHash160Comp(px, py, (uint8_t *)h);
+    ModNeg256(py);
+    _GetHash160Comp(px, py, (uint8_t *)hn);
   } else {
-    _GetHash160(px, py, h);
-    ModNeg256(py, py);
-    _GetHash160(px, py, hn);
+    _GetHash160(px, py, (uint8_t *)h);
+    ModNeg256(py);
+    _GetHash160(px, py, (uint8_t *)hn);
   }
 
   // Point
@@ -66,17 +65,16 @@ __device__ void CheckHash(uint32_t mode,prefix_t *prefix,uint64_t *px,uint64_t *
   hit = prefix[pr0];
   if (hit) {
 
-    h20 = (uint32_t *)h;
-    LOOKUP32();
+    LOOKUP32(h);
     pos = atomicAdd(out, 1);
     if (pos < MAX_FOUND) {
       out[pos*ITEM_SIZE32 + 1] = tid;
       out[pos*ITEM_SIZE32 + 2] = incr;
-      out[pos*ITEM_SIZE32 + 3] = h20[0];
-      out[pos*ITEM_SIZE32 + 4] = h20[1];
-      out[pos*ITEM_SIZE32 + 5] = h20[2];
-      out[pos*ITEM_SIZE32 + 6] = h20[3];
-      out[pos*ITEM_SIZE32 + 7] = h20[4];
+      out[pos*ITEM_SIZE32 + 3] = h[0];
+      out[pos*ITEM_SIZE32 + 4] = h[1];
+      out[pos*ITEM_SIZE32 + 5] = h[2];
+      out[pos*ITEM_SIZE32 + 6] = h[3];
+      out[pos*ITEM_SIZE32 + 7] = h[4];
     }
 
   }
@@ -86,17 +84,16 @@ __device__ void CheckHash(uint32_t mode,prefix_t *prefix,uint64_t *px,uint64_t *
   hit = prefix[pr0];
   if (hit) {
 
-    h20 = (uint32_t *)hn;
-    LOOKUP32();
+    LOOKUP32(hn);
     pos = atomicAdd(out, 1);
     if (pos < MAX_FOUND) {
       out[pos*ITEM_SIZE32 + 1] = tid;
       out[pos*ITEM_SIZE32 + 2] = -incr;
-      out[pos*ITEM_SIZE32 + 3] = h20[0];
-      out[pos*ITEM_SIZE32 + 4] = h20[1];
-      out[pos*ITEM_SIZE32 + 5] = h20[2];
-      out[pos*ITEM_SIZE32 + 6] = h20[3];
-      out[pos*ITEM_SIZE32 + 7] = h20[4];
+      out[pos*ITEM_SIZE32 + 3] = hn[0];
+      out[pos*ITEM_SIZE32 + 4] = hn[1];
+      out[pos*ITEM_SIZE32 + 5] = hn[2];
+      out[pos*ITEM_SIZE32 + 6] = hn[3];
+      out[pos*ITEM_SIZE32 + 7] = hn[4];
     }
 
   }
