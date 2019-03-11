@@ -366,7 +366,7 @@ __device__ void ModSub256(uint64_t *r, uint64_t *b) {
 #define IS_EVEN(x) ((x&1LL)==0)
 #define MSK62 0x3FFFFFFFFFFFFFFF
 
-__device__ void _ModInv(uint64_t *R) {
+__device__ __noinline__ void _ModInv(uint64_t *R) {
 
   // Compute modular inverse of R mop _P (using 320bits signed integer)
   // 0 < this < P  , P must be odd
@@ -608,7 +608,7 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a) {
 // Compute all ModInv of the group
 // ---------------------------------------------------------------------------------------
 
-__device__ __noinline__ void _ModInvGrouped(uint64_t r[GRP_SIZE / 2 + 1][4]) {
+__device__ void _ModInvGrouped(uint64_t r[GRP_SIZE / 2 + 1][4]) {
 
   uint64_t subp[GRP_SIZE / 2 + 1][4];
   uint64_t newValue[4];
@@ -1754,7 +1754,7 @@ bool GPUEngine::Check(Secp256K1 &secp) {
     return false;
   }
 
-  // Check hash 160
+  // Check hash 160C
   uint8_t hc[20];
   Point pi;
   pi.x.Rand(256);
