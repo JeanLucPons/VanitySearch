@@ -49,7 +49,7 @@ endif
 
 ifdef gpu
 $(OBJDIR)/GPU/GPUEngine.o: GPU/GPUEngine.cu
-	$(NVCC) -cudart static --compiler-options -fPIC -ccbin g++ -m64 -O2 -I$(CUDA)/include -gencode=arch=compute_20,code=sm_20 -o $(OBJDIR)/GPU/GPUEngine.o -c GPU/GPUEngine.cu
+	$(NVCC) -maxrregcount=0 --ptxas-options=-v --compile --compiler-options -fPIC -ccbin g++ -m64 -O2 -I$(CUDA)/include -gencode=arch=compute_20,code=sm_21 -o $(OBJDIR)/GPU/GPUEngine.o -c GPU/GPUEngine.cu
 endif
 
 $(OBJDIR)/%.o : %.cpp
