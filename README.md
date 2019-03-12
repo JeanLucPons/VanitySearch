@@ -54,6 +54,10 @@ You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/
   Check   : 1HappycX2ah61mkmkXqMbrB2W85Did1QXU (comp)
   ```
 
+# Trying to attack a list of addresses
+
+Please don't use VanitySearch to attack a list of complete addresses. It is very unlikely that you find a collision. The time displayed indicates the time needed to reach the displayed probability of the most proabable prefix in the list. In case of having n complete addresses in the input file, simply divide this time by the number of entries to get an approximative idea of the time needed to reach the displayed probability (in fact it is longer). Even with a file containing 1 billion of addresses, using a very competitive hardware, the time needed to reach a probability of 50% will be much longer than the age of the universe. Note that the birtday paradox cannot be applied here as we look for fixed addresses and there is no trick possible (as for Pollard rho method on points coordinates) to simulate random walks because addresses are hashed.
+
 # Compilation
 
 ## Windows
