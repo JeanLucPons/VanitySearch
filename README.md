@@ -63,13 +63,13 @@ We have a hardware capable of generating **1GKey/s** and we have an input list o
   
 | Time     |  Probability  |
 |----------|:-------------:|
-| 1s |6.8e-34|
-| 1m |4e-32|
-| 1h |2.4e-30|
-| 1d |5.9e-29|
-| 1y |2.1e-26|
-| 10y | 2.1e-25 |
-| 1000y | 2.1e-23 |
+| 1 second |6.8e-34|
+| 1 minute |4e-32|
+| 1 hour |2.4e-30|
+| 1 day |5.9e-29|
+| 1 year |2.1e-26|
+| 10 years | 2.1e-25 |
+| 1000 years | 2.1e-23 |
 | Age of earth | 8.64e-17 |
 | Age of universe | 2.8e-16 (much less that winning at the lotery) |
 
