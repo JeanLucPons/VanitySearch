@@ -75,7 +75,7 @@ We have a hardware capable of generating **1GKey/s** and we have an input list o
 
 Calculation has been done using this [online high precission calculator](https://keisan.casio.com/calculator)
 
-As you can see even with a competive hardware, it is very unlikely that you find a collision. Birthday paradox doesn't apply in this context, it works only if we know already the public key (not the address, the hash of the public key) we want to find.  This program doesn't look for collisions between public keys. It searchs only for collisions with addresses with a certain prefix. 
+As you can see even with a competitive hardware, it is very unlikely that you find a collision. Birthday paradox doesn't apply in this context, it works only if we know already the public key (not the address, the hash of the public key) we want to find.  This program doesn't look for collisions between public keys. It searchs only for collisions with addresses with a certain prefix. 
 
 # Compilation
 
