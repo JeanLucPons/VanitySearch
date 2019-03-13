@@ -56,7 +56,26 @@ You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/
 
 # Trying to attack a list of addresses
 
-Please don't use VanitySearch to attack a list of complete addresses. It is very unlikely that you find a collision. The time displayed indicates the time needed to reach the displayed probability of the most probable prefix in the list. In case of having n complete addresses in the input file, simply divide this time by the number of entries to get an aproximative idea of the time needed to reach the displayed probability (in fact it is longer). Even with a file containing 1 billion of addresses, using a very competitive hardware, the time needed to reach a probability of 50% will be much longer than the age of the universe. Note that the birthday paradox cannot be applied here as we look for fixed addresses and there is no trick possible (as for Pollard rho method on points coordinates) to simulate random walks because addresses are hashed.
+The bitcoin address consists of a hash160 (displayed in Base58 format) which means that there is 2<sup>160</sup> possible addresses. A secure hash function can be seen as a pseudo number generator, it transforms a given message in a random number. In this case, a number (uniformaly distributed) in the range [0,2<sup>160</sup>]. So, the propability to hit a particular number after n tries is 1-(1-1/2<sup>160</sup>)<sup>n</sup>. We perfrom n Bernoulli trials statistically independent.\
+If we have a list of m different addresses (m<=2<sup>160</sup>), the search space is then reduced to 2<sup>160</sup>/m, the probabilty to find a collision after 1 try becomes m/2<sup>160</sup> and the probability to find a collision after n tries becomes 1-(1-m/2<sup>160</sup>)<sup>n</sup>.\
+An example:\
+We have a hardware capable of generating **1GKey/s** and we have an input list of **10<sup>6</sup>** addresses, the following table show the probabilty of findind a collision after a certain amout of time:
+  
+| Time     |  Probability  |
+|----------|:-------------:|
+| 1s |6.8e-34|
+| 1m |4e-32|
+| 1h |2.4e-30|
+| 1d |5.9e-29|
+| 1y |2.1e-26|
+| 10y | 2.1e-25 |
+| 1000y | 2.1e-23 |
+| Age of earth | 8.64e-17 |
+| Age of universe | 2.8e-16 (much less that winning at the lotery) |
+
+Calculation has been done using this [online high precission calculator](https://keisan.casio.com/calculator)
+
+As you can see even with a competive hardware, it is very unlikely that you find a collision. Birthday paradox doesn't apply in this context, it works only if we know already the public key (not the address, the hash of the public key) we want to find.  This program doesn't look for collisions between public keys. It searchs only for collisions with addresses with a certain prefix. 
 
 # Compilation
 
