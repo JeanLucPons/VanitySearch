@@ -57,9 +57,9 @@ You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/
 # Trying to attack a list of addresses
 
 The bitcoin address (P2PKH) consists of a hash160 (displayed in Base58 format) which means that there is 2<sup>160</sup> possible addresses. A secure hash function can be seen as a pseudo number generator, it transforms a given message in a random number. In this case, a number (uniformaly distributed) in the range [0,2<sup>160</sup>]. So, the probability to hit a particular number after n tries is 1-(1-1/2<sup>160</sup>)<sup>n</sup>. We perform n Bernoulli trials statistically independent.\
-If we have a list of m different addresses (m<=2<sup>160</sup>), the search space is then reduced to 2<sup>160</sup>/m, the probabilty to find a collision after 1 try becomes m/2<sup>160</sup> and the probability to find a collision after n tries becomes 1-(1-m/2<sup>160</sup>)<sup>n</sup>.\
+If we have a list of m different addresses (m<=2<sup>160</sup>), the search space is then reduced to 2<sup>160</sup>/m, the probability to find a collision after 1 try becomes m/2<sup>160</sup> and the probability to find a collision after n tries becomes 1-(1-m/2<sup>160</sup>)<sup>n</sup>.\
 An example:\
-We have a hardware capable of generating **1GKey/s** and we have an input list of **10<sup>6</sup>** addresses, the following table shows the probabilty of finding a collision after a certain amount of time:
+We have a hardware capable of generating **1GKey/s** and we have an input list of **10<sup>6</sup>** addresses, the following table shows the probability of finding a collision after a certain amount of time:
   
 | Time     |  Probability  |
 |----------|:-------------:|
