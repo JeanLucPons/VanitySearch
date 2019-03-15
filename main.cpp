@@ -40,7 +40,7 @@ void printUsage() {
   printf(" -i inputfile: Get list of prefixes to search from specified file\n");
   printf(" -gpu: Enable gpu calculation\n");
   printf(" -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0\n");
-  printf(" -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 16*(MP number)\n");
+  printf(" -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)\n");
   printf(" -s seed: Specify a seed for the base key, default is random\n");
   printf(" -t threadNumber: Specify number of CPU thread, default is number of core\n");
   printf(" -nosse : Disable SSE hash function\n");

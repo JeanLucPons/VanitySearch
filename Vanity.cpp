@@ -106,7 +106,7 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
   _difficulty = getDiffuclty();
   if (nbPrefix == 1) {
     prefix_t p0 = usedPrefix[0];
-    printf("Difficulty: %.0f", _difficulty);
+    printf("Difficulty: %.0f\n", _difficulty);
     printf("Search: %s\n", (*prefixes[p0].items)[0].prefix.c_str());
   } else {
     printf("Search: %d prefixes (Lookup size %d)\n", nbPrefix, unique_sPrefix);
@@ -124,6 +124,15 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
   }
   // _2Gn = CPU_GRP_SIZE*G
   _2Gn = secp.DoubleDirect(Gn[CPU_GRP_SIZE/2-1]);
+
+  // Constant for endomorphism
+  // (beta^3 = 1 mod p) 
+  // (lambda^3 = 1 mod n)
+  beta.SetBase16("7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee");
+  lambda.SetBase16("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72");
+  beta2.SetBase16("851695d49a83f8ef919bb86153cbcb16630fb68aed0a766a3ec693d68e6afa40");
+  lambda2.SetBase16("ac9c52b33fa3cf1f5ad9e3fd77ed9ba4a880b9fc8ec739c2e0cfc810b51283ce");
+
 
   // Seed
   if (seed.length() == 0) {
@@ -393,7 +402,7 @@ void VanitySearch::updateFound() {
 
 // ----------------------------------------------------------------------------
 
-void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr) {
+void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism) {
 
   vector<PREFIX_ITEM>& items = *prefixes[prefIdx].items;
 
@@ -405,6 +414,7 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
     if (items[i].isFull) {
 
       if (ripemd160_comp_hash(items[i].hash160, hash160) ) {
+
         // Found it !
         // You believe it ?
         // Mark it as found
@@ -417,6 +427,17 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
         } else {
           k.Add((uint64_t)incr);
         }
+
+        // Endomorphisms
+        switch (endomorphism) {
+          case 1:
+            k.ModMulK1order(&lambda);
+            break;
+          case 2:
+            k.ModMulK1order(&lambda2);
+            break;
+        }
+
         Point p = secp.ComputePublicKey(&k);
         string addr = secp.GetAddress(hash160, searchComp);
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
@@ -435,6 +456,7 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
       a[items[i].prefix.length()] = 0;
 
       if (strcmp(p, a) == 0) {
+
         // Mark it as found
         items[i].found = true;
         Int k(&key);
@@ -445,6 +467,16 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
         } else {
           k.Add((uint64_t)incr);
         }
+        // Endomorphisms
+        switch (endomorphism) {
+          case 1:
+            k.ModMulK1order(&lambda);
+            break;
+          case 2:
+            k.ModMulK1order(&lambda2);
+            break;
+        }
+        printf("Found: incr=%d endo=%d\n", incr, endomorphism);
         Point p = secp.ComputePublicKey(&k);
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
         nbFoundKey++;
@@ -506,6 +538,9 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
   Int dx[CPU_GRP_SIZE/2+1];
   Point pts[CPU_GRP_SIZE];
+  Point pte1[4];
+  Point pte2[4];
+
   Int dy;
   Int dyn;
   Int _s;
@@ -631,7 +666,7 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
       for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i += 4) {
 
-        // Point
+        // Point -------------------------------------------------------------------------
         secp.GetHash160(searchComp, pts[i], pts[i + 1], pts[i + 2], pts[i + 3], h0, h1, h2, h3);
 
         prefix_t pr0 = *(prefix_t *)h0;
@@ -640,16 +675,71 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
         prefix_t pr3 = *(prefix_t *)h3;
 
         if (prefixes[pr0].items)
-           checkAddr(pr0, h0, key, i);
+           checkAddr(pr0, h0, key, i, 0);
         if (prefixes[pr1].items)
-           checkAddr(pr1, h1, key, i+1);
+           checkAddr(pr1, h1, key, i+1, 0);
         if (prefixes[pr2].items)
-           checkAddr(pr2, h2, key, i+2);
+           checkAddr(pr2, h2, key, i+2, 0);
         if (prefixes[pr3].items)
-           checkAddr(pr3, h3, key, i+3);
+           checkAddr(pr3, h3, key, i+3, 0);
 
-        // Curve symetrie
+        // Endomorphism #1
+        // if (x, y) = k * G, then (beta*x, y) = lambda*k*G
+        pte1[0].x.ModMulK1(&pts[i].x,&beta);
+        pte1[0].y.Set(&pts[i].y);
+        pte1[1].x.ModMulK1(&pts[i+1].x, &beta);
+        pte1[1].y.Set(&pts[i+1].y);
+        pte1[2].x.ModMulK1(&pts[i + 2].x, &beta);
+        pte1[2].y.Set(&pts[i + 2].y);
+        pte1[3].x.ModMulK1(&pts[i + 3].x, &beta);
+        pte1[3].y.Set(&pts[i + 3].y);
+
+        secp.GetHash160(searchComp, pte1[0], pte1[1], pte1[2], pte1[3], h0, h1, h2, h3);
+
+        pr0 = *(prefix_t *)h0;
+        pr1 = *(prefix_t *)h1;
+        pr2 = *(prefix_t *)h2;
+        pr3 = *(prefix_t *)h3;
+
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, i, 1);
+        if (prefixes[pr1].items)
+          checkAddr(pr1, h1, key, (i + 1), 1);
+        if (prefixes[pr2].items)
+          checkAddr(pr2, h2, key, (i + 2), 1);
+        if (prefixes[pr3].items)
+          checkAddr(pr3, h3, key, (i + 3), 1);
+
+        // Endomorphism #2
+        // if (x, y) = k * G, then (beta2*x, y) = lambda2*k*G
+        pte2[0].x.ModMulK1(&pts[i].x, &beta2);
+        pte2[0].y.Set(&pts[i].y);
+        pte2[1].x.ModMulK1(&pts[i + 1].x, &beta2);
+        pte2[1].y.Set(&pts[i + 1].y);
+        pte2[2].x.ModMulK1(&pts[i + 2].x, &beta2);
+        pte2[2].y.Set(&pts[i + 2].y);
+        pte2[3].x.ModMulK1(&pts[i + 3].x, &beta2);
+        pte2[3].y.Set(&pts[i + 3].y);
+
+        secp.GetHash160(searchComp, pte2[0], pte2[1], pte2[2], pte2[3], h0, h1, h2, h3);
+
+        pr0 = *(prefix_t *)h0;
+        pr1 = *(prefix_t *)h1;
+        pr2 = *(prefix_t *)h2;
+        pr3 = *(prefix_t *)h3;
+
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, i, 2);
+        if (prefixes[pr1].items)
+          checkAddr(pr1, h1, key, (i + 1), 2);
+        if (prefixes[pr2].items)
+          checkAddr(pr2, h2, key, (i + 2), 2);
+        if (prefixes[pr3].items)
+          checkAddr(pr3, h3, key, (i + 3), 2);
+
+        // Curve symetrie -------------------------------------------------------------------------
         // if (x,y) = k*G, then (x, -y) is -k*G
+
         pts[i].y.ModNeg();
         pts[i+1].y.ModNeg();
         pts[i+2].y.ModNeg();
@@ -663,13 +753,61 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
         pr3 = *(prefix_t *)h3;
 
         if (prefixes[pr0].items)
-          checkAddr(pr0, h0, key, -i);
+          checkAddr(pr0, h0, key, -i, 0);
         if (prefixes[pr1].items)
-          checkAddr(pr1, h1, key, -(i + 1));
+          checkAddr(pr1, h1, key, -(i + 1), 0);
         if (prefixes[pr2].items)
-          checkAddr(pr2, h2, key, -(i + 2));
+          checkAddr(pr2, h2, key, -(i + 2), 0);
         if (prefixes[pr3].items)
-          checkAddr(pr3, h3, key, -(i + 3));
+          checkAddr(pr3, h3, key, -(i + 3), 0);
+
+        // Endomorphism #1
+        // if (x, y) = k * G, then (beta*x, y) = lambda*k*G
+        pte1[0].y.ModNeg();
+        pte1[1].y.ModNeg();
+        pte1[2].y.ModNeg();
+        pte1[3].y.ModNeg();
+
+
+        secp.GetHash160(searchComp, pte1[0], pte1[1], pte1[2], pte1[3], h0, h1, h2, h3);
+
+        pr0 = *(prefix_t *)h0;
+        pr1 = *(prefix_t *)h1;
+        pr2 = *(prefix_t *)h2;
+        pr3 = *(prefix_t *)h3;
+
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, -i, 1);
+        if (prefixes[pr1].items)
+          checkAddr(pr1, h1, key, -(i + 1), 1);
+        if (prefixes[pr2].items)
+          checkAddr(pr2, h2, key, -(i + 2), 1);
+        if (prefixes[pr3].items)
+          checkAddr(pr3, h3, key, -(i + 3), 1);
+
+        // Endomorphism #2
+        // if (x, y) = k * G, then (beta2*x, y) = lambda2*k*G
+        pte2[0].y.ModNeg();
+        pte2[1].y.ModNeg();
+        pte2[2].y.ModNeg();
+        pte2[3].y.ModNeg();
+
+        secp.GetHash160(searchComp, pte2[0], pte2[1], pte2[2], pte2[3], h0, h1, h2, h3);
+
+        pr0 = *(prefix_t *)h0;
+        pr1 = *(prefix_t *)h1;
+        pr2 = *(prefix_t *)h2;
+        pr3 = *(prefix_t *)h3;
+
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, -i, 2);
+        if (prefixes[pr1].items)
+          checkAddr(pr1, h1, key, -(i + 1), 2);
+        if (prefixes[pr2].items)
+          checkAddr(pr2, h2, key, -(i + 2), 2);
+        if (prefixes[pr3].items)
+          checkAddr(pr3, h3, key, -(i + 3), 2);
+
 
       }
 
@@ -677,10 +815,32 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
       for (int i = 0; i < CPU_GRP_SIZE && !endOfSearch; i ++) {
 
+
+        // Point
         secp.GetHash160(pts[i], searchComp, h0);
         prefix_t pr0 = *(prefix_t *)h0;
         if (prefixes[pr0].items)
-          checkAddr(pr0,h0, key, i);
+          checkAddr(pr0,h0, key, i, 0);
+
+        // Endomorphism #1
+        pte1[0].x.ModMulK1(&pts[i].x, &beta);
+        pte1[0].y.Set(&pts[i].y);
+
+        secp.GetHash160(pte1[0], searchComp, h0);
+
+        pr0 = *(prefix_t *)h0;
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, i, 1);
+
+        // Endomorphism #2
+        pte2[0].x.ModMulK1(&pts[i].x, &beta2);
+        pte2[0].y.Set(&pts[i].y);
+
+        secp.GetHash160(pte2[0], searchComp, h0);
+
+        pr0 = *(prefix_t *)h0;
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, i, 2);
 
         // Curve symetrie
         // if (x,y) = k*G, then (x, -y) is -k*G
@@ -688,14 +848,32 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
         secp.GetHash160(pts[i], searchComp, h0);
         pr0 = *(prefix_t *)h0;
         if (prefixes[pr0].items)
-          checkAddr(pr0, h0, key, -i);
+          checkAddr(pr0, h0, key, -i, 0);
+
+        // Endomorphism #1
+        pte1[0].y.ModNeg();
+
+        secp.GetHash160(pte1[0], searchComp, h0);
+
+        pr0 = *(prefix_t *)h0;
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, -i, 1);
+
+        // Endomorphism #2
+        pte2[0].y.ModNeg();
+
+        secp.GetHash160(pte2[0], searchComp, h0);
+
+        pr0 = *(prefix_t *)h0;
+        if (prefixes[pr0].items)
+          checkAddr(pr0, h0, key, -i, 2);
 
       }
 
     }
 
     key.Add((uint64_t)CPU_GRP_SIZE);
-    counters[thId]+= 2*CPU_GRP_SIZE; // Point + Symetric point
+    counters[thId]+= 6*CPU_GRP_SIZE; // Point + endo #1 + endo #2 + Symetric point + endo #1 + endo #2
 
   }
 
@@ -753,7 +931,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
     for(int i=0;i<(int)found.size() && !endOfSearch;i++) {
 
       ITEM it = found[i];
-      checkAddr(*(prefix_t *)(it.hash), it.hash, keys[it.thId], it.incr);
+      checkAddr(*(prefix_t *)(it.hash), it.hash, keys[it.thId], it.incr, 0);
  
     }
 

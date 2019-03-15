@@ -30,7 +30,6 @@ static Int     _R4;      // Montgomery multiplication R4
 static int32_t  Msize;    // Montgomery mult size
 static uint32_t MM32;     // 32bits lsb negative inverse of P
 static uint64_t MM64;     // 64bits lsb negative inverse of P
-static uint64_t MM62;     // 62bits lsb negative inverse of P
 #define MSK62  0x3FFFFFFFFFFFFFFF
 
 extern Int _ONE;
@@ -693,7 +692,6 @@ void Int::SetupField(Int *n, Int *R, Int *R2, Int *R3, Int *R4) {
     x = x * (2 - t * x);
     x = x * (2 - t * x);
     MM64 = (uint64_t)(-x);
-    MM62 = MM64 & MSK62;
     MM32 = (uint32_t)MM64;
   }
   _P.Set(n);
@@ -844,6 +842,9 @@ void Int::MontgomeryMult(Int *a, Int *b) {
 
 }
 
+
+// SecpK1 specific section -----------------------------------------------------------------------------
+
 void Int::ModMulK1(Int *a, Int *b) {
 
   unsigned char c;
@@ -949,5 +950,74 @@ void Int::ModSquareK1(Int *a) {
   // TODO
   // Implement optimization for squaring
   ModMulK1(a,a);
+
+}
+
+static Int _R2o;                               // R^2 for SecpK1 order modular mult
+static uint64_t MM64o = 0x4B0DFF665588B13FULL; // 64bits lsb negative inverse of SecpK1 order
+static Int *_O;                                // SecpK1 order
+
+void Int::InitK1(Int *order) {
+  _O = order;
+  _R2o.SetBase16("9D671CD581C69BC5E697F5E45BCD07C6741496C20E7CF878896CF21467D7D140");
+}
+
+
+void Int::ModMulK1order(Int *a) {
+
+  Int t;
+  Int pr;
+  Int p;
+  uint64_t ML;
+  uint64_t c;
+
+  imm_umul(a->bits64, bits64[0], pr.bits64);
+  ML = pr.bits64[0] * MM64o;
+  imm_umul(_O->bits64, ML, p.bits64);
+  c = pr.AddC(&p);
+  memcpy(t.bits64, pr.bits64 + 1, 32);
+  t.bits64[4] = c;
+
+  for (int i = 1; i < 4; i++) {
+
+    imm_umul(a->bits64, bits64[i], pr.bits64);
+    ML = (pr.bits64[0] + t.bits64[0]) * MM64o;
+    imm_umul(_O->bits64, ML, p.bits64);
+    c = pr.AddC(&p);
+    t.AddAndShift(&t, &pr, c);
+
+  }
+
+  p.Sub(&t, _O);
+  if (p.IsPositive())
+    Set(&p);
+  else
+    Set(&t);
+
+
+  // Normalize
+
+  imm_umul(_R2o.bits64, bits64[0], pr.bits64);
+  ML = pr.bits64[0] * MM64o;
+  imm_umul(_O->bits64, ML, p.bits64);
+  c = pr.AddC(&p);
+  memcpy(t.bits64, pr.bits64 + 1, 32);
+  t.bits64[4] = c;
+
+  for (int i = 1; i < 4; i++) {
+
+    imm_umul(_R2o.bits64, bits64[i], pr.bits64);
+    ML = (pr.bits64[0] + t.bits64[0]) * MM64o;
+    imm_umul(_O->bits64, ML, p.bits64);
+    c = pr.AddC(&p);
+    t.AddAndShift(&t, &pr, c);
+
+  }
+
+  p.Sub(&t, _O);
+  if (p.IsPositive())
+    Set(&p);
+  else
+    Set(&t);
 
 }

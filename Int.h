@@ -125,6 +125,8 @@ public:
   // Specific SecpK1 modular mult
   void ModMulK1(Int *a, Int *b);
   void ModMulK1(Int *a);
+  static void InitK1(Int *order);
+  void ModMulK1order(Int *a);
   void ModSquareK1(Int *a);
 
   // Size

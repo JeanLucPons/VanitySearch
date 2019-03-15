@@ -39,6 +39,8 @@ void Secp256K1::Init() {
   G.z.SetInt32(1);
   order.SetBase16("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
 
+  Int::InitK1(&order);
+
   // Compute Generator table
   Point N(G);
   for(int i = 0; i < 256; i++) {

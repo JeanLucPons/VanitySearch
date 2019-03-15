@@ -26,7 +26,7 @@
 #include <Windows.h>
 #endif
 
-#define CPU_GRP_SIZE 256
+#define CPU_GRP_SIZE 1024
 
 class VanitySearch;
 
@@ -73,7 +73,7 @@ private:
 
   std::string GetHex(std::vector<unsigned char> &buffer);
   std::string GetExpectedTime(double keyRate, double keyCount);
-  void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr);
+  void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism);
   void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string chkAddr, std::string chkAddrC);
   bool isAlive(TH_PARAM *p);
   uint64_t getGPUCount();
@@ -102,6 +102,11 @@ private:
   std::vector<PREFIX_TABLE_ITEM> prefixes;
   std::vector<prefix_t> usedPrefix;
   std::vector<LPREFIX> usedPrefixL;
+
+  Int beta;
+  Int lambda;
+  Int beta2;
+  Int lambda2;
 
 #ifdef WIN64
   HANDLE ghMutex;
