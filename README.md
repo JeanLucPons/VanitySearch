@@ -21,38 +21,61 @@ VanitySearch may not compute a good grid size for your GPU, so try different val
 You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/releases
 
   ```
-  VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-o outputfile] [-gpuId gpuId] [-g gridSize] [-s seed] [-t threadNumber] prefix
- prefix: prefix to search
- -v: Print version
- -check: Check CPU and GPU kernel vs CPU
- -u: Search uncompressed addresses
- -o outputfile: Output results to the specified file
- -gpu: Enable gpu calculation
- -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0
- -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 16*(MP number)
- -s seed: Specify a seed for the base key, default is random
- -t threadNumber: Specify number of CPU thread, default is number of core
- -nosse : Disable SSE hash function
- -l : List cuda enabled devices
- -stop: Stop when prefix is found
+  VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-i inputfile] [-o outputfile] [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]] [-s seed] [-t threadNumber] prefix
+  prefix: prefix to search
+  -v: Print version
+  -check: Check CPU and GPU kernel vs CPU
+  -u: Search uncompressed addresses
+  -o outputfile: Output results to the specified file
+  -i inputfile: Get list of prefixes to search from specified file
+  -gpu: Enable gpu calculation
+  -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0
+  -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)
+  -s seed: Specify a seed for the base key, default is random
+  -t threadNumber: Specify number of CPU thread, default is number of core
+  -nosse : Disable SSE hash function
+  -l : List cuda enabled devices
+  -stop: Stop when prefix is found
   ```
  
   Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 645):
   ```
   C:\C++\VanitySearch\x64\Release>VanitySearch.exe -stop -gpu 1Happy
-  Start Wed Mar  6 15:29:00 2019
-  Search: 1Happy
-  Difficulty: 264104224
-  Base Key:FED6C568C2E57730BF38D07FD4489C2BE095D2861C00A653492621D2434306B9
+  Start Mon Mar 11 09:26:22 2019
+  Difficulty: 264104224Search: 1Happy
+  Base Key:94AB82403B15201B402060E35462957735A583BE7BCBBF360F30BAE1766DA35D
   Number of CPU thread: 7
   GPU: GPU #0 GeForce GTX 645 (3x192 cores) Grid(24x128)
-  41.641 MK/s (GPU 30.670 MK/s) (2^27.76) [P 57.71%][60.00% in 00:00:00]
-  Pub Addr: 1HappydNsxC6mueAXMHG6AzBQJWyBaF7QN
-  Prv Addr: 5KkX6nAeQr8efUWoom3AeSLBGj3wJC6bceeuxiSJM7psXjwbJFh
-  Prv Key : 0xFED6C568C2E57730BF38D07FD4489C2BE115D286237FA653492621D24343D7CA
-  Check   : 13QQPP6PaRnDLpQPhAy2YwfWMy8MZ473q9
-  Check   : 1HappydNsxC6mueAXMHG6AzBQJWyBaF7QN (comp)
+  48.330 MK/s (GPU 34.602 MK/s) (2^28.77) [P 82.35%][90.00% in 00:00:03][0]
+  Pub Addr: 1HappycX2ah61mkmkXqMbrB2W85Did1QXU
+  Prv Addr: 5JwmA143tk3Sy48HqLWERXQHfkbJt6v2CJ8QEega6dpGhgFw97N
+  Prv Key : 0x94AB82403B15201B402060E35462957735A583BE7BCBBF370F30BAE177083B15
+  Check   : 1GxrqHh1EnKrdjZxGqGUT1fJMV8RcBPoJW
+  Check   : 1HappycX2ah61mkmkXqMbrB2W85Did1QXU (comp)
   ```
+
+# Trying to attack a list of addresses
+
+The bitcoin address (P2PKH) consists of a hash160 (displayed in Base58 format) which means that there are 2<sup>160</sup> possible addresses. A secure hash function can be seen as a pseudo number generator, it transforms a given message in a random number. In this case, a number (uniformaly distributed) in the range [0,2<sup>160</sup>]. So, the probability to hit a particular number after n tries is 1-(1-1/2<sup>160</sup>)<sup>n</sup>. We perform n Bernoulli trials statistically independent.\
+If we have a list of m distinct addresses (m<=2<sup>160</sup>), the search space is then reduced to 2<sup>160</sup>/m, the probability to find a collision after 1 try becomes m/2<sup>160</sup> and the probability to find a collision after n tries becomes 1-(1-m/2<sup>160</sup>)<sup>n</sup>.\
+An example:\
+We have a hardware capable of generating **1GKey/s** and we have an input list of **10<sup>6</sup>** addresses, the following table shows the probability of finding a collision after a certain amount of time:
+  
+| Time     |  Probability  |
+|----------|:-------------:|
+| 1 second |6.8e-34|
+| 1 minute |4e-32|
+| 1 hour |2.4e-30|
+| 1 day |5.9e-29|
+| 1 year |2.1e-26|
+| 10 years | 2.1e-25 |
+| 1000 years | 2.1e-23 |
+| Age of earth | 8.64e-17 |
+| Age of universe | 2.8e-16 (much less than winning at the lottery) |
+
+Calculation has been done using this [online high precision calculator](https://keisan.casio.com/calculator)
+
+As you can see, even with a competitive hardware, it is very unlikely that you find a collision. Birthday paradox doesn't apply in this context, it works only if we know already the public key (not the address, the hash of the public key) we want to find.  This program doesn't look for collisions between public keys. It searchs only for collisions with addresses with a certain prefix. 
 
 # Compilation
 
@@ -94,20 +117,19 @@ $ make gpu=1 all
 Runnig VanitySearch (Intel(R) Xeon(R) CPU, 8 cores,  @ 2.93GHz, Quadro 600 (x2))
 ```
 $export LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64
-pons@linpons:~/VanitySearch$ ./VanitySearch -stop -t 7 -gpu -gpuId 0,1 1Happy
-Start Wed Mar  6 15:26:23 2019
-Search: 1Happy
-Difficulty: 264104224
-Base Key:3840A1BDE4792771D67CBFBCB75F2EF08644CDCB93A20A2F953EA289D5785F42
+pons@linpons:~/VanitySearch$ ./VanitySearch -stop -gpu -t 7 -gpuId 0,1 1Happy
+Start Mon Mar 11 09:15:44 2019
+Difficulty: 264104224Search: 1Happy
+Base Key:971888F286EA549956BF03C42223D15D96661379399EA9D65831CEDEA6918880
 Number of CPU thread: 7
 GPU: GPU #1 Quadro 600 (2x48 cores) Grid(16x128)
 GPU: GPU #0 Quadro 600 (2x48 cores) Grid(16x128)
-24.621 MK/s (GPU 15.726 MK/s) (2^26.99) [P 39.60%][50.00% in 00:00:02]
-Pub Addr: 1HappyE4YFXy9NKv47wLSNNxhQ8pHmmnS4
-Prv Addr: 5JF4UXBP9PF68hZGHidd39sWBpVfvvGuUaMJXq5b68JAh97FXiS
-Prv Key : 0x3840A1BDE4792771D67CBFBCB75F2EF08644CDCB93A20A33953EA289D6109E5C
-Check   : 1CP8uGjwfmHfNuXRbSCfw74445CizNjXcA
-Check   : 1HappyE4YFXy9NKv47wLSNNxhQ8pHmmnS4 (comp)
+31.315 MK/s (GPU 19.921 MK/s) (2^28.11) [P 66.50%][70.00% in 00:00:00][0]
+Pub Addr: 1Happysu9MV2H8BbjFT9MRS1jbEqw1Qs3P
+Prv Addr: 5JcVDZtPPU1PF1drPyHR5uf8VJvMf7qZE1VmPfSRA8ycdhNx4RL
+Prv Key : 0x68E7770D7915AB66A940FC3BDDDC2EA123C7C96D71D0F66567A08FAE29A4680E
+Check   : 1ECSMNQNtejgPqEBDp3rRUx1mZuiyQ7QET
+Check   : 1Happysu9MV2H8BbjFT9MRS1jbEqw1Qs3P (comp)
 ```
 
 # License
