@@ -25,6 +25,7 @@ double Timer::perfTicksPerSec;
 LARGE_INTEGER Timer::qwTicksPerSec;
 #else
 #include <sys/time.h>
+#include <unistd.h>
 time_t Timer::tickStart;
 #endif
 

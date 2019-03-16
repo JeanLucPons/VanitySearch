@@ -27,7 +27,6 @@
 #include <algorithm>
 #ifndef WIN64
 #include <pthread.h>
-#include <unistd.h>
 #endif
 
 using namespace std;
@@ -475,7 +474,6 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
             k.ModMulK1order(&lambda2);
             break;
         }
-        printf("\nFound: incr=%d endo=%d\n", incr, endomorphism);
         Point p = secp.ComputePublicKey(&k);
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
         nbFoundKey++;
