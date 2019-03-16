@@ -552,7 +552,6 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a, uint64_t *b) {
   UADDC(r[1],r512[1], ah);
   UADDC(r[2],r512[2], 0ULL);
   UADDC(r[3],r512[3], 0ULL);
-  UADD(r[4],0ULL, 0ULL);
 
 }
 
@@ -602,7 +601,6 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a) {
   UADDC(r[1],r512[1], ah);
   UADDC(r[2],r512[2], 0ULL);
   UADDC(r[3],r512[3], 0ULL);
-  UADD(r[4], 0ULL, 0ULL);
 
 }
 
