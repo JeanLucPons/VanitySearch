@@ -1366,7 +1366,7 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
   NB_TRHEAD_PER_GROUP);
   deviceName = std::string(tmp);
   
-  size_t stackSize = 32768;
+  size_t stackSize = 49152;
   err = cudaDeviceSetLimit(cudaLimitStackSize, stackSize);
   if (err != cudaSuccess) {
     printf("GPUEngine: %s\n", cudaGetErrorString(err));
