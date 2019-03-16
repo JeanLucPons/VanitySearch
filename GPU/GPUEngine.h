@@ -40,7 +40,8 @@ typedef uint32_t prefixl_t;
 
 typedef struct {
   uint32_t thId;
-  int32_t  incr;
+  int16_t  incr;
+  int16_t  endo;
   uint8_t  *hash;
 } ITEM;
 

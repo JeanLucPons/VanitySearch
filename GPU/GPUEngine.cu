@@ -66,6 +66,9 @@ __device__ __constant__ uint64_t _1[] = { 1ULL,0ULL,0ULL,0ULL,0ULL };
 // Field constant (SECPK1)
 __device__ __constant__ uint64_t _P[] = { 0xFFFFFFFEFFFFFC2F,0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF,0ULL };
 __device__ __constant__ uint64_t MM64 = 0xD838091DD2253531; // 64bits lsb negative inverse of P (mod 2^64)
+
+__device__ __constant__ uint64_t _beta[] = { 0xC1396C28719501EEULL,0x9CF0497512F58995ULL,0x6E64479EAC3434E9ULL,0x7AE96A2B657C0710ULL };
+__device__ __constant__ uint64_t _beta2[] = { 0x3EC693D68E6AFA40ULL,0x630FB68AED0A766AULL,0x919BB86153CBCB16ULL,0x851695D49A83F8EFULL };
 #include "GPUGroup.h"
 
 #define HSIZE (GRP_SIZE / 2 - 1)
@@ -1607,6 +1610,7 @@ bool GPUEngine::SetKeys(Point *p) {
 
     }
   }
+
   // Fill device memory
   cudaMemcpy(inputKey, inputKeyPinned, nbThread*32*2, cudaMemcpyHostToDevice);
   // We do not need the input pinned memory anymore
@@ -1674,7 +1678,9 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
     uint32_t *itemPtr = outputPrefixPinned + (i*ITEM_SIZE32 + 1);
     ITEM it;
     it.thId = itemPtr[0];
-    it.incr = (int32_t)(itemPtr[1]);
+    int16_t *ptr = (int16_t *)&(itemPtr[1]);
+    it.endo = ptr[0];
+    it.incr = ptr[1];
     it.hash = (uint8_t *)(itemPtr + 2);
     prefixFound.push_back(it);
   }
@@ -1808,7 +1814,7 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   double t0 = Timer::get_tick();
   Launch(found,true);
   double t1 = Timer::get_tick();
-  Timer::printResult((char *)"Key", 2*STEP_SIZE*nbThread, t0, t1);
+  Timer::printResult((char *)"Key", 6*STEP_SIZE*nbThread, t0, t1);
    
   //for (int i = 0; i < found.size(); i++) {
   //  printf("[%d]: thId=%d incr=%d\n", i, found[i].thId,found[i].incr);
@@ -1817,26 +1823,66 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   
   printf("ComputeKeys() found %d items , CPU check...\n",(int)found.size());
 
+  Int beta,beta2;
+  beta.SetBase16((char *)"7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee");
+  beta2.SetBase16((char *)"851695d49a83f8ef919bb86153cbcb16630fb68aed0a766a3ec693d68e6afa40");
+
   // Check with CPU
   for (j = 0; (j<nbThread); j++) {
     for (i = 0; i < STEP_SIZE; i++) {
-      // Point
-      secp.GetHash160(p[j], searchComp, h);
+      
+      Point pt,p1,p2;
+      pt = p[j];
+      p1 = p[j];
+      p2 = p[j];
+      p1.x.ModMulK1(&beta);
+      p2.x.ModMulK1(&beta2);
+      p[j] = secp.NextKey(p[j]);
+
+      // Point and endo
+      secp.GetHash160(pt, searchComp, h);
       prefix_t pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
 	      nbFoundCPU++;
         ok &= CheckHash(h,found);
       }
-      // Symetric
-      Point s = p[j];
-      s.y.ModNeg();
-      secp.GetHash160(s, searchComp, h);
+      secp.GetHash160(p1, searchComp, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
         nbFoundCPU++;
         ok &= CheckHash(h, found);
       }
-      p[j] = secp.NextKey(p[j]);
+      secp.GetHash160(p2, searchComp, h);
+      pr = *(prefix_t *)h;
+      if (pr == 0xFEFE || pr == 0x1234) {
+        nbFoundCPU++;
+        ok &= CheckHash(h, found);
+      }
+
+      // Symetrics
+      pt.y.ModNeg();
+      p1.y.ModNeg();
+      p2.y.ModNeg();
+
+      secp.GetHash160(pt, searchComp, h);
+      pr = *(prefix_t *)h;
+      if (pr == 0xFEFE || pr == 0x1234) {
+        nbFoundCPU++;
+        ok &= CheckHash(h, found);
+      }
+      secp.GetHash160(p1, searchComp, h);
+      pr = *(prefix_t *)h;
+      if (pr == 0xFEFE || pr == 0x1234) {
+        nbFoundCPU++;
+        ok &= CheckHash(h, found);
+      }
+      secp.GetHash160(p2, searchComp, h);
+      pr = *(prefix_t *)h;
+      if (pr == 0xFEFE || pr == 0x1234) {
+        nbFoundCPU++;
+        ok &= CheckHash(h, found);
+      }
+
     }
   }
 

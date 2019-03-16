@@ -133,7 +133,6 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
   beta2.SetBase16("851695d49a83f8ef919bb86153cbcb16630fb68aed0a766a3ec693d68e6afa40");
   lambda2.SetBase16("ac9c52b33fa3cf1f5ad9e3fd77ed9ba4a880b9fc8ec739c2e0cfc810b51283ce");
 
-
   // Seed
   if (seed.length() == 0) {
     // Default seed
@@ -476,7 +475,7 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
             k.ModMulK1order(&lambda2);
             break;
         }
-        printf("Found: incr=%d endo=%d\n", incr, endomorphism);
+        printf("\nFound: incr=%d endo=%d\n", incr, endomorphism);
         Point p = secp.ComputePublicKey(&k);
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
         nbFoundKey++;
@@ -931,7 +930,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
     for(int i=0;i<(int)found.size() && !endOfSearch;i++) {
 
       ITEM it = found[i];
-      checkAddr(*(prefix_t *)(it.hash), it.hash, keys[it.thId], it.incr, 0);
+      checkAddr(*(prefix_t *)(it.hash), it.hash, keys[it.thId], it.incr, it.endo);
  
     }
 
@@ -939,7 +938,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
       for (int i = 0; i < nbThread; i++) {
         keys[i].Add((uint64_t)STEP_SIZE);
       }
-      counters[thId] += 2 * STEP_SIZE * nbThread; // Point + symetric
+      counters[thId] += 6 * STEP_SIZE * nbThread; // Point +  endo1 + endo2 + symetrics
     }
 
   }
@@ -1045,10 +1044,18 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
   uint64_t lastCount = 0;
   uint64_t gpuCount = 0;
   uint64_t lastGPUCount = 0;
-  double lastkeyRate = 0.0;
-  double lastGpukeyRate = 0.0;
+
+  // Key rate smoothing filter
+  #define FILTER_SIZE 8
+  double lastkeyRate[FILTER_SIZE];
+  double lastGpukeyRate[FILTER_SIZE];
+  uint32_t filterPos = 0;
+
   double keyRate = 0.0;
   double gpuKeyRate = 0.0;
+
+  memset(lastkeyRate,0,sizeof(lastkeyRate));
+  memset(lastGpukeyRate,0,sizeof(lastkeyRate));
 
   while (isAlive(params)) {
 
@@ -1066,14 +1073,21 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     uint64_t count = getCPUCount() + gpuCount;
 
     t1 = Timer::get_tick();
-    lastkeyRate = keyRate;
-    lastGpukeyRate = gpuKeyRate;
     keyRate = (double)(count - lastCount) / (t1 - t0);
     gpuKeyRate = (double)(gpuCount - lastGPUCount) / (t1 - t0);
+    lastkeyRate[filterPos%FILTER_SIZE] = keyRate;
+    lastGpukeyRate[filterPos%FILTER_SIZE] = gpuKeyRate;
+    filterPos++;
 
-    // Slight averaging on keyRate
-    double avgKeyRate = (lastkeyRate + keyRate)/2.0;
-    double avgGpuKeyRate = (lastGpukeyRate + gpuKeyRate) / 2.0;
+    // KeyRate smoothing
+    double avgKeyRate = 0.0;
+    double avgGpuKeyRate = 0.0;
+    for (int i = 0; i<FILTER_SIZE; i++) {
+      avgKeyRate += lastkeyRate[i];
+      avgGpuKeyRate += lastGpukeyRate[i];
+    }
+    avgKeyRate /= (double)(FILTER_SIZE);
+    avgGpuKeyRate /= (double)(FILTER_SIZE);
 
     if (isAlive(params)) {
       printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]\r",
