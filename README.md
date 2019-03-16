@@ -40,18 +40,19 @@ You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/
  
   Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 645):
   ```
-  C:\C++\VanitySearch\x64\Release>VanitySearch.exe -stop -gpu 1Happy
-  Start Mon Mar 11 09:26:22 2019
-  Difficulty: 264104224Search: 1Happy
-  Base Key:94AB82403B15201B402060E35462957735A583BE7BCBBF360F30BAE1766DA35D
+  C:\C++\VanitySearch\x64\Release>VanitySearch.exe -stop -gpu 1TryMe
+  Start Sat Mar 16 10:57:45 2019
+  Difficulty: 15318045009
+  Search: 1TryMe
+  Base Key:683AC982A0347D0D27673EF42CAC67B9CEA8389462C692D19BF08DE372981F48
   Number of CPU thread: 7
   GPU: GPU #0 GeForce GTX 645 (3x192 cores) Grid(24x128)
-  48.330 MK/s (GPU 34.602 MK/s) (2^28.77) [P 82.35%][90.00% in 00:00:03][0]
-  Pub Addr: 1HappycX2ah61mkmkXqMbrB2W85Did1QXU
-  Prv Addr: 5JwmA143tk3Sy48HqLWERXQHfkbJt6v2CJ8QEega6dpGhgFw97N
-  Prv Key : 0x94AB82403B15201B402060E35462957735A583BE7BCBBF370F30BAE177083B15
-  Check   : 1GxrqHh1EnKrdjZxGqGUT1fJMV8RcBPoJW
-  Check   : 1HappycX2ah61mkmkXqMbrB2W85Did1QXU (comp)
+  57.722 MK/s (GPU 41.286 MK/s) (2^33.06) [P 44.26%][50.00% in 00:00:28][0]
+  Pub Addr: 1TryMeRzymSKUSKGfyLn1FF2RTsekyKsm
+  Prv Addr: 5JyPvV4BLPmmaxNjLFRHcNKmAStjS2AAS4pVWdZ5s7xQiFFLjY4
+  Prv Key : 0x986144BE9775573076E111462CB3A680A324CF324190E4FD9A0F8F0F925ACDE6
+  Check   : 1D8JVzhB5nxzBPWYU7TAzfM5SnzEs1GSsq
+  Check   : 1TryMeRzymSKUSKGfyLn1FF2RTsekyKsm (comp)
   ```
 
 # Trying to attack a list of addresses
@@ -117,19 +118,20 @@ $ make gpu=1 all
 Runnig VanitySearch (Intel(R) Xeon(R) CPU, 8 cores,  @ 2.93GHz, Quadro 600 (x2))
 ```
 $export LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64
-pons@linpons:~/VanitySearch$ ./VanitySearch -stop -gpu -t 7 -gpuId 0,1 1Happy
-Start Mon Mar 11 09:15:44 2019
-Difficulty: 264104224Search: 1Happy
-Base Key:971888F286EA549956BF03C42223D15D96661379399EA9D65831CEDEA6918880
+pons@linpons:~/VanitySearch$ ./VanitySearch -stop -t 7 -gpu -gpuId 0,1 1TryMe
+Start Sat Mar 16 11:02:33 2019
+Difficulty: 15318045009
+Search: 1TryMe
+Base Key:E23BAA6FCF17CB2A7BDE3A0471FB7557A4C535F0D90FD02C0526E7E68BA26B93
 Number of CPU thread: 7
 GPU: GPU #1 Quadro 600 (2x48 cores) Grid(16x128)
 GPU: GPU #0 Quadro 600 (2x48 cores) Grid(16x128)
-31.315 MK/s (GPU 19.921 MK/s) (2^28.11) [P 66.50%][70.00% in 00:00:00][0]
-Pub Addr: 1Happysu9MV2H8BbjFT9MRS1jbEqw1Qs3P
-Prv Addr: 5JcVDZtPPU1PF1drPyHR5uf8VJvMf7qZE1VmPfSRA8ycdhNx4RL
-Prv Key : 0x68E7770D7915AB66A940FC3BDDDC2EA123C7C96D71D0F66567A08FAE29A4680E
-Check   : 1ECSMNQNtejgPqEBDp3rRUx1mZuiyQ7QET
-Check   : 1Happysu9MV2H8BbjFT9MRS1jbEqw1Qs3P (comp)
+39.580 MK/s (GPU 25.949 MK/s) (2^31.16) [P 14.46%][50.00% in 00:03:27][0]
+Pub Addr: 1TryMeo5s9d1NEwoXBf8t5ek5sLaAUz1Y
+Prv Addr: 5KXvQFLZkUtE63w34xXFbcgLm9CNiww9XPJfFnyVfhkWcXp9waj
+Prv Key : 0xE23BAA6FCF17CB2A7BDE3A0471FB7557A54635F0DEE6D02C0526E7E68BA36836
+Check   : 1CMuWQeiDcR2jj4NPqXM2FQPe7MrhKt3rG
+Check   : 1TryMeo5s9d1NEwoXBf8t5ek5sLaAUz1Y (comp)
 ```
 
 # License
