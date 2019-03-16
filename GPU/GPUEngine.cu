@@ -1648,11 +1648,7 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
     cudaEventRecord(evt, 0);
     while (cudaEventQuery(evt) == cudaErrorNotReady) {
       // Sleep 1 ms to free the CPU
-#ifdef WIN64
-      Sleep(1);
-#else
-      usleep(1000);
-#endif
+      Timer::SleepMillis(1);
     }
     cudaEventDestroy(evt);
 

@@ -35,8 +35,9 @@ typedef struct {
   VanitySearch *obj;
   int threadId;
   bool isRunning;
-  int gridSize;
-  int gpuId;
+  bool hasStarted;
+  int  gridSize;
+  int  gpuId;
 
 } TH_PARAM;
 
@@ -76,6 +77,7 @@ private:
   void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism);
   void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string chkAddr, std::string chkAddrC);
   bool isAlive(TH_PARAM *p);
+  bool hasStarted(TH_PARAM *p);
   uint64_t getGPUCount();
   uint64_t getCPUCount();
   bool initPrefix(std::string prefix, PREFIX_ITEM *it);

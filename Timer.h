@@ -33,6 +33,7 @@ public:
   static std::string getResult(char *unit, int nbTry, double t0, double t1);
   static int getCoreNumber();
   static uint64_t getSeedFromTimer();
+  static void SleepMillis(uint32_t millis);
 
 #ifdef WIN64
   static LARGE_INTEGER perfTickStart;

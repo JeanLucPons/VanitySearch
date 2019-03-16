@@ -105,3 +105,12 @@ int Timer::getCoreNumber() {
 
 }
 
+void Timer::SleepMillis(uint32_t millis) {
+
+#ifdef WIN64
+  Sleep(millis);
+#else
+  usleep(millis*1000);
+#endif
+
+}

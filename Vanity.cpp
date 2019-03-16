@@ -548,6 +548,8 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
   Point pn;
   grp->Set(dx);
 
+  ph->hasStarted = true;
+
   while (!endOfSearch) {
 
     // Fill group
@@ -921,6 +923,8 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
   }
   ok = g.SetKeys(p);
 
+  ph->hasStarted = true;
+
   // GPU Thread
   while (ok && !endOfSearch) {
 
@@ -947,12 +951,14 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
   delete[] p;
 
 #else
+  ph->hasStarted = true;
   printf("GPU code not compiled, use -DWITHGPU when compiling.\n");
 #endif
 
   ph->isRunning = false;
 
 }
+
 // ----------------------------------------------------------------------------
 
 bool VanitySearch::isAlive(TH_PARAM *p) {
@@ -965,6 +971,21 @@ bool VanitySearch::isAlive(TH_PARAM *p) {
   return isAlive;
 
 }
+
+// ----------------------------------------------------------------------------
+
+bool VanitySearch::hasStarted(TH_PARAM *p) {
+
+  bool hasStarted = true;
+  int total = nbCPUThread + nbGPUThread;
+  for (int i = 0; i < total; i++)
+    hasStarted = hasStarted && p[i].hasStarted;
+
+  return hasStarted;
+
+}
+
+// ----------------------------------------------------------------------------
 
 uint64_t VanitySearch::getGPUCount() {
 
@@ -1039,8 +1060,6 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
   setvbuf(stdout, NULL, _IONBF, 0);
 #endif
 
-  t0 = Timer::get_tick();
-  startTime = t0;
   uint64_t lastCount = 0;
   uint64_t gpuCount = 0;
   uint64_t lastGPUCount = 0;
@@ -1057,15 +1076,19 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
   memset(lastkeyRate,0,sizeof(lastkeyRate));
   memset(lastGpukeyRate,0,sizeof(lastkeyRate));
 
+  // Wait that all threads have started
+  while (!hasStarted(params)) {
+    Timer::SleepMillis(500);
+  }
+
+  t0 = Timer::get_tick();
+  startTime = t0;
+
   while (isAlive(params)) {
 
     int delay = 2000;
     while (isAlive(params) && delay>0) {
-#ifdef WIN64
-      Sleep(500);
-#else
-      usleep(500000);
-#endif
+      Timer::SleepMillis(500);
       delay -= 500;
     }
 
@@ -1082,12 +1105,13 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     // KeyRate smoothing
     double avgKeyRate = 0.0;
     double avgGpuKeyRate = 0.0;
-    for (int i = 0; i<FILTER_SIZE; i++) {
-      avgKeyRate += lastkeyRate[i];
-      avgGpuKeyRate += lastGpukeyRate[i];
+    int nbSample;
+    for (nbSample = 0; (nbSample < FILTER_SIZE) && (nbSample < filterPos); nbSample++) {
+      avgKeyRate += lastkeyRate[nbSample];
+      avgGpuKeyRate += lastGpukeyRate[nbSample];
     }
-    avgKeyRate /= (double)(FILTER_SIZE);
-    avgGpuKeyRate /= (double)(FILTER_SIZE);
+    avgKeyRate /= (double)(nbSample);
+    avgGpuKeyRate /= (double)(nbSample);
 
     if (isAlive(params)) {
       printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]\r",
