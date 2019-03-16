@@ -77,6 +77,7 @@ private:
   void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism);
   void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string chkAddr, std::string chkAddrC);
   bool isAlive(TH_PARAM *p);
+  bool isSingularPrefix(std::string pref);
   bool hasStarted(TH_PARAM *p);
   uint64_t getGPUCount();
   uint64_t getCPUCount();

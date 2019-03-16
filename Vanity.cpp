@@ -152,6 +152,21 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
 }
 
 // ----------------------------------------------------------------------------
+
+bool VanitySearch::isSingularPrefix(std::string pref) {
+
+  // check is the given prefix contains only 1
+  bool only1 = true;
+  int i=0;
+  while (only1 && i < (int)pref.length()) {
+    only1 = pref.data()[i] == '1';
+    i++;
+  }
+  return only1;
+
+}
+
+// ----------------------------------------------------------------------------
 bool VanitySearch::initPrefix(std::string prefix,PREFIX_ITEM *it) {
 
   std::vector<unsigned char> result;
@@ -168,6 +183,26 @@ bool VanitySearch::initPrefix(std::string prefix,PREFIX_ITEM *it) {
     printf("Ignoring prefix \"%s\" (must start with 1)\n", prefix.c_str());
     return false;
   }
+
+  if (isSingularPrefix(prefix)) {
+
+    if (prefix.length() > 21) {
+      printf("Ignoring prefix \"%s\" (Too much 1)\n", prefix.c_str());
+      return false;
+    }
+
+    // Difficulty
+    it->difficulty = pow(256, prefix.length()-1);
+    it->isFull = false;
+    it->sPrefix = 0;
+    it->lPrefix = 0;
+    it->prefix = prefix;
+    it->found = false;
+    return true;
+
+  }
+
+
 
   // Search for highest hash160 16bit prefix (most probable)
 
@@ -1103,7 +1138,7 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     // KeyRate smoothing
     double avgKeyRate = 0.0;
     double avgGpuKeyRate = 0.0;
-    int nbSample;
+    uint32_t nbSample;
     for (nbSample = 0; (nbSample < FILTER_SIZE) && (nbSample < filterPos); nbSample++) {
       avgKeyRate += lastkeyRate[nbSample];
       avgGpuKeyRate += lastGpukeyRate[nbSample];
