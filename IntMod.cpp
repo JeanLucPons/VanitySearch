@@ -37,33 +37,41 @@ extern Int _ONE;
 // ------------------------------------------------
 
 void Int::ModAdd(Int *a) {
+  Int p;
   Add(a);
-  if(IsGreaterOrEqual(&_P))
-    Sub(&_P);
+  p.Sub(this,&_P);
+  if(p.IsPositive())
+    Set(&p);
 }
 
 // ------------------------------------------------
 
 void Int::ModAdd(Int *a, Int *b) {
+  Int p;
   Add(a,b);
-  if (IsGreaterOrEqual(&_P))
-    Sub(&_P);
+  p.Sub(this,&_P);
+  if(p.IsPositive())
+    Set(&p);
 }
 
 // ------------------------------------------------
 
 void Int::ModDouble() {
+  Int p;
   Add(this);
-  if (IsGreaterOrEqual(&_P))
-    Sub(&_P);
+  p.Sub(this,&_P);
+  if(p.IsPositive())
+    Set(&p);
 }
 
 // ------------------------------------------------
 
 void Int::ModAdd(uint64_t a) {
+  Int p;
   Add(a);
-  if (IsGreaterOrEqual(&_P))
-    Sub(&_P);
+  p.Sub(this,&_P);
+  if(p.IsPositive())
+    Set(&p);
 }
 
 // ------------------------------------------------

@@ -1183,7 +1183,7 @@ void Int::Check() {
   }
 
   // Modular arithmetic -------------------------------------------------------------------------------
-  // SecpK1 prime (needed for specific optimisation on the montgomery multiplication)
+  // SecpK1 prime
   b.SetBase16("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
   Int::SetupField(&b);
 
@@ -1231,7 +1231,7 @@ void Int::Check() {
   }
   t1 = Timer::get_tick();
 
-  printf("ModInv() : ");
+  printf("ModInv() Results OK : ");
   Timer::printResult("Inv", 100000, 0, t1 - t0);
 
   // IntGroup -----------------------------------------------------------------------------------
@@ -1267,7 +1267,7 @@ void Int::Check() {
   }
   t1 = Timer::get_tick();
 
-  printf("IntGroup.ModInv() : ");
+  printf("IntGroup.ModInv() Results OK : ");
   Timer::printResult("Inv", 1000 * 256, 0, t1 - t0);
 
   // ModMulK1 ------------------------------------------------------------------------------------
@@ -1293,10 +1293,43 @@ void Int::Check() {
   }
   t1 = Timer::get_tick();
 
-  printf("ModMulK1() : ");
+  printf("ModMulK1() Results OK : ");
+  Timer::printResult("Mult", 1000000, 0, t1 - t0);
+
+  // ModMulK1 order -----------------------------------------------------------------------------
+  // InitK1() is done by secpK1
+  b.SetBase16("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");
+  Int::SetupField(&b);
+
+  for (int i = 0; i < 100000; i++) {
+    a.Rand(BISIZE);
+    b.Rand(BISIZE);
+    c.ModMul(&a,&b);
+    d.Set(&a);
+    d.ModMulK1order(&b);
+    if (!c.IsEqual(&d)) {
+      printf("ModMulK1order() Wrong !\n");
+      printf("[%d] %s\n", i, c.GetBase16().c_str());
+      printf("[%d] %s\n", i, d.GetBase16().c_str());
+      return;
+    }
+  }
+
+  t0 = Timer::get_tick();
+  for (int i = 0; i < 1000000; i++) {
+    a.Rand(BISIZE);
+    b.Rand(BISIZE);
+    c.Set(&a);
+    c.ModMulK1order(&b);
+  }
+  t1 = Timer::get_tick();
+
+  printf("ModMulK1order() Results OK : ");
   Timer::printResult("Mult", 1000000, 0, t1 - t0);
 
   // ModSqrt ------------------------------------------------------------------------------------
+  b.SetBase16("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F");
+  Int::SetupField(&b);
 
   ok = true;
   for (int i = 0; i < 100 && ok; i++) {
@@ -1318,6 +1351,6 @@ void Int::Check() {
   }
   if(!ok) return;
 
-  printf("ModSqrt() OK !\n");
+  printf("ModSqrt() Results OK !\n");
 
 }
