@@ -54,7 +54,7 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
     pos = atomicAdd(out, 1);
     if (pos < MAX_FOUND) {
       out[pos*ITEM_SIZE32 + 1] = tid;
-      out[pos*ITEM_SIZE32 + 2] = (incr << 16) | (endo);
+      out[pos*ITEM_SIZE32 + 2] = (uint32_t)(incr << 16) | (uint32_t)(endo);
       out[pos*ITEM_SIZE32 + 3] = _h[0];
       out[pos*ITEM_SIZE32 + 4] = _h[1];
       out[pos*ITEM_SIZE32 + 5] = _h[2];
@@ -98,7 +98,7 @@ __device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint6
 __device__ __noinline__ void CheckHashUncomp(prefix_t *prefix, uint64_t *px, uint64_t *py,
   int32_t incr, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
 
-  uint32_t   h[20];
+  uint32_t   h[5];
   uint64_t   pe1x[4];
   uint64_t   pe2x[4];
 
