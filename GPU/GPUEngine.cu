@@ -1160,7 +1160,7 @@ __global__ void comp_keys(uint32_t mode,prefix_t *prefix, uint32_t *lookup32, ui
 
 }
 
-#define FULLCHECK
+//#define FULLCHECK
 #ifdef FULLCHECK
 
 // ---------------------------------------------------------------------------------------
