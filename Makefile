@@ -35,12 +35,18 @@ CUDA       = /usr/local/cuda-8.0
 NVCC       = $(CUDA)/bin/nvcc
 
 ifdef gpu
-#CXXFLAGS   = -DWITHGPU -m64  -Wno-write-strings -g -I. -I$(CUDA)/include
+ifdef debug
+CXXFLAGS   = -DWITHGPU -m64  -Wno-write-strings -g -I. -I$(CUDA)/include
+else
 CXXFLAGS   =  -DWITHGPU -m64  -Wno-write-strings -O2 -I. -I$(CUDA)/include
+endif
 LFLAGS     = -lpthread -L$(CUDA)/lib64 -lcudart
 else
-#CXXFLAGS   = -m64  -Wno-write-strings -g -I. -I$(CUDA)/include
+ifdef debug
+CXXFLAGS   = -m64  -Wno-write-strings -g -I. -I$(CUDA)/include
+else
 CXXFLAGS   =  -m64 -msse -Wno-write-strings -O2 -I. -I$(CUDA)/include
+endif
 LFLAGS     = -lpthread
 endif
 
@@ -48,8 +54,13 @@ endif
 #--------------------------------------------------------------------
 
 ifdef gpu
+ifdef debug
+$(OBJDIR)/GPU/GPUEngine.o: GPU/GPUEngine.cu
+	$(NVCC) -G -maxrregcount=0 --ptxas-options=-v --compile --compiler-options -fPIC -ccbin g++ -m64 -g -I$(CUDA)/include -gencode=arch=compute_20,code=sm_21 -o $(OBJDIR)/GPU/GPUEngine.o -c GPU/GPUEngine.cu
+else
 $(OBJDIR)/GPU/GPUEngine.o: GPU/GPUEngine.cu
 	$(NVCC) -maxrregcount=0 --ptxas-options=-v --compile --compiler-options -fPIC -ccbin g++ -m64 -O2 -I$(CUDA)/include -gencode=arch=compute_20,code=sm_21 -o $(OBJDIR)/GPU/GPUEngine.o -c GPU/GPUEngine.cu
+endif
 endif
 
 $(OBJDIR)/%.o : %.cpp
