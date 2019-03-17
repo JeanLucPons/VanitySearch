@@ -159,35 +159,6 @@ __device__ __constant__ uint64_t _beta2[] = { 0x3EC693D68E6AFA40ULL,0x630FB68AED
 
 // ---------------------------------------------------------------------------------------
 
-#define AddC(r,a,carry) {\
-  UADDO1(r[0], a[0]); \
-  UADDC1(r[1], a[1]); \
-  UADDC1(r[2], a[2]); \
-  UADDC1(r[3], a[3]); \
-  UADDC1(r[4], a[4]); \
-  UADDC(carry, 0ULL, 0ULL);}
-
-// ---------------------------------------------------------------------------------------
-
-#define AddAndShift(r, a, b, cH) {\
-  UADDO(r[0], a[0], b[0]); \
-  UADDC(r[0], a[1], b[1]); \
-  UADDC(r[1], a[2], b[2]); \
-  UADDC(r[2], a[3], b[3]); \
-  UADDC(r[3], a[4], b[4]); \
-  UADD(r[4], 0ULL, cH);}
-
-// ---------------------------------------------------------------------------------------
-
-#define Shift64(r, a,cH) {\
-  r[0] = a[1]; \
-  r[1] = a[2]; \
-  r[2] = a[3]; \
-  r[3] = a[4]; \
-  r[4] = cH;}
-
-// ---------------------------------------------------------------------------------------
-
 #define Load(r, a) {\
   (r)[0] = (a)[0]; \
   (r)[1] = (a)[1]; \
@@ -1189,6 +1160,7 @@ __global__ void comp_keys(uint32_t mode,prefix_t *prefix, uint32_t *lookup32, ui
 
 }
 
+#define FULLCHECK
 #ifdef FULLCHECK
 
 // ---------------------------------------------------------------------------------------
@@ -1665,7 +1637,7 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
 
 }
 
-bool GPUEngine::CheckHash(uint8_t *h, vector<ITEM>& found) {
+bool GPUEngine::CheckHash(uint8_t *h, vector<ITEM>& found,int tid,int incr,int endo, int *nbOK) {
 
   bool ok = true;
 
@@ -1679,10 +1651,11 @@ bool GPUEngine::CheckHash(uint8_t *h, vector<ITEM>& found) {
   }
   if (f) {
     found.erase(found.begin() + l);
+    *nbOK = *nbOK+1;
   } else {
     ok = false;
-    printf("Expected item not found %s\n",
-      toHex(h, 20).c_str());
+    printf("Expected item not found %s (thread=%d, incr=%d, endo=%d)\n",
+      toHex(h, 20).c_str(),tid,incr,endo);
   }
 
   return ok;
@@ -1765,7 +1738,8 @@ bool GPUEngine::Check(Secp256K1 &secp) {
 #endif //FULLCHECK
 
   // Check kernel
-  int nbFoundCPU = 0;
+  int nbFoundCPU[6];
+  int nbOK[6];
   Int k;
   Point *p = new Point[nbThread];
   Point *p2 = new Point[nbThread];
@@ -1774,6 +1748,8 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   uint32_t seed = (uint32_t)(Timer::getSeedFromTimer());
   printf("Seed: %u\n",seed);
   rseed(seed);
+  memset(nbOK,0,sizeof(nbOK));
+  memset(nbFoundCPU, 0, sizeof(nbFoundCPU));
   for (int i = 0; i < nbThread; i++) {
     k.Rand(256);
     p[i] = secp.ComputePublicKey(&k);
@@ -1819,20 +1795,20 @@ bool GPUEngine::Check(Secp256K1 &secp) {
       secp.GetHash160(pt, searchComp, h);
       prefix_t pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
-	      nbFoundCPU++;
-        ok &= CheckHash(h,found);
+	      nbFoundCPU[0]++;
+        ok &= CheckHash(h,found, j, i, 0, nbOK + 0);
       }
       secp.GetHash160(p1, searchComp, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
-        nbFoundCPU++;
-        ok &= CheckHash(h, found);
+        nbFoundCPU[1]++;
+        ok &= CheckHash(h, found, j, i, 1, nbOK + 1);
       }
       secp.GetHash160(p2, searchComp, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
-        nbFoundCPU++;
-        ok &= CheckHash(h, found);
+        nbFoundCPU[2]++;
+        ok &= CheckHash(h, found, j, i, 2, nbOK + 2);
       }
 
       // Symetrics
@@ -1843,20 +1819,20 @@ bool GPUEngine::Check(Secp256K1 &secp) {
       secp.GetHash160(pt, searchComp, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
-        nbFoundCPU++;
-        ok &= CheckHash(h, found);
+        nbFoundCPU[3]++;
+        ok &= CheckHash(h, found, j, -i, 0, nbOK + 3);
       }
       secp.GetHash160(p1, searchComp, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
-        nbFoundCPU++;
-        ok &= CheckHash(h, found);
+        nbFoundCPU[4]++;
+        ok &= CheckHash(h, found, j, -i, 1, nbOK + 4);
       }
       secp.GetHash160(p2, searchComp, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
-        nbFoundCPU++;
-        ok &= CheckHash(h, found);
+        nbFoundCPU[5]++;
+        ok &= CheckHash(h, found, j, -i, 2, nbOK + 5);
       }
 
     }
@@ -1868,7 +1844,19 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   }
 
   if( !ok ) {
-    printf("CPU found %d items\n",nbFoundCPU); 
+
+    int nbF = nbFoundCPU[0] + nbFoundCPU[1] + nbFoundCPU[2] +
+              nbFoundCPU[3] + nbFoundCPU[4] + nbFoundCPU[5];
+    printf("CPU found %d items\n",nbF); 
+
+    printf("GPU: point   correct [%d/%d]\n", nbOK[0] , nbFoundCPU[0]);
+    printf("GPU: endo #1 correct [%d/%d]\n", nbOK[1] , nbFoundCPU[1]);
+    printf("GPU: endo #2 correct [%d/%d]\n", nbOK[2] , nbFoundCPU[2]);
+
+    printf("GPU: sym/point   correct [%d/%d]\n", nbOK[3] , nbFoundCPU[3]);
+    printf("GPU: sym/endo #1 correct [%d/%d]\n", nbOK[4] , nbFoundCPU[4]);
+    printf("GPU: sym/endo #2 correct [%d/%d]\n", nbOK[5] , nbFoundCPU[5]);
+
   }
 
   if(ok) printf("GPU/CPU check OK\n");
