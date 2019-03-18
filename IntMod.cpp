@@ -855,7 +855,12 @@ void Int::MontgomeryMult(Int *a, Int *b) {
 
 void Int::ModMulK1(Int *a, Int *b) {
 
+#ifndef WIN64
+  volatile unsigned char c;
+#else
   unsigned char c;
+#endif
+
   uint64_t ah, al;
   uint64_t t[5];
   uint64_t r512[8];
@@ -896,8 +901,9 @@ void Int::ModMulK1(Int *a, Int *b) {
   al = _umul128(t[4] + c, 0x1000003D1ULL, &ah); 
   c = _addcarry_u64(0, r512[0], al, bits64 + 0);
   c = _addcarry_u64(c, r512[1], ah, bits64 + 1);
-  c = _addcarry_u64(c, r512[2], 0, bits64 + 2);
-  c = _addcarry_u64(c, r512[3], 0, bits64 + 3); 
+  c = _addcarry_u64(c, r512[2], 0ULL, bits64 + 2);
+  c = _addcarry_u64(c, r512[3], 0ULL, bits64 + 3);
+
   // Probability of carry here or that this>P is very very unlikely
   bits64[4] = 0; 
 
@@ -905,7 +911,12 @@ void Int::ModMulK1(Int *a, Int *b) {
 
 void Int::ModMulK1(Int *a) {
 
+#ifndef WIN64
+  volatile unsigned char c;
+#else
   unsigned char c;
+#endif
+
   uint64_t ah, al;
   uint64_t t[5];
   uint64_t r512[8];
