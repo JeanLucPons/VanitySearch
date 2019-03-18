@@ -36,6 +36,7 @@ void printUsage() {
   printf(" -v: Print version\n");
   printf(" -check: Check CPU and GPU kernel vs CPU\n");
   printf(" -u: Search uncompressed addresses\n");
+  printf(" -b: Search both uncompressed or compressed addresses\n");
   printf(" -o outputfile: Output results to the specified file\n");
   printf(" -i inputfile: Get list of prefixes to search from specified file\n");
   printf(" -gpu: Enable gpu calculation\n");
@@ -132,7 +133,7 @@ int main(int argc, char* argv[]) {
   int a = 1;
   bool gpuEnable = false;
   bool stop = false;
-  bool uncomp = false;
+  int searchMode = SEARCH_COMPRESSED;
   vector<int> gpuId = {0};
   vector<int> gridSize = {-1};
   string seed = "";
@@ -164,7 +165,7 @@ int main(int argc, char* argv[]) {
 
 #ifdef WITHGPU
       GPUEngine g(gridSize[0],gpuId[0]);
-      g.SetSearchMode(!uncomp);
+      g.SetSearchMode(searchMode);
       g.Check(secp);
 #else
   printf("GPU code not compiled, use -DWITHGPU when compiling.\n");
@@ -180,7 +181,10 @@ int main(int argc, char* argv[]) {
       exit(0);
 
     } else if (strcmp(argv[a], "-u") == 0) {
-      uncomp = true;
+      searchMode = SEARCH_UNCOMPRESSED;
+      a++;
+    } else if (strcmp(argv[a], "-b") == 0) {
+      searchMode = SEARCH_BOTH;
       a++;
     } else if (strcmp(argv[a], "-nosse") == 0) {
       sse = false;
@@ -232,7 +236,7 @@ int main(int argc, char* argv[]) {
   if( !tSpecified && nbCPUThread>1 && gpuEnable)
     nbCPUThread--;
 
-  VanitySearch *v = new VanitySearch(secp, prefix, seed,!uncomp,gpuEnable,stop,outputFile,sse);
+  VanitySearch *v = new VanitySearch(secp, prefix, seed,searchMode,gpuEnable,stop,outputFile,sse);
   v->Search(nbCPUThread,gpuId,gridSize);
 
   return 0;

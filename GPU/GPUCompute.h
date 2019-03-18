@@ -23,7 +23,7 @@
 // 
 // We use affine coordinates for elliptic curve point (ie Z=1)
 
-__device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo, prefix_t *prefix, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
+__device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo, int32_t mode,prefix_t *prefix, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
 
   bool       found;
   uint32_t   off;
@@ -54,7 +54,7 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
     pos = atomicAdd(out, 1);
     if (pos < MAX_FOUND) {
       out[pos*ITEM_SIZE32 + 1] = tid;
-      out[pos*ITEM_SIZE32 + 2] = (uint32_t)(incr << 16) | (uint32_t)(endo);
+      out[pos*ITEM_SIZE32 + 2] = (uint32_t)(incr << 16) | (uint32_t)(mode << 15) | (uint32_t)(endo);
       out[pos*ITEM_SIZE32 + 3] = _h[0];
       out[pos*ITEM_SIZE32 + 4] = _h[1];
       out[pos*ITEM_SIZE32 + 5] = _h[2];
@@ -66,7 +66,7 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
 
 }
 
-#define CHECK_POINT(_h,incr,endo)  CheckPoint(_h,incr,endo,prefix,tid,lookup32,out)
+#define CHECK_POINT(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,tid,lookup32,out)
 
 __device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint64_t *py,
   int32_t incr, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
@@ -74,24 +74,25 @@ __device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint6
   uint32_t   h[20];
   uint64_t   pe1x[4];
   uint64_t   pe2x[4];
+  uint64_t   pyn[4];
 
   _GetHash160Comp(px, py, (uint8_t *)h);
-  CHECK_POINT(h, incr, 0);
+  CHECK_POINT(h, incr, 0, true);
   _ModMult(pe1x, px, _beta);
   _GetHash160Comp(pe1x, py, (uint8_t *)h);
-  CHECK_POINT(h, incr, 1);
+  CHECK_POINT(h, incr, 1, true);
   _ModMult(pe2x, px, _beta2);
   _GetHash160Comp(pe2x, py, (uint8_t *)h);
-  CHECK_POINT(h, incr, 2);
+  CHECK_POINT(h, incr, 2, true);
 
-  ModNeg256(py);
+  ModNeg256(pyn,py);
 
-  _GetHash160Comp(px, py, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 0);
-  _GetHash160Comp(pe1x, py, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 1);
-  _GetHash160Comp(pe2x, py, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 2);
+  _GetHash160Comp(px, pyn, (uint8_t *)h);
+  CHECK_POINT(h, -incr, 0, true);
+  _GetHash160Comp(pe1x, pyn, (uint8_t *)h);
+  CHECK_POINT(h, -incr, 1, true);
+  _GetHash160Comp(pe2x, pyn, (uint8_t *)h);
+  CHECK_POINT(h, -incr, 2, true);
 
 }
 
@@ -101,34 +102,42 @@ __device__ __noinline__ void CheckHashUncomp(prefix_t *prefix, uint64_t *px, uin
   uint32_t   h[5];
   uint64_t   pe1x[4];
   uint64_t   pe2x[4];
+  uint64_t   pyn[4];
 
   _GetHash160(px, py, (uint8_t *)h);
-  CHECK_POINT(h, incr, 0);
+  CHECK_POINT(h, incr, 0, false);
   _ModMult(pe1x, px, _beta);
   _GetHash160(pe1x, py, (uint8_t *)h);
-  CHECK_POINT(h, incr, 1);
+  CHECK_POINT(h, incr, 1, false);
   _ModMult(pe2x, px, _beta2);
   _GetHash160(pe2x, py, (uint8_t *)h);
-  CHECK_POINT(h, incr, 2);
+  CHECK_POINT(h, incr, 2, false);
 
-  ModNeg256(py);
+  ModNeg256(pyn,py);
 
-  _GetHash160(px, py, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 0);
-  _GetHash160(pe1x, py, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 1);
-  _GetHash160(pe2x, py, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 2);
+  _GetHash160(px, pyn, (uint8_t *)h);
+  CHECK_POINT(h, -incr, 0, false);
+  _GetHash160(pe1x, pyn, (uint8_t *)h);
+  CHECK_POINT(h, -incr, 1, false);
+  _GetHash160(pe2x, pyn, (uint8_t *)h);
+  CHECK_POINT(h, -incr, 2, false);
 
 }
 
 __device__ __noinline__ void CheckHash(uint32_t mode, prefix_t *prefix, uint64_t *px, uint64_t *py,
   int32_t incr, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
 
-  if (mode) {
+  switch (mode) {
+  case SEARCH_COMPRESSED:
     CheckHashComp(prefix, px, py, incr, tid, lookup32, out);
-  } else {
-    CheckHashUncomp(prefix,px,py,incr,tid,lookup32,out);
+    break;
+  case SEARCH_UNCOMPRESSED:
+    CheckHashUncomp(prefix, px, py, incr, tid, lookup32, out);
+    break;
+  case SEARCH_BOTH:
+    CheckHashComp(prefix, px, py, incr, tid, lookup32, out);
+    CheckHashUncomp(prefix, px, py, incr, tid, lookup32, out);
+    break;
   }
 
 }

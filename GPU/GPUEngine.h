@@ -21,6 +21,12 @@
 #include <vector>
 #include "../SECP256k1.h"
 
+#define SEARCH_COMPRESSED 0
+#define SEARCH_UNCOMPRESSED 1
+#define SEARCH_BOTH 2
+
+static const char *searchModes[] = {"Compressed","Uncompressed","Compressed or Uncompressed"};
+
 // Number of key per thread (must be a multiple of GRP_SIZE) per kernel call
 #define STEP_SIZE 1024
 
@@ -43,6 +49,7 @@ typedef struct {
   int16_t  incr;
   int16_t  endo;
   uint8_t  *hash;
+  bool mode;
 } ITEM;
 
 // Second level lookup
@@ -60,7 +67,7 @@ public:
   void SetPrefix(std::vector<prefix_t> prefixes);
   void SetPrefix(std::vector<LPREFIX> prefixes,uint32_t totalPrefix);
   bool SetKeys(Point *p);
-  void SetSearchMode(bool compressed);
+  void SetSearchMode(int serachMode);
   bool Launch(std::vector<ITEM> &prefixFound,bool spinWait=false);
   int GetNbThread();
   int GetGroupSize();
@@ -88,7 +95,7 @@ private:
   uint32_t *outputPrefix;
   uint32_t *outputPrefixPinned;
   bool initialised;
-  bool searchComp;
+  uint32_t searchMode;
   bool littleEndian;
   bool lostWarning;
 };

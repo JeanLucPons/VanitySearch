@@ -1379,7 +1379,7 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
   //double Plost = Psk(STEP_SIZE,MAX_FOUND,P);
   //printf("Plost=%g\n",Plost);
 
-  searchComp = true;
+  searchMode = SEARCH_COMPRESSED;
   initialised = true;
   inputPrefixLookUp = NULL;
 
@@ -1451,8 +1451,8 @@ int GPUEngine::GetNbThread() {
   return nbThread;
 }
 
-void GPUEngine::SetSearchMode(bool compressed) {
-  searchComp = compressed;
+void GPUEngine::SetSearchMode(int searchMode) {
+  this->searchMode = searchMode;
 }
 
 void GPUEngine::SetPrefix(std::vector<prefix_t> prefixes) {
@@ -1532,7 +1532,7 @@ bool GPUEngine::callKernel() {
 
   // Call the kernel (Perform STEP_SIZE keys per thread)
   comp_keys<<< nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >>>
-      ((uint32_t)searchComp, inputPrefix, inputPrefixLookUp, inputKey, outputPrefix);
+      (searchMode, inputPrefix, inputPrefixLookUp, inputKey, outputPrefix);
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -1617,7 +1617,7 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
   if (nbFound > MAX_FOUND) {
     // prefix has been lost
     if (!lostWarning) {
-      printf("\nWarning, %d items lost (try to search with less prefixes)\n", (nbFound - MAX_FOUND));
+      printf("\nWarning, %d items lost (try to search with less prefixes or less thread (use -g))\n", (nbFound - MAX_FOUND));
       lostWarning = true;
     }
     nbFound = MAX_FOUND;
@@ -1627,7 +1627,8 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
     ITEM it;
     it.thId = itemPtr[0];
     int16_t *ptr = (int16_t *)&(itemPtr[1]);
-    it.endo = ptr[0];
+    it.endo = ptr[0] & 0x7FFF;
+    it.mode = (ptr[0]&0x8000)!=0;
     it.incr = ptr[1];
     it.hash = (uint8_t *)(itemPtr + 2);
     prefixFound.push_back(it);
@@ -1737,6 +1738,7 @@ bool GPUEngine::Check(Secp256K1 &secp) {
 
 #endif //FULLCHECK
 
+
   // Check kernel
   int nbFoundCPU[6];
   int nbOK[6];
@@ -1744,6 +1746,14 @@ bool GPUEngine::Check(Secp256K1 &secp) {
   Point *p = new Point[nbThread];
   Point *p2 = new Point[nbThread];
   vector<ITEM> found;
+  bool searchComp;
+
+  if (searchMode == SEARCH_BOTH) {
+    printf("Warning, Check function does not support BOTH_MODE, use either compressed or uncompressed");
+    return true;
+  }
+
+  searchComp = (searchMode == SEARCH_COMPRESSED)?true:false;
 
   uint32_t seed = (uint32_t)(Timer::getSeedFromTimer());
   printf("Seed: %u\n",seed);
@@ -1856,6 +1866,8 @@ bool GPUEngine::Check(Secp256K1 &secp) {
     printf("GPU: sym/point   correct [%d/%d]\n", nbOK[3] , nbFoundCPU[3]);
     printf("GPU: sym/endo #1 correct [%d/%d]\n", nbOK[4] , nbFoundCPU[4]);
     printf("GPU: sym/endo #2 correct [%d/%d]\n", nbOK[5] , nbFoundCPU[5]);
+
+    printf("GPU/CPU check Failed !\n");
 
   }
 

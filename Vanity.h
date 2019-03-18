@@ -64,7 +64,7 @@ class VanitySearch {
 
 public:
 
-  VanitySearch(Secp256K1 &secp, std::vector<std::string> prefix, std::string seed, bool compressed, 
+  VanitySearch(Secp256K1 &secp, std::vector<std::string> prefix, std::string seed, int searchMode, 
                bool useGpu,bool stop,std::string outputFile, bool useSSE);
   void Search(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize);
   void FindKeyCPU(TH_PARAM *p);
@@ -74,7 +74,9 @@ private:
 
   std::string GetHex(std::vector<unsigned char> &buffer);
   std::string GetExpectedTime(double keyRate, double keyCount);
-  void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism);
+  void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism, bool mode);
+  void checkAddresses(bool compressed, Int key, int i, Point p1);
+  void checkAddressesSSE(bool compressed, Int key, int i, Point p1, Point p2, Point p3, Point p4);
   void output(std::string addr, std::string pAddr, std::string pAddrHex, std::string chkAddr, std::string chkAddrC);
   bool isAlive(TH_PARAM *p);
   bool isSingularPrefix(std::string pref);
@@ -90,7 +92,7 @@ private:
   Int startKey;
   uint64_t counters[256];
   double startTime;
-  bool searchComp;
+  int searchMode;
   bool useGpu;
   bool stopWhenFound;
   bool endOfSearch;
