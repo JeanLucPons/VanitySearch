@@ -36,7 +36,7 @@ Point _2Gn;
 
 // ----------------------------------------------------------------------------
 
-VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string seed,int searchMode, 
+VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,string seed,int searchMode, 
                            bool useGpu, bool stop, string outputFile, bool useSSE) {
 
   this->secp = secp;
@@ -61,11 +61,13 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
     prefixes.push_back(t);
 
   // Insert prefixes
+  bool loadingProgress = (inputPrefixes.size()>1000);
+
   nbPrefix = 0;
   onlyFull = true;
-  for (int i = 0; i < (int)prefix.size(); i++) {
+  for (int i = 0; i < (int)inputPrefixes.size(); i++) {
     PREFIX_ITEM it;
-    if (initPrefix(prefix[i], &it)) {
+    if (initPrefix(inputPrefixes[i], &it)) {
       std::vector<PREFIX_ITEM> *items;
       items = prefixes[it.sPrefix].items;
       if (items == NULL) {
@@ -78,8 +80,17 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
       onlyFull &= it.isFull;
       nbPrefix++;
     }
+    if(loadingProgress && i%10000==0)
+      printf("Building lookup16 [%.2f%%]\r",((double)i*100.0)/(double)inputPrefixes.size());
   }
+
+  if (loadingProgress)
+    printf("\n");
+
   //dumpPrefixes();
+
+  // Free input memory
+  inputPrefixes.clear();
 
   if (nbPrefix == 0) {
     printf("VanitySearch: nothing to search !\n");
@@ -100,7 +111,12 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> prefix,string se
       usedPrefixL.push_back(lit);
       unique_sPrefix++;
     }
+    if (loadingProgress)
+      printf("Building lookup32 [%.2f%%]\r", ((double)i*100.0) / (double)prefixes.size());
   }
+
+  if (loadingProgress)
+    printf("\n");
 
   _difficulty = getDiffuclty();
   if (nbPrefix == 1) {

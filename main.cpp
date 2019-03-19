@@ -103,12 +103,33 @@ void getInts(string name,vector<int> &tokens, const string &text, char sep) {
 // ------------------------------------------------------------------------------------------
 
 void parseFile(string fileName, vector<string> &lines) {
+  
+  // Get file size
+  FILE *fp = fopen(fileName.c_str(),"rb");
+  if (fp == NULL) {
+    printf("Error: Cannot open %s %s\n",fileName.c_str(),strerror(errno));
+  }
+  fseek(fp, 0L, SEEK_END);
+  size_t sz = ftell(fp);
+  size_t nbAddr = sz / 33; /* Upper approximation */
+  bool loaddingProgress = sz>100000;
+  fclose(fp);
 
+  int nbLine = 0;
   string line;
   ifstream inFile(fileName);
+  lines.reserve(nbAddr);
   while (getline(inFile, line)) {
     lines.push_back(line);
+    nbLine++;
+    if (loaddingProgress) {
+      if ((nbLine % 10000)==0)
+        printf("[Loading input file %.2f%%]\r",((double)nbLine*100.0)/((double)(nbAddr)*33.0/34.0));
+    }
   }
+
+  if (loaddingProgress)
+    printf("\n");
 
 }
 
@@ -123,6 +144,22 @@ int main(int argc, char* argv[]) {
   // Init SecpK1
   Secp256K1 secp;
   secp.Init();
+
+  /*
+  FILE *f = fopen("addr_25M.txt","w");
+  for (int i = 0; i < 25000000; i++) {
+    Int k;
+    k.Rand(256);
+    Point p = secp.ComputePublicKey(&k);
+    string addr = secp.GetAddress(p,true);
+    fprintf(f,"%s\n",addr.c_str());
+    if (i % 100000 == 0) {
+      printf("%d\n",i);
+    }
+  }
+  fclose(f);
+  exit(0);
+  */
 
   // Browse arguments
   if (argc < 2) {

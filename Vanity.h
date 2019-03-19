@@ -64,7 +64,7 @@ class VanitySearch {
 
 public:
 
-  VanitySearch(Secp256K1 &secp, std::vector<std::string> prefix, std::string seed, int searchMode, 
+  VanitySearch(Secp256K1 &secp, std::vector<std::string> &prefix, std::string seed, int searchMode, 
                bool useGpu,bool stop,std::string outputFile, bool useSSE);
   void Search(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize);
   void FindKeyCPU(TH_PARAM *p);
