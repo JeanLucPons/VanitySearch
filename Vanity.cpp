@@ -37,7 +37,7 @@ Point _2Gn;
 // ----------------------------------------------------------------------------
 
 VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,string seed,int searchMode, 
-                           bool useGpu, bool stop, string outputFile, bool useSSE) {
+                           bool useGpu, bool stop, string outputFile, bool useSSE, uint32_t maxFound) {
 
   this->secp = secp;
   this->searchMode = searchMode;
@@ -46,6 +46,7 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
   this->outputFile = outputFile;
   this->useSSE = useSSE;
   this->nbGPUThread = 0;
+  this->maxFound = maxFound;
   prefixes.clear();
 
   // Create a 65536 items lookup table
@@ -105,8 +106,8 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
         lit.lPrefixes.push_back((*items)[j].lPrefix);
       sort(lit.lPrefixes.begin(), lit.lPrefixes.end());
       usedPrefixL.push_back(lit);
-      if( lit.lPrefixes.size()>maxI ) maxI = lit.lPrefixes.size();
-      if( lit.lPrefixes.size()<minI ) minI = lit.lPrefixes.size();
+      if( (uint32_t)lit.lPrefixes.size()>maxI ) maxI = (uint32_t)lit.lPrefixes.size();
+      if( (uint32_t)lit.lPrefixes.size()<minI ) minI = (uint32_t)lit.lPrefixes.size();
       unique_sPrefix++;
     }
     if (loadingProgress)
@@ -227,7 +228,7 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
     it->sPrefix = *(prefix_t *)(it->hash160);
     it->lPrefix = *(prefixl_t *)(it->hash160);
     it->prefix = (char *)prefix.c_str();
-    it->prefixLength = prefix.length();
+    it->prefixLength = (int)prefix.length();
     it->found = false;
     return true;
 
@@ -248,7 +249,7 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
     it->sPrefix = 0;
     it->lPrefix = 0;
     it->prefix = (char *)prefix.c_str();
-    it->prefixLength = prefix.length();
+    it->prefixLength = (int)prefix.length();
     it->found = false;
     return true;
 
@@ -291,7 +292,7 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
   it->isFull = false;
   it->lPrefix = 0;
   it->prefix = (char *)prefix.c_str();
-  it->prefixLength = prefix.length();
+  it->prefixLength = (int)prefix.length();
   it->found = false;
 
   return true;
@@ -1006,7 +1007,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
 
   // Global init
   int thId = ph->threadId;
-  GPUEngine g(ph->gridSize, ph->gpuId);
+  GPUEngine g(ph->gridSize, ph->gpuId, maxFound);
   int nbThread = g.GetNbThread();
   Point *p = new Point[nbThread];
   Int *keys = new Int[nbThread];

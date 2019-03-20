@@ -23,7 +23,7 @@
 #include <string.h>
 #include <stdexcept>
 
-#define RELEASE "1.8"
+#define RELEASE "1.9"
 
 using namespace std;
 
@@ -31,7 +31,7 @@ using namespace std;
 
 void printUsage() {
 
-  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-i inputfile] [-o outputfile] [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]] [-s seed] [-t threadNumber] prefix\n");
+  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-i inputfile] [-o outputfile] [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]] [-m maxFound] [-s seed] [-t threadNumber] prefix\n");
   printf(" prefix: prefix to search\n");
   printf(" -v: Print version\n");
   printf(" -check: Check CPU and GPU kernel vs CPU\n");
@@ -46,6 +46,7 @@ void printUsage() {
   printf(" -t threadNumber: Specify number of CPU thread, default is number of core\n");
   printf(" -nosse : Disable SSE hash function\n");
   printf(" -l : List cuda enabled devices\n");
+  printf(" -m : Specifiy maximun number of prefixes found by each kernel call\n");
   printf(" -stop: Stop when all prefixes are found\n");
   exit(-1);
 
@@ -105,35 +106,37 @@ void getInts(string name,vector<int> &tokens, const string &text, char sep) {
 void parseFile(string fileName, vector<string> &lines) {
   
   // Get file size
-  FILE *fp = fopen(fileName.c_str(),"rb");
+  FILE *fp = fopen(fileName.c_str(), "rb");
   if (fp == NULL) {
-    printf("Error: Cannot open %s %s\n",fileName.c_str(),strerror(errno));
+    printf("Error: Cannot open %s %s\n", fileName.c_str(), strerror(errno));
   }
   fseek(fp, 0L, SEEK_END);
   size_t sz = ftell(fp);
   size_t nbAddr = sz / 33; /* Upper approximation */
-  bool loaddingProgress = sz>100000;
+  bool loaddingProgress = sz > 100000;
   fclose(fp);
 
+  // Parse file
   int nbLine = 0;
   string line;
   ifstream inFile(fileName);
   lines.reserve(nbAddr);
   while (getline(inFile, line)) {
-	  
-	// Remove ending \r\n
-	int l = line.length()-1;
-	while(l>=0 && isspace(line.at(l))) {
-	  line.pop_back();
-	  l--;
+
+    // Remove ending \r\n
+    int l = (int)line.length() - 1;
+    while (l >= 0 && isspace(line.at(l))) {
+      line.pop_back();
+      l--;
     }
-	  
+
     lines.push_back(line);
     nbLine++;
     if (loaddingProgress) {
-      if ((nbLine % 50000)==0)
-        printf("[Loading input file %5.1f%%]\r",((double)nbLine*100.0)/((double)(nbAddr)*33.0/34.0));
+      if ((nbLine % 50000) == 0)
+        printf("[Loading input file %5.1f%%]\r", ((double)nbLine*100.0) / ((double)(nbAddr)*33.0 / 34.0));
     }
+
   }
 
   if (loaddingProgress)
@@ -153,22 +156,6 @@ int main(int argc, char* argv[]) {
   Secp256K1 secp;
   secp.Init();
 
-  /*
-  FILE *f = fopen("addr_25M.txt","w");
-  for (int i = 0; i < 25000000; i++) {
-    Int k;
-    k.Rand(256);
-    Point p = secp.ComputePublicKey(&k);
-    string addr = secp.GetAddress(p,true);
-    fprintf(f,"%s\n",addr.c_str());
-    if (i % 100000 == 0) {
-      printf("%d\n",i);
-    }
-  }
-  fclose(f);
-  exit(0);
-  */
-
   // Browse arguments
   if (argc < 2) {
     printf("Not enough argument\n");
@@ -187,6 +174,7 @@ int main(int argc, char* argv[]) {
   int nbCPUThread = Timer::getCoreNumber();
   bool tSpecified = false;
   bool sse = true;
+  uint32_t maxFound = 65536;
 
   while (a < argc) {
 
@@ -209,7 +197,7 @@ int main(int argc, char* argv[]) {
       secp.Check();
 
 #ifdef WITHGPU
-      GPUEngine g(gridSize[0],gpuId[0]);
+      GPUEngine g(gridSize[0],gpuId[0],maxFound);
       g.SetSearchMode(searchMode);
       g.Check(secp);
 #else
@@ -255,6 +243,11 @@ int main(int argc, char* argv[]) {
       nbCPUThread = getInt("nbCPUThread",argv[a]);
       a++;
       tSpecified = true;
+    } else if (strcmp(argv[a], "-m") == 0) {
+      a++;
+      maxFound = getInt("maxFound", argv[a]);
+      a++;
+      tSpecified = true;
     } else if (a == argc - 1) {
       prefix.push_back(string(argv[a]));
       a++;
@@ -281,7 +274,7 @@ int main(int argc, char* argv[]) {
   if( !tSpecified && nbCPUThread>1 && gpuEnable)
     nbCPUThread--;
 
-  VanitySearch *v = new VanitySearch(secp, prefix, seed,searchMode,gpuEnable,stop,outputFile,sse);
+  VanitySearch *v = new VanitySearch(secp, prefix, seed,searchMode,gpuEnable,stop,outputFile,sse,maxFound);
   v->Search(nbCPUThread,gpuId,gridSize);
 
   return 0;

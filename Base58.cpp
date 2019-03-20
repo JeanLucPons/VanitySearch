@@ -46,7 +46,7 @@ bool DecodeBase58(const char* psz, std::vector<uint8_t> &vch)
       psz++;
     }
     
-    int length = strlen(psz);
+    int length = (int)strlen(psz);
         
     // Process the characters	
     int digitslen = 1;

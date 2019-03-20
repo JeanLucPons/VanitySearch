@@ -32,13 +32,8 @@ static const char *searchModes[] = {"Compressed","Uncompressed","Compressed or U
 
 // Number of thread per block
 #define NB_TRHEAD_PER_GROUP 128
-
-// Maximum number of 16bit prefix found per kernel 
-// Avg = (nbThread*STEP_SIZE*nbPrefix16)/65536
-#define MAX_FOUND 131072
 #define ITEM_SIZE 28
 #define ITEM_SIZE32 (ITEM_SIZE/4)
-#define OUTPUT_SIZE (MAX_FOUND*ITEM_SIZE+4)
 #define _64K 65536
 
 typedef uint16_t prefix_t;
@@ -62,12 +57,13 @@ class GPUEngine {
 
 public:
 
-  GPUEngine(int nbThreadGroup,int gpuId); 
+  GPUEngine(int nbThreadGroup,int gpuId,uint32_t maxFound); 
   ~GPUEngine();
   void SetPrefix(std::vector<prefix_t> prefixes);
   void SetPrefix(std::vector<LPREFIX> prefixes,uint32_t totalPrefix);
   bool SetKeys(Point *p);
   void SetSearchMode(int serachMode);
+  void SetMaxFound(uint32_t max);
   bool Launch(std::vector<ITEM> &prefixFound,bool spinWait=false);
   int GetNbThread();
   int GetGroupSize();
@@ -98,6 +94,9 @@ private:
   uint32_t searchMode;
   bool littleEndian;
   bool lostWarning;
+  uint32_t maxFound;
+  uint32_t outputSize;
+
 };
 
 #endif // GPUENGINEH

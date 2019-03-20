@@ -66,7 +66,7 @@ class VanitySearch {
 public:
 
   VanitySearch(Secp256K1 &secp, std::vector<std::string> &prefix, std::string seed, int searchMode, 
-               bool useGpu,bool stop,std::string outputFile, bool useSSE);
+               bool useGpu,bool stop,std::string outputFile, bool useSSE,uint32_t maxFound);
   void Search(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize);
   void FindKeyCPU(TH_PARAM *p);
   void FindKeyGPU(TH_PARAM *p);
@@ -104,6 +104,7 @@ private:
   std::string outputFile;
   bool useSSE;
   bool onlyFull;
+  uint32_t maxFound;
   double _difficulty;
   std::vector<PREFIX_TABLE_ITEM> prefixes;
   std::vector<prefix_t> usedPrefix;

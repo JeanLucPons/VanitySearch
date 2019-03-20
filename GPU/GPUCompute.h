@@ -23,7 +23,8 @@
 // 
 // We use affine coordinates for elliptic curve point (ie Z=1)
 
-__device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo, int32_t mode,prefix_t *prefix, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
+__device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo, int32_t mode,prefix_t *prefix, 
+                                        uint32_t tid, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint32_t   off;
   prefixl_t  l32;
@@ -41,7 +42,6 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
   if (hit) {
 
     if (lookup32) {
-		
       off = lookup32[pr0];
       l32 = _h[0];
       st=  off;
@@ -49,24 +49,22 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
       while(st<=ed) {
         mi = (st+ed)/2;
         lmi = lookup32[mi];
-	    if(l32<lmi) {
-		  ed = mi - 1;
-	    } else if(l32==lmi) {
-		  // found
-		  goto addItem;
-	    } else {
-	      st = mi + 1;
-	    }	    
-      }
-	   
-	  return;
-	  
+	      if(l32<lmi) {
+		      ed = mi - 1;
+	      } else if(l32==lmi) {
+		      // found
+		      goto addItem;
+	      } else {
+	        st = mi + 1;
+	      }	    
+      }	   
+	    return;	  
     }
 
 addItem:
 
     pos = atomicAdd(out, 1);
-    if (pos < MAX_FOUND) {
+    if (pos < maxFound) {
       out[pos*ITEM_SIZE32 + 1] = tid;
       out[pos*ITEM_SIZE32 + 2] = (uint32_t)(incr << 16) | (uint32_t)(mode << 15) | (uint32_t)(endo);
       out[pos*ITEM_SIZE32 + 3] = _h[0];
@@ -80,10 +78,10 @@ addItem:
 
 }
 
-#define CHECK_POINT(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,tid,lookup32,out)
+#define CHECK_POINT(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,tid,lookup32,maxFound,out)
 
-__device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint64_t *py,
-  int32_t incr, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
+__device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr, 
+                                           uint32_t tid, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint32_t   h[20];
   uint64_t   pe1x[4];
@@ -110,8 +108,8 @@ __device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint6
 
 }
 
-__device__ __noinline__ void CheckHashUncomp(prefix_t *prefix, uint64_t *px, uint64_t *py,
-  int32_t incr, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
+__device__ __noinline__ void CheckHashUncomp(prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr, 
+                                             uint32_t tid, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint32_t   h[5];
   uint64_t   pe1x[4];
@@ -138,28 +136,28 @@ __device__ __noinline__ void CheckHashUncomp(prefix_t *prefix, uint64_t *px, uin
 
 }
 
-__device__ __noinline__ void CheckHash(uint32_t mode, prefix_t *prefix, uint64_t *px, uint64_t *py,
-  int32_t incr, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
+__device__ __noinline__ void CheckHash(uint32_t mode, prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr, 
+                                       uint32_t tid, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   switch (mode) {
   case SEARCH_COMPRESSED:
-    CheckHashComp(prefix, px, py, incr, tid, lookup32, out);
+    CheckHashComp(prefix, px, py, incr, tid, lookup32, maxFound, out);
     break;
   case SEARCH_UNCOMPRESSED:
-    CheckHashUncomp(prefix, px, py, incr, tid, lookup32, out);
+    CheckHashUncomp(prefix, px, py, incr, tid, lookup32, maxFound, out);
     break;
   case SEARCH_BOTH:
-    CheckHashComp(prefix, px, py, incr, tid, lookup32, out);
-    CheckHashUncomp(prefix, px, py, incr, tid, lookup32, out);
+    CheckHashComp(prefix, px, py, incr, tid, lookup32, maxFound, out);
+    CheckHashUncomp(prefix, px, py, incr, tid, lookup32, maxFound, out);
     break;
   }
 
 }
 
-#define CHECK_PREFIX(incr) CheckHash(mode, sPrefix, px, py, j*GRP_SIZE + (incr), tid, lookup32, out)
+#define CHECK_PREFIX(incr) CheckHash(mode, sPrefix, px, py, j*GRP_SIZE + (incr), tid, lookup32, maxFound, out)
 
 __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty, 
-                             prefix_t *sPrefix, uint32_t *lookup32, uint32_t *out) {
+                             prefix_t *sPrefix, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint64_t dx[GRP_SIZE/2+1][4];
   uint64_t px[4];

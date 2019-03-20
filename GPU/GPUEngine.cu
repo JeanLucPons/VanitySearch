@@ -1152,11 +1152,11 @@ __device__ __noinline__ void _GetHash160(uint64_t *x, uint64_t *y, uint8_t *hash
 
 // ---------------------------------------------------------------------------------------
 
-__global__ void comp_keys(uint32_t mode,prefix_t *prefix, uint32_t *lookup32, uint64_t *keys, uint32_t *found) {
+__global__ void comp_keys(uint32_t mode,prefix_t *prefix, uint32_t *lookup32, uint64_t *keys, uint32_t maxFound, uint32_t *found) {
 
   int xPtr = (blockIdx.x*blockDim.x) * 8;
   int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
-  ComputeKeys(mode, keys + xPtr, keys + yPtr, prefix, lookup32, found);
+  ComputeKeys(mode, keys + xPtr, keys + yPtr, prefix, lookup32, maxFound, found);
 
 }
 
@@ -1278,7 +1278,7 @@ int _ConvertSMVer2Cores(int major, int minor) {
 
 }
 
-GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
+GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound) {
 
   // Initialise CUDA
   initialised = false;
@@ -1310,8 +1310,10 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
   if (nbThreadGroup == -1)
     nbThreadGroup = deviceProp.multiProcessorCount * 8;
 
-  nbThread = nbThreadGroup * NB_TRHEAD_PER_GROUP;
-  
+  this->nbThread = nbThreadGroup * NB_TRHEAD_PER_GROUP;
+  this->maxFound = maxFound;
+  this->outputSize = (maxFound*ITEM_SIZE + 4);
+
   char tmp[256];
   sprintf(tmp,"GPU #%d %s (%dx%d cores) Grid(%dx%d)",
   gpuId,deviceProp.name,deviceProp.multiProcessorCount,
@@ -1364,20 +1366,16 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId) {
     printf("GPUEngine: Allocate input pinned memory: %s\n", cudaGetErrorString(err));
     return;
   }
-  err = cudaMalloc((void **)&outputPrefix, OUTPUT_SIZE);
+  err = cudaMalloc((void **)&outputPrefix, outputSize);
   if (err != cudaSuccess) {
     printf("GPUEngine: Allocate output memory: %s\n", cudaGetErrorString(err));
     return;
   }
-  err = cudaHostAlloc(&outputPrefixPinned, OUTPUT_SIZE, cudaHostAllocWriteCombined | cudaHostAllocMapped);
+  err = cudaHostAlloc(&outputPrefixPinned, outputSize, cudaHostAllocWriteCombined | cudaHostAllocMapped);
   if (err != cudaSuccess) {
     printf("GPUEngine: Allocate output pinned memory: %s\n", cudaGetErrorString(err));
     return;
   }
-
-  //double P = 1/65536.0;
-  //double Plost = Psk(STEP_SIZE,MAX_FOUND,P);
-  //printf("Plost=%g\n",Plost);
 
   searchMode = SEARCH_COMPRESSED;
   initialised = true;
@@ -1532,7 +1530,7 @@ bool GPUEngine::callKernel() {
 
   // Call the kernel (Perform STEP_SIZE keys per thread)
   comp_keys<<< nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >>>
-      (searchMode, inputPrefix, inputPrefixLookUp, inputKey, outputPrefix);
+      (searchMode, inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
@@ -1587,8 +1585,7 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
 
   if(spinWait) {
 
-    cudaMemcpy(outputPrefixPinned, outputPrefix, OUTPUT_SIZE,
-      cudaMemcpyDeviceToHost);
+    cudaMemcpy(outputPrefixPinned, outputPrefix, outputSize, cudaMemcpyDeviceToHost);
 
   } else {
 
@@ -1613,13 +1610,13 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
 
   // Look for prefix found
   uint32_t nbFound = outputPrefixPinned[0];
-  if (nbFound > MAX_FOUND) {
+  if (nbFound > maxFound) {
     // prefix has been lost
     if (!lostWarning) {
-      printf("\nWarning, %d items lost (try to search with less prefixes or less thread (use -g))\n", (nbFound - MAX_FOUND));
+      printf("\nWarning, %d items lost\nHint: Search with less prefixes, less threads (-g) or increase maxFound (-m)\n", (nbFound - maxFound));
       lostWarning = true;
     }
-    nbFound = MAX_FOUND;
+    nbFound = maxFound;
   }
   
   // When can perform a standard copy, the kernel is eneded
