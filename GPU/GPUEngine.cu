@@ -1595,8 +1595,7 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
     // Use cudaMemcpyAsync to avoid default spin wait of cudaMemcpy wich takes 100% CPU
     cudaEvent_t evt;
     cudaEventCreate(&evt);
-    cudaMemcpyAsync(outputPrefixPinned, outputPrefix, OUTPUT_SIZE,
-      cudaMemcpyDeviceToHost, 0);
+    cudaMemcpyAsync(outputPrefixPinned, outputPrefix, 4, cudaMemcpyDeviceToHost, 0);
     cudaEventRecord(evt, 0);
     while (cudaEventQuery(evt) == cudaErrorNotReady) {
       // Sleep 1 ms to free the CPU
@@ -1622,6 +1621,10 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
     }
     nbFound = MAX_FOUND;
   }
+  
+  // When can perform a standard copy, the kernel is eneded
+  cudaMemcpy( outputPrefixPinned , outputPrefix , nbFound*ITEM_SIZE + 4 , cudaMemcpyDeviceToHost);
+  
   for (uint32_t i = 0; i < nbFound; i++) {
     uint32_t *itemPtr = outputPrefixPinned + (i*ITEM_SIZE32 + 1);
     ITEM it;

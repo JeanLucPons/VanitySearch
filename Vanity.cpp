@@ -48,11 +48,6 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
   this->nbGPUThread = 0;
   prefixes.clear();
 
-  char *ctimeBuff;
-  time_t now = time(NULL);
-  ctimeBuff = ctime(&now);
-  printf("Start %s", ctimeBuff);
-
   // Create a 65536 items lookup table
   PREFIX_TABLE_ITEM t;
   t.found = true;
@@ -62,6 +57,8 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
 
   // Insert prefixes
   bool loadingProgress = (inputPrefixes.size()>1000);
+  if(loadingProgress)
+    printf("[Building lookup16   0.0%%]\r");
 
   nbPrefix = 0;
   onlyFull = true;
@@ -80,8 +77,8 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
       onlyFull &= it.isFull;
       nbPrefix++;
     }
-    if(loadingProgress && i%10000==0)
-      printf("Building lookup16 [%.2f%%]\r",((double)i*100.0)/(double)inputPrefixes.size());
+    if(loadingProgress && i%1000==0)
+      printf("[Building lookup16 %5.1f%%]\r",(((double)i)/(double)(inputPrefixes.size()-1)) * 100.0);
   }
 
   if (loadingProgress)
@@ -89,16 +86,15 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
 
   //dumpPrefixes();
 
-  // Free input memory
-  inputPrefixes.clear();
-
   if (nbPrefix == 0) {
     printf("VanitySearch: nothing to search !\n");
     exit(1);
   }
 
   // Second level lookup
-  uint16_t unique_sPrefix = 0;
+  uint32_t unique_sPrefix = 0;
+  uint32_t minI = 0xFFFFFFFF;
+  uint32_t maxI = 0;
   for (int i = 0; i < prefixes.size(); i++) {
     std::vector<PREFIX_ITEM> *items;
     items = prefixes[i].items;
@@ -109,10 +105,12 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
         lit.lPrefixes.push_back((*items)[j].lPrefix);
       sort(lit.lPrefixes.begin(), lit.lPrefixes.end());
       usedPrefixL.push_back(lit);
+      if( lit.lPrefixes.size()>maxI ) maxI = lit.lPrefixes.size();
+      if( lit.lPrefixes.size()<minI ) minI = lit.lPrefixes.size();
       unique_sPrefix++;
     }
     if (loadingProgress)
-      printf("Building lookup32 [%.2f%%]\r", ((double)i*100.0) / (double)prefixes.size());
+      printf("[Building lookup32 %.1f%%]\r", ((double)i*100.0) / (double)prefixes.size());
   }
 
   if (loadingProgress)
@@ -122,9 +120,13 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
   if (nbPrefix == 1) {
     prefix_t p0 = usedPrefix[0];
     printf("Difficulty: %.0f\n", _difficulty);
-    printf("Search: %s [%s]\n", (*prefixes[p0].items)[0].prefix.c_str(),searchModes[searchMode]);
+    printf("Search: %s [%s]\n", (*prefixes[p0].items)[0].prefix,searchModes[searchMode]);
   } else {
-    printf("Search: %d prefixes (Lookup size %d) [%s]\n", nbPrefix, unique_sPrefix,searchModes[searchMode]);
+	if( onlyFull ) {
+      printf("Search: %d addresses (Lookup size %d,[%d,%d]) [%s]\n", nbPrefix,unique_sPrefix,minI,maxI,searchModes[searchMode]);
+	} else {
+      printf("Search: %d prefixes (Lookup size %d) [%s]\n", nbPrefix, unique_sPrefix,searchModes[searchMode]);
+    }
   }
 
   // Compute Generator table G[n] = (n+1)*G
@@ -163,6 +165,11 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
   startKey.SetInt32(0);
   sha256(hseed, 64, (unsigned char *)startKey.bits64);
 
+  char *ctimeBuff;
+  time_t now = time(NULL);
+  ctimeBuff = ctime(&now);
+  printf("Start %s", ctimeBuff);
+
   printf("Base Key:%s\n",startKey.GetBase16().c_str());
 
 }
@@ -183,7 +190,7 @@ bool VanitySearch::isSingularPrefix(std::string pref) {
 }
 
 // ----------------------------------------------------------------------------
-bool VanitySearch::initPrefix(std::string prefix,PREFIX_ITEM *it) {
+bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
 
   std::vector<unsigned char> result;
   string dummy1 = prefix;
@@ -199,7 +206,35 @@ bool VanitySearch::initPrefix(std::string prefix,PREFIX_ITEM *it) {
     printf("Ignoring prefix \"%s\" (must start with 1)\n", prefix.c_str());
     return false;
   }
+  
+  // Try to attack a full address ?
+  wrong = !DecodeBase58(prefix, result);
 
+  if (wrong) {
+    printf("Ignoring prefix \"%s\" (0, I, O and l not allowed)\n", prefix.c_str());
+    return false;
+  }
+  
+  if (result.size() > 21) {
+
+    // mamma mia !
+    //if (!secp.CheckPudAddress(prefix)) {
+    //  printf("Warning, \"%s\" (address checksum may never match)\n", prefix.c_str());
+    //}
+    it->difficulty = pow(2, 160);
+    it->isFull = true;
+    memcpy(it->hash160, result.data() + 1, 20);
+    it->sPrefix = *(prefix_t *)(it->hash160);
+    it->lPrefix = *(prefixl_t *)(it->hash160);
+    it->prefix = (char *)prefix.c_str();
+    it->prefixLength = prefix.length();
+    it->found = false;
+    return true;
+
+  }
+  
+
+  // Prefix containing only '1'
   if (isSingularPrefix(prefix)) {
 
     if (prefix.length() > 21) {
@@ -212,13 +247,12 @@ bool VanitySearch::initPrefix(std::string prefix,PREFIX_ITEM *it) {
     it->isFull = false;
     it->sPrefix = 0;
     it->lPrefix = 0;
-    it->prefix = prefix;
+    it->prefix = (char *)prefix.c_str();
+    it->prefixLength = prefix.length();
     it->found = false;
     return true;
 
   }
-
-
 
   // Search for highest hash160 16bit prefix (most probable)
 
@@ -252,29 +286,12 @@ bool VanitySearch::initPrefix(std::string prefix,PREFIX_ITEM *it) {
     nbDigit++;
   }
 
-  // Try to attack a full address ?
-  DecodeBase58(prefix, result);
-  if (result.size() > 21) {
-
-    // mamma mia !
-    if (!secp.CheckPudAddress(prefix)) {
-      printf("Warning, \"%s\" (address checksum may never match)\n", prefix.c_str());
-    }
-    it->difficulty = pow(2, 160);
-    it->isFull = true;
-    memcpy(it->hash160, result.data() + 1, 20);
-    it->lPrefix = *(prefixl_t *)(it->hash160);
-
-  } else {
-
-    // Difficulty
-    it->difficulty = pow(2, 192) / pow(58, nbDigit);
-    it->isFull = false;
-    it->lPrefix = 0;
-
-  }
-
-  it->prefix = prefix;
+  // Difficulty
+  it->difficulty = pow(2, 192) / pow(58, nbDigit);
+  it->isFull = false;
+  it->lPrefix = 0;
+  it->prefix = (char *)prefix.c_str();
+  it->prefixLength = prefix.length();
   it->found = false;
 
   return true;
@@ -292,7 +309,7 @@ void VanitySearch::dumpPrefixes() {
       for (int j = 0; j < (*items).size(); j++) {
         printf("  %d\n", (*items)[j].sPrefix);
         printf("  %g\n", (*items)[j].difficulty);
-        printf("  %s\n", (*items)[j].prefix.c_str());
+        printf("  %s\n", (*items)[j].prefix);
       }
     }
   }
@@ -454,13 +471,14 @@ void VanitySearch::updateFound() {
 void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism, bool mode) {
 
   vector<PREFIX_ITEM>& items = *prefixes[prefIdx].items;
+  
+  if (onlyFull) {
+	  
+	// Full addresses
+    for (int i = 0; i < items.size(); i++) {
 
-  for (int i = 0; i < items.size(); i++) {
-
-    if(stopWhenFound && items[i].found)
-      continue;
-
-    if (items[i].isFull) {
+      if(stopWhenFound && items[i].found)
+        continue;
 
       if (ripemd160_comp_hash(items[i].hash160, hash160) ) {
 
@@ -492,19 +510,25 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
         nbFoundKey++;
         updateFound();
+        
       }
 
-    } else {
+    }
+    
+  } else {
+	  
+    char a[64];
+    string addr = secp.GetAddress(hash160,mode);
+	  
+    for (int i = 0; i < items.size(); i++) {
 
-      char p[64];
-      char a[64];
-
-      strcpy(p, items[i].prefix.c_str());
-      string addr = secp.GetAddress(hash160,mode);
-      strcpy(a, addr.c_str());
-      a[items[i].prefix.length()] = 0;
-
-      if (strcmp(p, a) == 0) {
+      if(stopWhenFound && items[i].found)
+        continue;
+        
+      strncpy(a, addr.c_str(),items[i].prefixLength);
+      a[items[i].prefixLength] = 0;
+        
+      if (strcmp(items[i].prefix, a) == 0) {
 
         // Mark it as found
         items[i].found = true;
@@ -529,12 +553,13 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
         output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
         nbFoundKey++;
         updateFound();
-      }
 
-    }
+      }
+	
+	}
 
   }
-
+  
 }
 
 // ----------------------------------------------------------------------------

@@ -25,31 +25,45 @@
 
 __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo, int32_t mode,prefix_t *prefix, uint32_t tid, uint32_t *lookup32, uint32_t *out) {
 
-  bool       found;
   uint32_t   off;
   prefixl_t  l32;
   prefix_t   pr0;
   prefix_t   hit;
   uint32_t   pos;
-  int i;
-
+  uint32_t   st;
+  uint32_t   ed;
+  uint32_t   mi;
+  uint32_t   lmi;
+  
   pr0 = *(prefix_t *)(_h);
   hit = prefix[pr0];
 
   if (hit) {
 
     if (lookup32) {
+		
       off = lookup32[pr0];
       l32 = _h[0];
-      found = false;
-      i = 0;
-      while (!found && (i < hit) &&
-        (l32 >= lookup32[off + i])) {
-        found = (lookup32[off + i] == l32);
-        i++;
+      st=  off;
+      ed = off + hit - 1;
+      while(st<=ed) {
+        mi = (st+ed)/2;
+        lmi = lookup32[mi];
+	    if(l32<lmi) {
+		  ed = mi - 1;
+	    } else if(l32==lmi) {
+		  // found
+		  goto addItem;
+	    } else {
+	      st = mi + 1;
+	    }	    
       }
-      if (!found) return;
+	   
+	  return;
+	  
     }
+
+addItem:
 
     pos = atomicAdd(out, 1);
     if (pos < MAX_FOUND) {

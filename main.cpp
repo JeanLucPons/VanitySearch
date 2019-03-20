@@ -120,16 +120,24 @@ void parseFile(string fileName, vector<string> &lines) {
   ifstream inFile(fileName);
   lines.reserve(nbAddr);
   while (getline(inFile, line)) {
+	  
+	// Remove ending \r\n
+	int l = line.length()-1;
+	while(l>=0 && isspace(line.at(l))) {
+	  line.pop_back();
+	  l--;
+    }
+	  
     lines.push_back(line);
     nbLine++;
     if (loaddingProgress) {
-      if ((nbLine % 10000)==0)
-        printf("[Loading input file %.2f%%]\r",((double)nbLine*100.0)/((double)(nbAddr)*33.0/34.0));
+      if ((nbLine % 50000)==0)
+        printf("[Loading input file %5.1f%%]\r",((double)nbLine*100.0)/((double)(nbAddr)*33.0/34.0));
     }
   }
 
   if (loaddingProgress)
-    printf("\n");
+    printf("[Loading input file 100.0%%]\n");
 
 }
 

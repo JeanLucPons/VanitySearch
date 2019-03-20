@@ -35,7 +35,7 @@ static const char *searchModes[] = {"Compressed","Uncompressed","Compressed or U
 
 // Maximum number of 16bit prefix found per kernel 
 // Avg = (nbThread*STEP_SIZE*nbPrefix16)/65536
-#define MAX_FOUND 16384
+#define MAX_FOUND 131072
 #define ITEM_SIZE 28
 #define ITEM_SIZE32 (ITEM_SIZE/4)
 #define OUTPUT_SIZE (MAX_FOUND*ITEM_SIZE+4)

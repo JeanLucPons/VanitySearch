@@ -43,7 +43,8 @@ typedef struct {
 
 typedef struct {
 
-  std::string prefix;
+  char *prefix;
+  int prefixLength;
   prefix_t sPrefix;
   double difficulty;
   bool found;
@@ -83,7 +84,7 @@ private:
   bool hasStarted(TH_PARAM *p);
   uint64_t getGPUCount();
   uint64_t getCPUCount();
-  bool initPrefix(std::string prefix, PREFIX_ITEM *it);
+  bool initPrefix(std::string &prefix, PREFIX_ITEM *it);
   void dumpPrefixes();
   double getDiffuclty();
   void updateFound();

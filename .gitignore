@@ -8,4 +8,4 @@ obj/
 CMakeLists.txt
 VanitySearch
 cmake-build-debug/
-
+*.prf
