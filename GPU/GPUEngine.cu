@@ -462,9 +462,10 @@ __device__ __noinline__ void _ModInv(uint64_t *R) {
 
 __device__ void _ModMult(uint64_t *r, uint64_t *a, uint64_t *b) {
 
-  uint64_t r512[8];
+  volatile uint64_t r512[8];
   uint64_t t[NBBLOCK];
   uint64_t ah,al;
+
   r512[5] = 0;
   r512[6] = 0;
   r512[7] = 0;
@@ -504,14 +505,14 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a, uint64_t *b) {
   UADDO(r[0],r512[0], al);
   UADDC(r[1],r512[1], ah);
   UADDC(r[2],r512[2], 0ULL);
-  UADDC(r[3],r512[3], 0ULL);
+  UADD(r[3],r512[3], 0ULL);
 
 }
 
 
 __device__ void _ModMult(uint64_t *r, uint64_t *a) {
 
-  uint64_t r512[8];
+  volatile uint64_t r512[8];
   uint64_t t[NBBLOCK];
   uint64_t ah, al;
   r512[5] = 0;
@@ -553,16 +554,15 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a) {
   UADDO(r[0],r512[0], al);
   UADDC(r[1],r512[1], ah);
   UADDC(r[2],r512[2], 0ULL);
-  UADDC(r[3],r512[3], 0ULL);
+  UADD(r[3],r512[3], 0ULL);
 
 }
-
 
 // ---------------------------------------------------------------------------------------
 // Compute all ModInv of the group
 // ---------------------------------------------------------------------------------------
 
-__device__ void _ModInvGrouped(uint64_t r[GRP_SIZE / 2 + 1][4]) {
+__device__ __noinline__ void _ModInvGrouped(uint64_t r[GRP_SIZE / 2 + 1][4]) {
 
   uint64_t subp[GRP_SIZE / 2 + 1][4];
   uint64_t newValue[4];
@@ -1045,14 +1045,14 @@ __device__ void RIPEMD160Transform(uint32_t s[5],uint32_t* w) {
 // EC
 // ---------------------------------------------------------------------------------
 
-__device__ __noinline__ void _GetHash160Comp(uint64_t *x, uint64_t *y, uint8_t *hash) {
+__device__ __noinline__ void _GetHash160Comp(uint64_t *x, uint8_t isOdd, uint8_t *hash) {
 
   uint32_t *x32 = (uint32_t *)(x);
   uint32_t publicKeyBytes[16];
   uint32_t s[16];
 
   // Compressed public key
-  publicKeyBytes[0] = __byte_perm(x32[7], 0x2 + (y[0] & 1) , 0x4321 );
+  publicKeyBytes[0] = __byte_perm(x32[7], 0x2 + isOdd, 0x4321 );
   publicKeyBytes[1] = __byte_perm(x32[7], x32[6], 0x0765);
   publicKeyBytes[2] = __byte_perm(x32[6], x32[5], 0x0765);
   publicKeyBytes[3] = __byte_perm(x32[5], x32[4], 0x0765);
@@ -1321,14 +1321,20 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound) {
   nbThread / NB_TRHEAD_PER_GROUP,
   NB_TRHEAD_PER_GROUP);
   deviceName = std::string(tmp);
-  
+
+  // Prefer L1 (We do not use __shared__ at all)
+  err = cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
+  if (err != cudaSuccess) {
+    printf("GPUEngine: %s\n", cudaGetErrorString(err));
+    return;
+  }
+
   size_t stackSize = 49152;
   err = cudaDeviceSetLimit(cudaLimitStackSize, stackSize);
   if (err != cudaSuccess) {
     printf("GPUEngine: %s\n", cudaGetErrorString(err));
     return;
   }
-
 
   /*
   size_t heapSize = ;
@@ -1371,7 +1377,7 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound) {
     printf("GPUEngine: Allocate output memory: %s\n", cudaGetErrorString(err));
     return;
   }
-  err = cudaHostAlloc(&outputPrefixPinned, outputSize, cudaHostAllocWriteCombined | cudaHostAllocMapped);
+  err = cudaHostAlloc(&outputPrefixPinned, outputSize, cudaHostAllocMapped);
   if (err != cudaSuccess) {
     printf("GPUEngine: Allocate output pinned memory: %s\n", cudaGetErrorString(err));
     return;
@@ -1525,8 +1531,7 @@ void GPUEngine::SetPrefix(std::vector<LPREFIX> prefixes, uint32_t totalPrefix) {
 bool GPUEngine::callKernel() {
 
   // Reset nbFound
-  outputPrefixPinned[0] = 0;
-  cudaMemcpy(outputPrefix, outputPrefixPinned, 4, cudaMemcpyHostToDevice);
+  cudaMemset(outputPrefix,0,4);
 
   // Call the kernel (Perform STEP_SIZE keys per thread)
   comp_keys<<< nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >>>

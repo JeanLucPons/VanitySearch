@@ -24,7 +24,7 @@
 // We use affine coordinates for elliptic curve point (ie Z=1)
 
 __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo, int32_t mode,prefix_t *prefix, 
-                                        uint32_t tid, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
+                                        uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint32_t   off;
   prefixl_t  l32;
@@ -35,7 +35,8 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
   uint32_t   ed;
   uint32_t   mi;
   uint32_t   lmi;
-  
+  uint32_t   tid = (blockIdx.x*blockDim.x) + threadIdx.x;
+
   pr0 = *(prefix_t *)(_h);
   hit = prefix[pr0];
 
@@ -78,38 +79,37 @@ addItem:
 
 }
 
-#define CHECK_POINT(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,tid,lookup32,maxFound,out)
+#define CHECK_POINT(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,lookup32,maxFound,out)
 
 __device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr, 
-                                           uint32_t tid, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
+                                           uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
-  uint32_t   h[20];
+  uint32_t   h[5];
   uint64_t   pe1x[4];
   uint64_t   pe2x[4];
-  uint64_t   pyn[4];
 
-  _GetHash160Comp(px, py, (uint8_t *)h);
+  uint8_t isOdd = (py[0] & 1);
+
+  _GetHash160Comp(px, isOdd, (uint8_t *)h);
   CHECK_POINT(h, incr, 0, true);
   _ModMult(pe1x, px, _beta);
-  _GetHash160Comp(pe1x, py, (uint8_t *)h);
+  _GetHash160Comp(pe1x, isOdd, (uint8_t *)h);
   CHECK_POINT(h, incr, 1, true);
   _ModMult(pe2x, px, _beta2);
-  _GetHash160Comp(pe2x, py, (uint8_t *)h);
+  _GetHash160Comp(pe2x, isOdd, (uint8_t *)h);
   CHECK_POINT(h, incr, 2, true);
 
-  ModNeg256(pyn,py);
-
-  _GetHash160Comp(px, pyn, (uint8_t *)h);
+  _GetHash160Comp(px, !isOdd, (uint8_t *)h);
   CHECK_POINT(h, -incr, 0, true);
-  _GetHash160Comp(pe1x, pyn, (uint8_t *)h);
+  _GetHash160Comp(pe1x, !isOdd, (uint8_t *)h);
   CHECK_POINT(h, -incr, 1, true);
-  _GetHash160Comp(pe2x, pyn, (uint8_t *)h);
+  _GetHash160Comp(pe2x, !isOdd, (uint8_t *)h);
   CHECK_POINT(h, -incr, 2, true);
 
 }
 
 __device__ __noinline__ void CheckHashUncomp(prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr, 
-                                             uint32_t tid, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
+                                             uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint32_t   h[5];
   uint64_t   pe1x[4];
@@ -137,42 +137,44 @@ __device__ __noinline__ void CheckHashUncomp(prefix_t *prefix, uint64_t *px, uin
 }
 
 __device__ __noinline__ void CheckHash(uint32_t mode, prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr, 
-                                       uint32_t tid, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
+                                       uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   switch (mode) {
   case SEARCH_COMPRESSED:
-    CheckHashComp(prefix, px, py, incr, tid, lookup32, maxFound, out);
+    CheckHashComp(prefix, px, py, incr, lookup32, maxFound, out);
     break;
   case SEARCH_UNCOMPRESSED:
-    CheckHashUncomp(prefix, px, py, incr, tid, lookup32, maxFound, out);
+    CheckHashUncomp(prefix, px, py, incr, lookup32, maxFound, out);
     break;
   case SEARCH_BOTH:
-    CheckHashComp(prefix, px, py, incr, tid, lookup32, maxFound, out);
-    CheckHashUncomp(prefix, px, py, incr, tid, lookup32, maxFound, out);
+    CheckHashComp(prefix, px, py, incr, lookup32, maxFound, out);
+    CheckHashUncomp(prefix, px, py, incr, lookup32, maxFound, out);
     break;
   }
 
 }
 
-#define CHECK_PREFIX(incr) CheckHash(mode, sPrefix, px, py, j*GRP_SIZE + (incr), tid, lookup32, maxFound, out)
+#define CHECK_PREFIX(incr) CheckHash(mode, sPrefix, px, py, j*GRP_SIZE + (incr), lookup32, maxFound, out)
 
 __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty, 
-                             prefix_t *sPrefix, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
+                            prefix_t *sPrefix, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint64_t dx[GRP_SIZE/2+1][4];
   uint64_t px[4];
   uint64_t py[4];
+  uint64_t pyn[4];
   uint64_t sx[4];
   uint64_t sy[4];
   uint64_t dy[4];
   uint64_t _s[4];
   uint64_t _p2[4];
-  uint32_t tid = (blockIdx.x*blockDim.x) + threadIdx.x;
 
   // Load starting key
   __syncthreads();
   Load256A(sx, startx);
   Load256A(sy, starty);
+  Load256(px, sx);
+  Load256(py, sy);
 
   for (uint32_t j = 0; j < STEP_SIZE / GRP_SIZE; j++) {
 
@@ -190,11 +192,10 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
     // We compute key in the positive and negative way from the center of the group
 
     // Check starting point
-    Load256(px, sx);
-    Load256(py, sy);
+    ModNeg256(pyn,py);
     CHECK_PREFIX(GRP_SIZE / 2);
 
-    for (uint32_t i = 0; i < HSIZE; i++) {
+    for(i = 0; i < HSIZE; i++) {
 
       // P = StartPoint + i*G
       Load256(px, sx);
@@ -215,9 +216,7 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
 
       // P = StartPoint - i*G, if (x,y) = i*G then (x,-y) = -i*G
       Load256(px, sx);
-      Load256(py, sy);
-      ModNeg256(dy,Gy[i]);
-      ModSub256(dy, py);
+      ModSub256(dy,pyn,Gy[i]);
 
       _ModMult(_s, dy, dx[i]);      //  s = (p2.y-p1.y)*inverse(p2.x-p1.x)
       _ModMult(_p2, _s, _s);        // _p = pow2(s)
@@ -268,14 +267,11 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
     _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
     ModSub256(py, _2Gny);         // py = - p2.y - s*(ret.x-p2.x);  
 
-    Load256(sx, px);
-    Load256(sy, py);
-
   }
 
   // Update starting point
   __syncthreads();
-  Store256A(startx, sx);
-  Store256A(starty, sy);
+  Store256A(startx, px);
+  Store256A(starty, py);
 
 }
