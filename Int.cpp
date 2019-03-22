@@ -1296,6 +1296,31 @@ void Int::Check() {
   printf("ModMulK1() Results OK : ");
   Timer::printResult("Mult", 1000000, 0, t1 - t0);
 
+  // ModSqrK1 ------------------------------------------------------------------------------------
+
+  for (int i = 0; i < 100000; i++) {
+    a.Rand(BISIZE);
+    c.ModMul(&a, &a);
+    d.ModSquareK1(&a);
+    if (!c.IsEqual(&d)) {
+      printf("ModSquareK1() Wrong !\n");
+      printf("[%d] %s\n", i, c.GetBase16().c_str());
+      printf("[%d] %s\n", i, d.GetBase16().c_str());
+      return;
+    }
+  }
+
+  t0 = Timer::get_tick();
+  for (int i = 0; i < 1000000; i++) {
+    a.Rand(BISIZE);
+    b.Rand(BISIZE);
+    c.ModSquareK1(&b);
+  }
+  t1 = Timer::get_tick();
+
+  printf("ModSquareK1() Results OK : ");
+  Timer::printResult("Mult", 1000000, 0, t1 - t0);
+
   // ModMulK1 order -----------------------------------------------------------------------------
   // InitK1() is done by secpK1
   b.SetBase16("FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141");

@@ -38,26 +38,26 @@
 #include "../Timer.h"
 
 // Assembly directives
-#define UADDO(c, a, b) asm volatile ("add.cc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b));
-#define UADDC(c, a, b) asm volatile ("addc.cc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b));
+#define UADDO(c, a, b) asm volatile ("add.cc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b) : "memory" );
+#define UADDC(c, a, b) asm volatile ("addc.cc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b) : "memory" );
 #define UADD(c, a, b) asm volatile ("addc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b));
 
-#define UADDO1(c, a) asm volatile ("add.cc.u64 %0, %0, %1;" : "+l"(c) : "l"(a));
-#define UADDC1(c, a) asm volatile ("addc.cc.u64 %0, %0, %1;" : "+l"(c) : "l"(a));
+#define UADDO1(c, a) asm volatile ("add.cc.u64 %0, %0, %1;" : "+l"(c) : "l"(a) : "memory" );
+#define UADDC1(c, a) asm volatile ("addc.cc.u64 %0, %0, %1;" : "+l"(c) : "l"(a) : "memory" );
 #define UADD1(c, a) asm volatile ("addc.u64 %0, %0, %1;" : "+l"(c) : "l"(a));
 
-#define USUBO(c, a, b) asm volatile ("sub.cc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b));
-#define USUBC(c, a, b) asm volatile ("subc.cc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b));
+#define USUBO(c, a, b) asm volatile ("sub.cc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b) : "memory" );
+#define USUBC(c, a, b) asm volatile ("subc.cc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b) : "memory" );
 #define USUB(c, a, b) asm volatile ("subc.u64 %0, %1, %2;" : "=l"(c) : "l"(a), "l"(b));
 
-#define USUBO1(c, a) asm volatile ("sub.cc.u64 %0, %0, %1;" : "+l"(c) : "l"(a));
-#define USUBC1(c, a) asm volatile ("subc.cc.u64 %0, %0, %1;" : "+l"(c) : "l"(a));
-#define USUB1(c, a) asm volatile ("subc.u64 %0, %0, %1;" : "+l"(c) : "l"(a));
+#define USUBO1(c, a) asm volatile ("sub.cc.u64 %0, %0, %1;" : "+l"(c) : "l"(a) : "memory" );
+#define USUBC1(c, a) asm volatile ("subc.cc.u64 %0, %0, %1;" : "+l"(c) : "l"(a) : "memory" );
+#define USUB1(c, a) asm volatile ("subc.u64 %0, %0, %1;" : "+l"(c) : "l"(a) );
 
 #define UMULLO(lo,a, b) asm volatile ("mul.lo.u64 %0, %1, %2;" : "=l"(lo) : "l"(a), "l"(b));
 #define UMULHI(hi,a, b) asm volatile ("mul.hi.u64 %0, %1, %2;" : "=l"(hi) : "l"(a), "l"(b));
-#define MADDO(r,a,b,c) asm volatile ("mad.hi.cc.u64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c));
-#define MADDC(r,a,b,c) asm volatile ("madc.hi.cc.u64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c));
+#define MADDO(r,a,b,c) asm volatile ("mad.hi.cc.u64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c) : "memory" );
+#define MADDC(r,a,b,c) asm volatile ("madc.hi.cc.u64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c) : "memory" );
 #define MADD(r,a,b,c) asm volatile ("madc.hi.u64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c));
 
 __device__ __constant__ uint64_t _0[] = { 0ULL,0ULL,0ULL,0ULL,0ULL };
@@ -462,7 +462,7 @@ __device__ __noinline__ void _ModInv(uint64_t *R) {
 
 __device__ void _ModMult(uint64_t *r, uint64_t *a, uint64_t *b) {
 
-  volatile uint64_t r512[8];
+  uint64_t r512[8];
   uint64_t t[NBBLOCK];
   uint64_t ah,al;
 
@@ -512,7 +512,7 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a, uint64_t *b) {
 
 __device__ void _ModMult(uint64_t *r, uint64_t *a) {
 
-  volatile uint64_t r512[8];
+  uint64_t r512[8];
   uint64_t t[NBBLOCK];
   uint64_t ah, al;
   r512[5] = 0;
@@ -555,6 +555,178 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a) {
   UADDC(r[1],r512[1], ah);
   UADDC(r[2],r512[2], 0ULL);
   UADD(r[3],r512[3], 0ULL);
+
+}
+
+__device__ void _ModSqr(uint64_t *rp, const uint64_t *up) {
+
+  uint64_t r512[8];
+
+  uint64_t u10, u11;
+
+  uint64_t r0;
+  uint64_t r1;
+  uint64_t r3;
+  uint64_t r4;
+
+  uint64_t t1;
+  uint64_t t2;
+
+
+  //k=0
+  UMULLO(r512[0], up[0], up[0]);
+  UMULHI(r1, up[0], up[0]);
+
+  //k=1
+  UMULLO(r3, up[0], up[1]);
+  UMULHI(r4, up[0], up[1]);
+  UADDO1(r3, r3);
+  UADDC1(r4, r4);
+  UADD(t1, 0x0ULL, 0x0ULL);
+  UADDO1(r3, r1);
+  UADDC1(r4, 0x0ULL);
+  UADD1(t1, 0x0ULL);
+  r512[1] = r3;
+
+  //k=2
+  UMULLO(r0, up[0], up[2]);
+  UMULHI(r1, up[0], up[2]);
+  UADDO1(r0, r0);
+  UADDC1(r1, r1);
+  UADD(t2, 0x0ULL, 0x0ULL);
+  UMULLO(u10, up[1], up[1]);
+  UMULHI(u11, up[1], up[1]);
+  UADDO1(r0, u10);
+  UADDC1(r1, u11);
+  UADD1(t2, 0x0ULL);
+  UADDO1(r0, r4);
+  UADDC1(r1, t1);
+  UADD1(t2, 0x0ULL);
+
+  r512[2] = r0;
+
+  //k=3
+  UMULLO(r3, up[0], up[3]);
+  UMULHI(r4, up[0], up[3]);
+  UMULLO(u10, up[1], up[2]);
+  UMULHI(u11, up[1], up[2]);
+  UADDO1(r3, u10);
+  UADDC1(r4, u11);
+  UADD(t1, 0x0ULL, 0x0ULL);
+  t1 += t1;
+  UADDO1(r3, r3);
+  UADDC1(r4, r4);
+  UADD1(t1, 0x0ULL);
+  UADDO1(r3, r1);
+  UADDC1(r4, t2);
+  UADD1(t1, 0x0ULL);
+
+  r512[3] = r3;
+
+  //k=4
+  UMULLO(r0, up[1], up[3]);
+  UMULHI(r1, up[1], up[3]);
+  UADDO1(r0, r0);
+  UADDC1(r1, r1);
+  UADD(t2, 0x0ULL, 0x0ULL);
+  UMULLO(u10, up[2], up[2]);
+  UMULHI(u11, up[2], up[2]);
+  UADDO1(r0, u10);
+  UADDC1(r1, u11);
+  UADD1(t2, 0x0ULL);
+  UADDO1(r0, r4);
+  UADDC1(r1, t1);
+  UADD1(t2, 0x0ULL);
+
+  r512[4] = r0;
+
+  //k=5
+  UMULLO(r3, up[2], up[3]);
+  UMULHI(r4, up[2], up[3]);
+  UADDO1(r3, r3);
+  UADDC1(r4, r4);
+  UADD(t1, 0x0ULL, 0x0ULL);
+  UADDO1(r3, r1);
+  UADDC1(r4, t2);
+  UADD1(t1, 0x0ULL);
+
+  r512[5] = r3;
+
+  //k=6
+  UMULLO(r0, up[3], up[3]);
+  UMULHI(r1, up[3], up[3]);
+  UADDO1(r0, r4);
+  UADD1(r1, t1);
+  r512[6] = r0;
+
+  //k=7
+  r512[7] = r1;
+
+#if 1
+
+  // Reduce from 512 to 320 
+  UMULLO(r0, r512[4], 0x1000003D1ULL);
+  UMULLO(r1, r512[5], 0x1000003D1ULL);
+  MADDO(r1, r512[4], 0x1000003D1ULL, r1);
+  UMULLO(t2, r512[6], 0x1000003D1ULL);
+  MADDC(t2, r512[5], 0x1000003D1ULL, t2);
+  UMULLO(r3, r512[7], 0x1000003D1ULL);
+  MADDC(r3, r512[6], 0x1000003D1ULL, r3);
+  MADD(r4, r512[7], 0x1000003D1ULL, 0ULL);
+
+  UADDO1(r512[0], r0);
+  UADDC1(r512[1], r1);
+  UADDC1(r512[2], t2);
+  UADDC1(r512[3], r3);
+
+  // Reduce from 320 to 256
+  UADD1(r4, 0ULL);
+  UMULLO(u10, r4, 0x1000003D1ULL);
+  UMULHI(u11, r4, 0x1000003D1ULL);
+  UADDO(rp[0], r512[0], u10);
+  UADDC(rp[1], r512[1], u11);
+  UADDC(rp[2], r512[2], 0ULL);
+  UADD(rp[3], r512[3], 0ULL);
+
+#else
+  
+  uint64_t z1, z2, z3, z4, z5, z6, z7, z8;
+
+  UMULLO(z3, r512[5], 0x1000003d1ULL);
+  UMULHI(z4, r512[5], 0x1000003d1ULL);
+  UMULLO(z5, r512[6], 0x1000003d1ULL);
+  UMULHI(z6, r512[6], 0x1000003d1ULL);
+  UMULLO(z7, r512[7], 0x1000003d1ULL);
+  UMULHI(z8, r512[7], 0x1000003d1ULL);
+  UMULLO(z1, r512[4], 0x1000003d1ULL);
+  UMULHI(z2, r512[4], 0x1000003d1ULL);
+  UADDO1(z1, r512[0]);
+  UADD1(z2, 0x0ULL);
+
+
+  UADDO1(z2, r512[1]);
+  UADDC1(z4, r512[2]);
+  UADDC1(z6, r512[3]);
+  UADD1(z8, 0x0ULL);
+
+  UADDO1(z3, z2);
+  UADDC1(z5, z4);
+  UADDC1(z7, z6);
+  UADD1(z8, 0x0ULL);
+
+  UMULLO(u10, z8, 0x1000003d1ULL);
+  UMULHI(u11, z8, 0x1000003d1ULL);
+  UADDO1(z1, u10);
+  UADDC1(z3, u11);
+  UADDC1(z5, 0x0ULL);
+  UADD1(z7, 0x0ULL);
+
+  rp[0] = z1;
+  rp[1] = z3;
+  rp[2] = z5;
+  rp[3] = z7;
+
+#endif
 
 }
 

@@ -203,7 +203,8 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
       ModSub256(dy, Gy[i], py);
 
       _ModMult(_s, dy, dx[i]);      //  s = (p2.y-p1.y)*inverse(p2.x-p1.x)
-      _ModMult(_p2, _s, _s);        // _p = pow2(s)
+      _ModSqr(_p2, _s);             // _p2 = pow2(s)
+      //_ModMult(_p2, _s,_s);         // _p2 = pow2(s)
 
       ModSub256(px, _p2,px);
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
@@ -219,7 +220,8 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
       ModSub256(dy,pyn,Gy[i]);
 
       _ModMult(_s, dy, dx[i]);      //  s = (p2.y-p1.y)*inverse(p2.x-p1.x)
-      _ModMult(_p2, _s, _s);        // _p = pow2(s)
+      _ModSqr(_p2, _s);             // _p = pow2(s)
+      //_ModMult(_p2, _s, _s);         // _p = pow2(s)
 
       ModSub256(px, _p2, px);
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
@@ -239,7 +241,8 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
     ModSub256(dy, py);
 
     _ModMult(_s, dy, dx[i]);      //  s = (p2.y-p1.y)*inverse(p2.x-p1.x)
-    _ModMult(_p2, _s, _s);        // _p = pow2(s)
+    _ModSqr(_p2,_s);              // _p = pow2(s)
+    //_ModMult(_p2, _s, _s);         // _p = pow2(s)
 
     ModSub256(px, _p2, px);
     ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
@@ -258,7 +261,8 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
     ModSub256(dy, _2Gny, py);
 
     _ModMult(_s, dy, dx[i]);      //  s = (p2.y-p1.y)*inverse(p2.x-p1.x)
-    _ModMult(_p2, _s, _s);        // _p = pow2(s)
+    _ModSqr(_p2, _s);             // _p2 = pow2(s)
+    //_ModMult(_p2, _s, _s);         // _p2 = pow2(s)
 
     ModSub256(px, _p2, px);
     ModSub256(px, _2Gnx);         // px = pow2(s) - p1.x - p2.x;
