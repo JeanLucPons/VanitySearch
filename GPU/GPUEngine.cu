@@ -1486,7 +1486,7 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound) {
   this->maxFound = maxFound;
   this->outputSize = (maxFound*ITEM_SIZE + 4);
 
-  char tmp[256];
+  char tmp[512];
   sprintf(tmp,"GPU #%d %s (%dx%d cores) Grid(%dx%d)",
   gpuId,deviceProp.name,deviceProp.multiProcessorCount,
   _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor),
