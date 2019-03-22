@@ -92,28 +92,24 @@ Note: The current relase has been compiled with CUDA SDK 10.0, if you have a dif
 ## Linux
 
 Intall CUDA SDK.\
-Depenging on the CUDA SDK version and on your Linux distribution you may need to install an older gcc (just for the CUDA SDK).\
-Add a link to the good gcc in /usr/local/cuda, nvcc will use this path first.
+Depenging on the CUDA SDK version and on your Linux distribution you may need to install an older g++ (just for the CUDA SDK).\
+Edit the makefile and set up the good CUDA SDK path and appropriate compiler for nvcc. 
 
 ```
-lrwxrwxrwx 1 root root      16 mars   1 10:54 /usr/local/cuda/bin/g++ -> /usr/bin/g++-4.8*
-lrwxrwxrwx 1 root root      16 mars   1 10:53 /usr/local/cuda/bin/gcc -> /usr/bin/gcc-4.8*
+CUDA       = /usr/local/cuda-8.0
+CXXCUDA    = /usr/bin/g++-4.8
 ```
 
-Edit the makefile and set up the good compute capabilites for your hardware and CUDA SDK path. You can enter a list of architectrure (refer to nvcc documentation). Here it is set up for compute capability 2.0 (Fermi) which is deprecated for recent CUDA SDK.
-```
--gencode=arch=compute_20,code=sm_20
-```
-
-VanitySearch need to be compiled and linked with a recent gcc. The current release has been compiled with gcc 7.3.0.\
-Go to the VanitySearch directory.
+You can enter a list of architectrure (refer to nvcc documentation) if you have several GPU with different architecture. Compute capability 2.0 (Fermi) is deprecated for recent CUDA SDK.
+VanitySearch need to be compiled and linked with a recent gcc (>=7). The current release has been compiled with gcc 7.3.0.\
+Go to the VanitySearch directory. ccap is the desired compute capability.
 
 ```
 $ g++ -v
 gcc version 7.3.0 (Ubuntu 7.3.0-27ubuntu1~18.04)
 $ make all (for build without CUDA support)
 or
-$ make gpu=1 all
+$ make gpu=1 ccap=20 all
 ```
 Runnig VanitySearch (Intel(R) Xeon(R) CPU, 8 cores,  @ 2.93GHz, Quadro 600 (x2))
 ```
