@@ -966,7 +966,11 @@ void Int::ModMulK1(Int *a) {
 
 void Int::ModSquareK1(Int *a) {
 
+#ifndef WIN64
+  volatile unsigned char c;
+#else
   unsigned char c;
+#endif
 
   uint64_t r512[8];
   uint64_t u10, u11;
