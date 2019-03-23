@@ -39,7 +39,7 @@ public:
   void GetHash160(Point &pubKey,bool compressed,unsigned char *hash);
   std::string GetAddress(Point &pubKey,bool compressed);
   std::string GetAddress(unsigned char *hash20, bool compressed);
-  std::string GetPrivAddress(Int &privKey);
+  std::string GetPrivAddress(Int &privKey, bool compressed);
   bool CheckPudAddress(std::string address);
 
   static Int DecodePrivateKey(char *key);

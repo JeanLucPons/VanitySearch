@@ -127,7 +127,9 @@ void Secp256K1::Check() {
   CheckAddress(this,"1JeanLucgidKHxfY5gkqGmoVjo1yaU4EDt","5JHMHsrrLNoEnPacZJ6VCv2YraHxPhApEp2DEa1uFzGndiByVzV");
   CheckAddress(this,"1Test6BNjSJC5qwYXsjwKVLvz7DpfLehy","5HytzR8p5hp8Cfd8jsVFnwMNXMsEW1sssFxMQYqEUjGZN72iLJ2");
   CheckAddress(this,"1BitcoinP7vnLpsUHWbzDALyJKnNo16Qms","5HwKrREWhgtupmZH9cE1wFvHQJhbXMxm28L5KaVhtReBKGXL2J1");
-
+  CheckAddress(this,"16S5PAsGZ8VFM1CRGGLqm37XHrp46f6CTn","KxMUSkFhEzt2eJHscv2vNSTnnV2cgAXgL4WDQBTx7Ubd9TZmACAz");
+  CheckAddress(this,"1Tst2RwMxZn9cYY5mQhCdJic3JJrK7Fq7" , "L1vamTpSeK9CgynRpSJZeqvUXf6dJa25sfjb2uvtnhj65R5TymgF");
+  
   // 1ViViGLEawN27xRzGrEhhYPQrZiTKvKLo
   pub.x.SetBase16(/*04*/"75249c39f38baa6bf20ab472191292349426dc3652382cdc45f65695946653dc");
   pub.y.SetBase16("978b2659122fe1df1be132167f27b74e5d4a2f3ecbbbd0b3fbcc2f4983518674");
@@ -194,6 +196,22 @@ Int Secp256K1::DecodePrivateKey(char *key) {
     int count = 31;
     for(int i = 1; i < 33; i++)
       ret.SetByte(count--,privKey[i]);
+      
+    // Compute checksum
+    unsigned char sha1[32];
+    unsigned char sha2[32];
+    sha256(privKey.data(),33,sha1);
+    sha256(sha1,32,sha2);
+    unsigned char c1 = sha2[0];
+    unsigned char c2 = sha2[1];
+    unsigned char c3 = sha2[2];
+    unsigned char c4 = sha2[3];	  
+    
+    if( c1!=privKey[33] || c2!=privKey[34] || 
+        c3!=privKey[35] || c4!=privKey[36] ) {
+      printf("Warning, Invalid private key checksum !\n");			
+    }
+    
 
     return ret;
 
@@ -210,6 +228,21 @@ Int Secp256K1::DecodePrivateKey(char *key) {
     int count = 31;
     for(int i = 1; i < 33; i++)
       ret.SetByte(count--,privKey[i]);
+      
+    // Compute checksum
+    unsigned char sha1[32];
+    unsigned char sha2[32];
+    sha256(privKey.data(),34,sha1);
+    sha256(sha1,32,sha2);
+    unsigned char c1 = sha2[0];
+    unsigned char c2 = sha2[1];
+    unsigned char c3 = sha2[2];
+    unsigned char c4 = sha2[3];	  
+    
+    if( c1!=privKey[34] || c2!=privKey[35] || 
+        c3!=privKey[36] || c4!=privKey[37] ) {
+      printf("Warning, Invalid private key checksum !\n");			
+    }
 
     return ret;
 
@@ -305,24 +338,43 @@ void Secp256K1::GetHash160(Point &pubKey,bool compressed,unsigned char *hash) {
 
 }
 
-std::string Secp256K1::GetPrivAddress(Int &privKey) {
+std::string Secp256K1::GetPrivAddress(Int &privKey,bool compressed) {
 
-  unsigned char adress[37];
+  unsigned char adress[38];
 
-  adress[0] = 0x80;
+  adress[0] = 0x80; // Mainnet
   privKey.Get32Bytes(adress + 1);
+  
+  if( compressed ) {
+	
+    // compressed suffix
+    adress[33] = 1;
+    // Compute checksum
+    unsigned char sha1[32];
+    unsigned char sha2[32];
+    sha256(adress,34,sha1);
+    sha256(sha1,32,sha2);
+    adress[34] = sha2[0];
+    adress[35] = sha2[1];
+    adress[36] = sha2[2];
+    adress[37] = sha2[3];	  
 
-  // Compute checksum
-  unsigned char sha1[32];
-  unsigned char sha2[32];
-  sha256(adress,33,sha1);
-  sha256(sha1,32,sha2);
-  adress[33] = sha2[0];
-  adress[34] = sha2[1];
-  adress[35] = sha2[2];
-  adress[36] = sha2[3];
+    return EncodeBase58(adress,adress + 38);
+	  
+  } else {
 
-  return EncodeBase58(adress,adress + 37);
+    // Compute checksum
+    unsigned char sha1[32];
+    unsigned char sha2[32];
+    sha256(adress,33,sha1);
+    sha256(sha1,32,sha2);
+    adress[33] = sha2[0];
+    adress[34] = sha2[1];
+    adress[35] = sha2[2];
+    adress[36] = sha2[3];
+
+    return EncodeBase58(adress,adress + 37);
+  }
 
 }
 

@@ -401,7 +401,7 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
 
 // ----------------------------------------------------------------------------
 
-void VanitySearch::output(string addr,string pAddr,string pAddrHex, string chkAddr,string chkAddrC) {
+void VanitySearch::output(string addr,string pAddr,string pAddrHex) {
 
 #ifdef WIN64
    WaitForSingleObject(ghMutex,INFINITE);
@@ -423,10 +423,8 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex, string chkAd
   }
 
   fprintf(f, "\nPub Addr: %s\n", addr.c_str());
-  fprintf(f, "Prv Addr: %s\n", pAddr.c_str());
-  fprintf(f, "Prv Key : 0x%s\n", pAddrHex.c_str());
-  fprintf(f, "Check   : %s\n", chkAddr.c_str());
-  fprintf(f, "Check   : %s (comp)\n", chkAddrC.c_str());
+  fprintf(f, "Priv (WIF): %s\n", pAddr.c_str());
+  fprintf(f, "Priv (HEX): 0x%s\n", pAddrHex.c_str());
 
   if(needToClose)
     fclose(f);
@@ -506,9 +504,19 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
             break;
         }
 
-        Point p = secp.ComputePublicKey(&k);
         string addr = secp.GetAddress(hash160, mode);
-        output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
+        
+        // Check addresses
+        Point p = secp.ComputePublicKey(&k);
+        string chkAddr = secp.GetAddress(p,mode);
+        if( chkAddr!=addr ) {
+          printf("\nWarning, wrong private key generated !\n");
+          printf("  Addr :%s\n",addr.c_str());
+          printf("  Check:%s\n",chkAddr.c_str());
+        }
+		
+        output(addr, secp.GetPrivAddress(k,mode) , k.GetBase16() );
+        
         nbFoundKey++;
         updateFound();
         
@@ -550,14 +558,26 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
             k.ModMulK1order(&lambda2);
             break;
         }
+        
+        string addr = secp.GetAddress(hash160, mode);
+        
+        // Check addresses
         Point p = secp.ComputePublicKey(&k);
-        output(addr, secp.GetPrivAddress(k), k.GetBase16(), secp.GetAddress(p, false), secp.GetAddress(p, true));
+        string chkAddr = secp.GetAddress(p,mode);
+        if( chkAddr!=addr ) {
+          printf("\nWarning, wrong private key generated !\n");
+          printf("  Addr :%s\n",addr.c_str());
+          printf("  Check:%s\n",chkAddr.c_str());
+	}
+		
+        output(addr, secp.GetPrivAddress(k,mode) , k.GetBase16() );
+        
         nbFoundKey++;
         updateFound();
 
       }
 	
-	}
+    }
 
   }
   
