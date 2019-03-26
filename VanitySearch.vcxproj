@@ -19,6 +19,7 @@
     <ClInclude Include="GPU\GPUCompute.h" />
     <ClInclude Include="GPU\GPUEngine.h" />
     <ClInclude Include="GPU\GPUGroup.h" />
+    <ClInclude Include="GPU\GPUHash.h" />
     <ClInclude Include="hash\ripemd160.h" />
     <ClInclude Include="hash\sha256.h" />
     <ClInclude Include="hash\sha512.h" />

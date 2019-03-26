@@ -35,6 +35,9 @@
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Vanity.h" />
     <ClInclude Include="Base58.h" />
+    <ClInclude Include="GPU\GPUHash.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GPU\GPUGenerate.cpp">

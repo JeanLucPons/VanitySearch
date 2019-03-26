@@ -25,21 +25,6 @@
 namespace _sha256sse
 {
 
-#ifndef WIN64
-#define _byteswap_ulong __builtin_bswap32
-#define _byteswap_uint64 __builtin_bswap64
-#endif
-
-#ifdef BSWAP
-#define WRITEBE32(ptr,xPtr,o) *((uint32_t *)(ptr)) = _byteswap_ulong(*((uint32_t *)(xPtr)+o))
-#define WRITEBE64(ptr,x) *((uint64_t *)(ptr)) = _byteswap_uint64(x)
-#define READBE32(ptr) (uint32_t)_byteswap_ulong(*(uint32_t *)(ptr))
-#else
-#define WRITEBE32(ptr,x) *(ptr) = x
-#define WRITEBE64(ptr,x) *(ptr) = x
-#define READBE32(ptr) *(uint32_t *)(ptr)
-#endif
-
 #ifdef WIN64
   static const __declspec(align(16)) uint32_t _init[] = {
 #else
@@ -84,12 +69,6 @@ namespace _sha256sse
     T2 = _mm_add_epi32(S0(a), Maj(a, b, c));                \
     h = _mm_add_epi32(T1, T2);
 
-  #define LOADW(i) \
-    _mm_set_epi32(READBE32(blk[0] + i * 4), \
-                  READBE32(blk[1] + i * 4), \
-                  READBE32(blk[2] + i * 4), \
-                  READBE32(blk[3] + i * 4));
-
 #define WMIX() \
   w0 = add4(s1(w14), w9, s0(w1), w0); \
   w1 = add4(s1(w15), w10, s0(w2), w1); \
@@ -114,7 +93,7 @@ namespace _sha256sse
   }
 
   // Perform 4 SHA in parallel using SSE2
-  void Transform(__m128i *s, uint8_t *blk[4])
+  void Transform(__m128i *s, uint32_t *b0, uint32_t *b1, uint32_t *b2, uint32_t *b3)
   {
     __m128i a,b,c,d,e,f,g,h;
     __m128i w0, w1, w2, w3, w4, w5, w6, w7;
@@ -130,22 +109,22 @@ namespace _sha256sse
     g = _mm_load_si128(s + 6);
     h = _mm_load_si128(s + 7);
 
-    w0 = LOADW(0);
-    w1 = LOADW(1);
-    w2 = LOADW(2);
-    w3 = LOADW(3);
-    w4 = LOADW(4);
-    w5 = LOADW(5);
-    w6 = LOADW(6);
-    w7 = LOADW(7);
-    w8 = LOADW(8);
-    w9 = LOADW(9);
-    w10 = LOADW(10);
-    w11 = LOADW(11);
-    w12 = LOADW(12);
-    w13 = LOADW(13);
-    w14 = LOADW(14);
-    w15 = LOADW(15);
+    w0 = _mm_set_epi32(b0[0], b1[0], b2[0], b3[0]);
+    w1 = _mm_set_epi32(b0[1], b1[1], b2[1], b3[1]);
+    w2 = _mm_set_epi32(b0[2], b1[2], b2[2], b3[2]);
+    w3 = _mm_set_epi32(b0[3], b1[3], b2[3], b3[3]);
+    w4 = _mm_set_epi32(b0[4], b1[4], b2[4], b3[4]);
+    w5 = _mm_set_epi32(b0[5], b1[5], b2[5], b3[5]);
+    w6 = _mm_set_epi32(b0[6], b1[6], b2[6], b3[6]);
+    w7 = _mm_set_epi32(b0[7], b1[7], b2[7], b3[7]);
+    w8 = _mm_set_epi32(b0[8], b1[8], b2[8], b3[8]);
+    w9 = _mm_set_epi32(b0[9], b1[9], b2[9], b3[9]);
+    w10 = _mm_set_epi32(b0[10], b1[10], b2[10], b3[10]);
+    w11 = _mm_set_epi32(b0[11], b1[11], b2[11], b3[11]);
+    w12 = _mm_set_epi32(b0[12], b1[12], b2[12], b3[12]);
+    w13 = _mm_set_epi32(b0[13], b1[13], b2[13], b3[13]);
+    w14 = _mm_set_epi32(b0[14], b1[14], b2[14], b3[14]);
+    w15 = _mm_set_epi32(b0[15], b1[15], b2[15], b3[15]);
 
     Round(a, b, c, d, e, f, g, h, 0x428A2F98, w0);
     Round(h, a, b, c, d, e, f, g, 0x71374491, w1);
@@ -234,96 +213,138 @@ namespace _sha256sse
 
 } // end namespace
 
-static const uint8_t sizedesc_33[8] = { 0,0,0,0,0,0,1,8 };
-static const uint8_t sizedesc_65[8] = { 0,0,0,0,0,0,2,8 };
-
-static const unsigned char pad[64] = { 0x80 };
-
-#define WB(d,i)          \
-WRITEBE32(d    ,  s+0,i); \
-WRITEBE32(d + 4,  s+1,i); \
-WRITEBE32(d + 8,  s+2,i); \
-WRITEBE32(d + 12, s+3,i); \
-WRITEBE32(d + 16, s+4,i); \
-WRITEBE32(d + 20, s+5,i); \
-WRITEBE32(d + 24, s+6,i); \
-WRITEBE32(d + 28, s+7,i);
 
 void sha256sse_33(
-  unsigned char *i0, 
-  unsigned char *i1,
-  unsigned char *i2,
-  unsigned char *i3,
+  uint32_t *i0, 
+  uint32_t *i1,
+  uint32_t *i2,
+  uint32_t *i3,
   unsigned char *d0,
   unsigned char *d1,
   unsigned char *d2,
   unsigned char *d3) {
 
   __m128i s[8];
-  uint8_t *bs[] = {i0,i1,i2,i3};
 
   _sha256sse::Initialize(s);
+  _sha256sse::Transform(s,i0,i1,i2,i3);
 
-  memcpy(i0 + 33, pad, 23);
-  memcpy(i0 + 56, sizedesc_33, 8);
+  // Unpack
+  __m128i mask = _mm_set_epi8(12, 13, 14, 15, /**/ 4, 5, 6, 7,  /**/ 8, 9, 10, 11,  /**/ 0, 1, 2, 3 );
 
-  memcpy(i1 + 33, pad, 23);
-  memcpy(i1 + 56, sizedesc_33, 8);
+  __m128i u0 = _mm_unpacklo_epi32(s[0], s[1]);   // S2_1 S2_0 S3_1 S3_0
+  __m128i u1 = _mm_unpackhi_epi32(s[0], s[1]);   // S0_1 S0_0 S1_1 S1_0
 
-  memcpy(i2 + 33, pad, 23);
-  memcpy(i2 + 56, sizedesc_33, 8);
+  __m128i u2 = _mm_unpacklo_epi32(s[2], s[3]);   // S2_3 S2_2 S3_3 S3_2
+  __m128i u3 = _mm_unpackhi_epi32(s[2], s[3]);   // S0_3 S0_2 S1_3 S1_2
 
-  memcpy(i3 + 33, pad, 23);
-  memcpy(i3 + 56, sizedesc_33, 8);
+  __m128i _d3 = _mm_unpacklo_epi32(u0, u2);      // S3_3 S3_1 S3_2 S3_0
+  __m128i _d2 = _mm_unpackhi_epi32(u0, u2);      // S2_3 S2_1 S2_2 S2_0
+  __m128i _d1 = _mm_unpacklo_epi32(u1, u3);      // S1_3 S1_1 S1_2 S1_0
+  __m128i _d0 = _mm_unpackhi_epi32(u1, u3);      // S0_3 S0_1 S0_2 S0_0
 
-  _sha256sse::Transform(s, bs);
+  _d0 = _mm_shuffle_epi8(_d0, mask);
+  _d1 = _mm_shuffle_epi8(_d1, mask);
+  _d2 = _mm_shuffle_epi8(_d2, mask);
+  _d3 = _mm_shuffle_epi8(_d3, mask);
 
-  WB(d0, 3);
-  WB(d1, 2);
-  WB(d2, 1);
-  WB(d3, 0);
+  _mm_store_si128((__m128i *)d0, _d0);
+  _mm_store_si128((__m128i *)d1, _d1);
+  _mm_store_si128((__m128i *)d2, _d2);
+  _mm_store_si128((__m128i *)d3, _d3);
+
+  // --------------------
+
+  u0 = _mm_unpacklo_epi32(s[4], s[5]);
+  u1 = _mm_unpackhi_epi32(s[4], s[5]);
+
+  u2 = _mm_unpacklo_epi32(s[6], s[7]);
+  u3 = _mm_unpackhi_epi32(s[6], s[7]);
+
+  _d3 = _mm_unpacklo_epi32(u0, u2);
+  _d2 = _mm_unpackhi_epi32(u0, u2);
+  _d1 = _mm_unpacklo_epi32(u1, u3);
+  _d0 = _mm_unpackhi_epi32(u1, u3);
+
+  _d0 = _mm_shuffle_epi8(_d0, mask);
+  _d1 = _mm_shuffle_epi8(_d1, mask);
+  _d2 = _mm_shuffle_epi8(_d2, mask);
+  _d3 = _mm_shuffle_epi8(_d3, mask);
+
+  _mm_store_si128((__m128i *)(d0 + 16), _d0);
+  _mm_store_si128((__m128i *)(d1 + 16), _d1);
+  _mm_store_si128((__m128i *)(d2 + 16), _d2);
+  _mm_store_si128((__m128i *)(d3 + 16), _d3);
 
 }
 
 
 void sha256sse_65(
-  unsigned char *i0,
-  unsigned char *i1,
-  unsigned char *i2,
-  unsigned char *i3,
+  uint32_t *i0,
+  uint32_t *i1,
+  uint32_t *i2,
+  uint32_t *i3,
   unsigned char *d0,
   unsigned char *d1,
   unsigned char *d2,
   unsigned char *d3) {
 
   __m128i s[8];
-  uint8_t *bs[] = { i0,i1,i2,i3 };
-  uint8_t *bs2[] = { i0 + 64,i1 + 64,i2 + 64,i3 + 64 };
 
   _sha256sse::Initialize(s);
+  _sha256sse::Transform(s, i0, i1, i2, i3);
+  _sha256sse::Transform(s, i0 + 16, i1 + 16, i2 + 16, i3 + 16);
 
-  memcpy(i0 + 65, pad, 55);
-  memcpy(i0 + 120, sizedesc_65, 8);
+  // Unpack
+  __m128i mask = _mm_set_epi8(12, 13, 14, 15, /**/ 4, 5, 6, 7,  /**/ 8, 9, 10, 11,  /**/ 0, 1, 2, 3);
 
-  memcpy(i1 + 65, pad, 55);
-  memcpy(i1 + 120, sizedesc_65, 8);
+  __m128i u0 = _mm_unpacklo_epi32(s[0], s[1]);   // S2_1 S2_0 S3_1 S3_0
+  __m128i u1 = _mm_unpackhi_epi32(s[0], s[1]);   // S0_1 S0_0 S1_1 S1_0
 
-  memcpy(i2 + 65, pad, 55);
-  memcpy(i2 + 120, sizedesc_65, 8);
+  __m128i u2 = _mm_unpacklo_epi32(s[2], s[3]);   // S2_3 S2_2 S3_3 S3_2
+  __m128i u3 = _mm_unpackhi_epi32(s[2], s[3]);   // S0_3 S0_2 S1_3 S1_2
 
-  memcpy(i3 + 65, pad, 55);
-  memcpy(i3 + 120, sizedesc_65, 8);
+  __m128i _d3 = _mm_unpacklo_epi32(u0, u2);      // S3_3 S3_1 S3_2 S3_0
+  __m128i _d2 = _mm_unpackhi_epi32(u0, u2);      // S2_3 S2_1 S2_2 S2_0
+  __m128i _d1 = _mm_unpacklo_epi32(u1, u3);      // S1_3 S1_1 S1_2 S1_0
+  __m128i _d0 = _mm_unpackhi_epi32(u1, u3);      // S0_3 S0_1 S0_2 S0_0
 
-  _sha256sse::Transform(s, bs);
-  _sha256sse::Transform(s, bs2);
+  _d0 = _mm_shuffle_epi8(_d0, mask);
+  _d1 = _mm_shuffle_epi8(_d1, mask);
+  _d2 = _mm_shuffle_epi8(_d2, mask);
+  _d3 = _mm_shuffle_epi8(_d3, mask);
 
-  WB(d0, 3);
-  WB(d1, 2);
-  WB(d2, 1);
-  WB(d3, 0);
+  _mm_store_si128((__m128i *)d0, _d0);
+  _mm_store_si128((__m128i *)d1, _d1);
+  _mm_store_si128((__m128i *)d2, _d2);
+  _mm_store_si128((__m128i *)d3, _d3);
+
+  // --------------------
+
+  u0 = _mm_unpacklo_epi32(s[4], s[5]);
+  u1 = _mm_unpackhi_epi32(s[4], s[5]);
+
+  u2 = _mm_unpacklo_epi32(s[6], s[7]);
+  u3 = _mm_unpackhi_epi32(s[6], s[7]);
+
+  _d3 = _mm_unpacklo_epi32(u0, u2);
+  _d2 = _mm_unpackhi_epi32(u0, u2);
+  _d1 = _mm_unpacklo_epi32(u1, u3);
+  _d0 = _mm_unpackhi_epi32(u1, u3);
+
+  _d0 = _mm_shuffle_epi8(_d0, mask);
+  _d1 = _mm_shuffle_epi8(_d1, mask);
+  _d2 = _mm_shuffle_epi8(_d2, mask);
+  _d3 = _mm_shuffle_epi8(_d3, mask);
+
+  _mm_store_si128((__m128i *)(d0 + 16), _d0);
+  _mm_store_si128((__m128i *)(d1 + 16), _d1);
+  _mm_store_si128((__m128i *)(d2 + 16), _d2);
+  _mm_store_si128((__m128i *)(d3 + 16), _d3);
 
 }
 
+#if 0
 void sha256sse_test() {
 
   unsigned char h0[32];
@@ -371,3 +392,4 @@ void sha256sse_test() {
   printf("SHA() Results OK !\n");
 
 }
+#endif

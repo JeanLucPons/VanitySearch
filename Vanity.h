@@ -75,6 +75,7 @@ private:
 
   std::string GetHex(std::vector<unsigned char> &buffer);
   std::string GetExpectedTime(double keyRate, double keyCount);
+  bool checkPrivKey(std::string addr, Int &key, int32_t incr, int endomorphism, bool mode);
   void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism, bool mode);
   void checkAddresses(bool compressed, Int key, int i, Point p1);
   void checkAddressesSSE(bool compressed, Int key, int i, Point p1, Point p2, Point p3, Point p4);

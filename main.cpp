@@ -23,7 +23,7 @@
 #include <string.h>
 #include <stdexcept>
 
-#define RELEASE "1.9"
+#define RELEASE "1.10"
 
 using namespace std;
 
@@ -269,10 +269,14 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  // Let one CPU core free if gpu is enabled
+  // Let one CPU core free per gpu is gpu is enabled
   // It will avoid to hang the system
   if( !tSpecified && nbCPUThread>1 && gpuEnable)
-    nbCPUThread--;
+    nbCPUThread-=gpuId.size();
+  if(nbCPUThread<0)
+    nbCPUThread = 0;
+
+  printf("VanitySearch v" RELEASE "\n");
 
   VanitySearch *v = new VanitySearch(secp, prefix, seed,searchMode,gpuEnable,stop,outputFile,sse,maxFound);
   v->Search(nbCPUThread,gpuId,gridSize);

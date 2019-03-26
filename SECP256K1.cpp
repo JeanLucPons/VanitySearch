@@ -253,55 +253,100 @@ Int Secp256K1::DecodePrivateKey(char *key) {
 
 }
 
+#define KEYBUFFCOMP(buff,p) \
+(buff)[0] = ((p).x.bits[7] >> 8) | ((uint32_t)(0x2 + (p).y.IsOdd()) << 24); \
+(buff)[1] = ((p).x.bits[6] >> 8) | ((p).x.bits[7] <<24); \
+(buff)[2] = ((p).x.bits[5] >> 8) | ((p).x.bits[6] <<24); \
+(buff)[3] = ((p).x.bits[4] >> 8) | ((p).x.bits[5] <<24); \
+(buff)[4] = ((p).x.bits[3] >> 8) | ((p).x.bits[4] <<24); \
+(buff)[5] = ((p).x.bits[2] >> 8) | ((p).x.bits[3] <<24); \
+(buff)[6] = ((p).x.bits[1] >> 8) | ((p).x.bits[2] <<24); \
+(buff)[7] = ((p).x.bits[0] >> 8) | ((p).x.bits[1] <<24); \
+(buff)[8] = 0x00800000 | ((p).x.bits[0] <<24); \
+(buff)[9] = 0; \
+(buff)[10] = 0; \
+(buff)[11] = 0; \
+(buff)[12] = 0; \
+(buff)[13] = 0; \
+(buff)[14] = 0; \
+(buff)[15] = 0x108;
+
+#define KEYBUFFUNCOMP(buff,p) \
+(buff)[0] = ((p).x.bits[7] >> 8) | 0x04000000; \
+(buff)[1] = ((p).x.bits[6] >> 8) | ((p).x.bits[7] <<24); \
+(buff)[2] = ((p).x.bits[5] >> 8) | ((p).x.bits[6] <<24); \
+(buff)[3] = ((p).x.bits[4] >> 8) | ((p).x.bits[5] <<24); \
+(buff)[4] = ((p).x.bits[3] >> 8) | ((p).x.bits[4] <<24); \
+(buff)[5] = ((p).x.bits[2] >> 8) | ((p).x.bits[3] <<24); \
+(buff)[6] = ((p).x.bits[1] >> 8) | ((p).x.bits[2] <<24); \
+(buff)[7] = ((p).x.bits[0] >> 8) | ((p).x.bits[1] <<24); \
+(buff)[8] = ((p).y.bits[7] >> 8) | ((p).x.bits[0] <<24); \
+(buff)[9] = ((p).y.bits[6] >> 8) | ((p).y.bits[7] <<24); \
+(buff)[10] = ((p).y.bits[5] >> 8) | ((p).y.bits[6] <<24); \
+(buff)[11] = ((p).y.bits[4] >> 8) | ((p).y.bits[5] <<24); \
+(buff)[12] = ((p).y.bits[3] >> 8) | ((p).y.bits[4] <<24); \
+(buff)[13] = ((p).y.bits[2] >> 8) | ((p).y.bits[3] <<24); \
+(buff)[14] = ((p).y.bits[1] >> 8) | ((p).y.bits[2] <<24); \
+(buff)[15] = ((p).y.bits[0] >> 8) | ((p).y.bits[1] <<24); \
+(buff)[16] = 0x00800000 | ((p).y.bits[0] <<24); \
+(buff)[17] = 0; \
+(buff)[18] = 0; \
+(buff)[19] = 0; \
+(buff)[20] = 0; \
+(buff)[21] = 0; \
+(buff)[22] = 0; \
+(buff)[23] = 0; \
+(buff)[24] = 0; \
+(buff)[25] = 0; \
+(buff)[26] = 0; \
+(buff)[27] = 0; \
+(buff)[28] = 0; \
+(buff)[29] = 0; \
+(buff)[30] = 0; \
+(buff)[31] = 0x208;
+
 void Secp256K1::GetHash160(bool compressed,
   Point &k0,Point &k1,Point &k2,Point &k3,
   uint8_t *h0,uint8_t *h1,uint8_t *h2,uint8_t *h3) {
 
-  unsigned char sh0[64];
-  unsigned char sh1[64];
-  unsigned char sh2[64];
-  unsigned char sh3[64];
+#ifdef WIN64
+  __declspec(align(16)) unsigned char sh0[64];
+  __declspec(align(16)) unsigned char sh1[64];
+  __declspec(align(16)) unsigned char sh2[64];
+  __declspec(align(16)) unsigned char sh3[64];
+#else
+  unsigned char sh0[64] __attribute__((aligned(16)));
+  unsigned char sh1[64] __attribute__((aligned(16)));
+  unsigned char sh2[64] __attribute__((aligned(16)));
+  unsigned char sh3[64] __attribute__((aligned(16)));
+#endif
 
   if(!compressed) {
 
-    unsigned char b0[128];
-    unsigned char b1[128];
-    unsigned char b2[128];
-    unsigned char b3[128];
+    uint32_t b0[32];
+    uint32_t b1[32];
+    uint32_t b2[32];
+    uint32_t b3[32];
 
-    b0[0] = 0x4;
-    b1[0] = 0x4;
-    b2[0] = 0x4;
-    b3[0] = 0x4;
-
-    k0.x.Get32Bytes(b0 + 1);
-    k0.y.Get32Bytes(b0 + 33);
-    k1.x.Get32Bytes(b1 + 1);
-    k1.y.Get32Bytes(b1 + 33);
-    k2.x.Get32Bytes(b2 + 1);
-    k2.y.Get32Bytes(b2 + 33);
-    k3.x.Get32Bytes(b3 + 1);
-    k3.y.Get32Bytes(b3 + 33);
+    KEYBUFFUNCOMP(b0, k0);
+    KEYBUFFUNCOMP(b1, k1);
+    KEYBUFFUNCOMP(b2, k2);
+    KEYBUFFUNCOMP(b3, k3);
 
     sha256sse_65(b0,b1,b2,b3,sh0,sh1,sh2,sh3);
     ripemd160sse_32(sh0,sh1,sh2,sh3,h0,h1,h2,h3);
 
   } else {
 
-    unsigned char b0[64];
-    unsigned char b1[64];
-    unsigned char b2[64];
-    unsigned char b3[64];
+    uint32_t b0[16];
+    uint32_t b1[16];
+    uint32_t b2[16];
+    uint32_t b3[16];
 
-    b0[0] = k0.y.IsEven() ? 0x2 : 0x3;
-    b1[0] = k1.y.IsEven() ? 0x2 : 0x3;
-    b2[0] = k2.y.IsEven() ? 0x2 : 0x3;
-    b3[0] = k3.y.IsEven() ? 0x2 : 0x3;
-
-    k0.x.Get32Bytes(b0 + 1);
-    k1.x.Get32Bytes(b1 + 1);
-    k2.x.Get32Bytes(b2 + 1);
-    k3.x.Get32Bytes(b3 + 1);
+    KEYBUFFCOMP(b0, k0);
+    KEYBUFFCOMP(b1, k1);
+    KEYBUFFCOMP(b2, k2);
+    KEYBUFFCOMP(b3, k3);
 
     sha256sse_33(b0,b1,b2,b3,sh0,sh1,sh2,sh3);
     ripemd160sse_32(sh0,sh1,sh2,sh3,h0,h1,h2,h3);

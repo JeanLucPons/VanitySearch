@@ -467,6 +467,58 @@ void VanitySearch::updateFound() {
 
 // ----------------------------------------------------------------------------
 
+bool VanitySearch::checkPrivKey(string addr, Int &key, int32_t incr, int endomorphism, bool mode) {
+
+  Int k(&key);
+
+  if (incr < 0) {
+    k.Add((uint64_t)(-incr));
+    k.Neg();
+    k.Add(&secp.order);
+  } else {
+    k.Add((uint64_t)incr);
+  }
+
+  // Endomorphisms
+  switch (endomorphism) {
+  case 1:
+    k.ModMulK1order(&lambda);
+    break;
+  case 2:
+    k.ModMulK1order(&lambda2);
+    break;
+  }
+
+  // Check addresses
+  Point p = secp.ComputePublicKey(&k);
+  string chkAddr = secp.GetAddress(p, mode);
+  if (chkAddr != addr) {
+    if (mode) {
+      // Compressed address (key may be negated)
+      k.Neg();
+      k.Add(&secp.order);
+      p = secp.ComputePublicKey(&k);
+      string chkAddr = secp.GetAddress(p, mode);
+      if (chkAddr != addr) {
+        printf("\nWarning, wrong private key generated !\n");
+        printf("  Addr :%s\n", addr.c_str());
+        printf("  Check:%s\n", chkAddr.c_str());
+        return false;
+      }
+    } else {
+      printf("\nWarning, wrong private key generated !\n");
+      printf("  Addr :%s\n", addr.c_str());
+      printf("  Check:%s\n", chkAddr.c_str());
+      return false;
+    }
+  }
+
+  output(addr, secp.GetPrivAddress(k, mode), k.GetBase16());
+
+  return true;
+
+}
+
 void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism, bool mode) {
 
   vector<PREFIX_ITEM>& items = *prefixes[prefIdx].items;
@@ -483,42 +535,12 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
 
         // Found it !
         // You believe it ?
-        // Mark it as found
-        items[i].found = true;
-        Int k(&key);
-        if(incr<0) {
-          k.Add((uint64_t)(-incr));
-          k.Neg();
-          k.Add(&secp.order);
-        } else {
-          k.Add((uint64_t)incr);
+        if (checkPrivKey(secp.GetAddress(hash160,mode), key, incr, endomorphism, mode)) {
+          // Mark it as found
+          items[i].found = true;
+          nbFoundKey++;
+          updateFound();
         }
-
-        // Endomorphisms
-        switch (endomorphism) {
-          case 1:
-            k.ModMulK1order(&lambda);
-            break;
-          case 2:
-            k.ModMulK1order(&lambda2);
-            break;
-        }
-
-        string addr = secp.GetAddress(hash160, mode);
-        
-        // Check addresses
-        Point p = secp.ComputePublicKey(&k);
-        string chkAddr = secp.GetAddress(p,mode);
-        if( chkAddr!=addr ) {
-          printf("\nWarning, wrong private key generated !\n");
-          printf("  Addr :%s\n",addr.c_str());
-          printf("  Check:%s\n",chkAddr.c_str());
-        }
-		
-        output(addr, secp.GetPrivAddress(k,mode) , k.GetBase16() );
-        
-        nbFoundKey++;
-        updateFound();
         
       }
 
@@ -539,54 +561,13 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
         
       if (strcmp(items[i].prefix, a) == 0) {
 
-        // Mark it as found
-        items[i].found = true;
-        Int k(&key);
-        if (incr < 0) {
-          k.Add((uint64_t)(-incr));
-          k.Neg();
-          k.Add(&secp.order);
-        } else {
-          k.Add((uint64_t)incr);
+        // Found it !
+        if (checkPrivKey(addr, key, incr, endomorphism, mode)) {
+          // Mark it as found
+          items[i].found = true;
+          nbFoundKey++;
+          updateFound();
         }
-        // Endomorphisms
-        switch (endomorphism) {
-          case 1:
-            k.ModMulK1order(&lambda);
-            break;
-          case 2:
-            k.ModMulK1order(&lambda2);
-            break;
-        }
-        
-        string addr = secp.GetAddress(hash160, mode);
-        
-        // Check addresses
-        Point p = secp.ComputePublicKey(&k);
-        string chkAddr = secp.GetAddress(p,mode);
-        if( chkAddr!=addr ) {
-		  if( mode ) {
-			// Compressed address (key may be negated)
-            k.Neg();
-            k.Add(&secp.order);
-            p = secp.ComputePublicKey(&k);
-            string chkAddr = secp.GetAddress(p,mode);
-            if( chkAddr!=addr ) {
-              printf("\nWarning, wrong private key generated !\n");
-              printf("  Addr :%s\n",addr.c_str());
-              printf("  Check:%s\n",chkAddr.c_str());
-			}
-		  } else {
-            printf("\nWarning, wrong private key generated !\n");
-            printf("  Addr :%s\n",addr.c_str());
-            printf("  Check:%s\n",chkAddr.c_str());
-	      }
-	    }
-		
-        output(addr, secp.GetPrivAddress(k,mode) , k.GetBase16() );
-        
-        nbFoundKey++;
-        updateFound();
 
       }
 	
@@ -1262,7 +1243,7 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     avgGpuKeyRate /= (double)(nbSample);
 
     if (isAlive(params)) {
-      printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]\r",
+      printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]  \r",
         avgKeyRate / 1000000.0, avgGpuKeyRate / 1000000.0,
           log2((double)count), GetExpectedTime(avgKeyRate, (double)count).c_str(),nbFoundKey);
     }
