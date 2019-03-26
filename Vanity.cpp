@@ -565,10 +565,23 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
         Point p = secp.ComputePublicKey(&k);
         string chkAddr = secp.GetAddress(p,mode);
         if( chkAddr!=addr ) {
-          printf("\nWarning, wrong private key generated !\n");
-          printf("  Addr :%s\n",addr.c_str());
-          printf("  Check:%s\n",chkAddr.c_str());
-	}
+		  if( mode ) {
+			// Compressed address (key may be negated)
+            k.Neg();
+            k.Add(&secp.order);
+            p = secp.ComputePublicKey(&k);
+            string chkAddr = secp.GetAddress(p,mode);
+            if( chkAddr!=addr ) {
+              printf("\nWarning, wrong private key generated !\n");
+              printf("  Addr :%s\n",addr.c_str());
+              printf("  Check:%s\n",chkAddr.c_str());
+			}
+		  } else {
+            printf("\nWarning, wrong private key generated !\n");
+            printf("  Addr :%s\n",addr.c_str());
+            printf("  Check:%s\n",chkAddr.c_str());
+	      }
+	    }
 		
         output(addr, secp.GetPrivAddress(k,mode) , k.GetBase16() );
         
