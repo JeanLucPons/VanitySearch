@@ -353,8 +353,6 @@ void Secp256K1::GetHash160(bool compressed,
 
   }
 
-
-
 }
 
 void Secp256K1::GetHash160(Point &pubKey,bool compressed,unsigned char *hash) {

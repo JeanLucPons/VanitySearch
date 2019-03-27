@@ -35,57 +35,57 @@ static const int8_t b58digits_map[] = {
 	47,48,49,50,51,52,53,54, 55,56,57,-1,-1,-1,-1,-1,
 };
 
-bool DecodeBase58(const char* psz, std::vector<uint8_t> &vch)
-{
+bool DecodeBase58(const char* psz, std::vector<uint8_t> &vch) {
 
-    uint8_t digits[256];
-    
-    // Skip and count leading '1'
-    int zeroes = 0;
-    while (*psz == '1') {
-      zeroes++;
-      psz++;
+  uint8_t digits[256];
+
+  // Skip and count leading '1'
+  int zeroes = 0;
+  while (*psz == '1') {
+    zeroes++;
+    psz++;
+  }
+
+  int length = (int)strlen(psz);
+
+  // Process the characters	
+  int digitslen = 1;
+  digits[0] = 0;
+  for (int i = 0; i < length; i++) {
+
+    // Decode base58 character
+    if (psz[i] & 0x80)
+      return false;
+
+    int8_t c = b58digits_map[psz[i]];
+    if (c < 0)
+      return false;
+
+    uint32_t carry = (uint32_t)c;
+    for (int j = 0; j < digitslen; j++) {
+      carry += (uint32_t)(digits[j]) * 58;
+      digits[j] = (uint8_t)(carry % 256);
+      carry /= 256;
     }
-    
-    int length = (int)strlen(psz);
-        
-    // Process the characters	
-    int digitslen = 1;
-    digits[0]=0;
-    for(int i = 0; i < length; i++) {
-		
-      // Decode base58 character
-      if( psz[i] & 0x80 )
-		return false;
-
-	  int8_t c = b58digits_map[psz[i]];
-	  if(c<0)
-		return false;
-	  
-      uint32_t carry = (uint32_t)c;
-      for(int j = 0; j < digitslen; j++) {
-        carry += (uint32_t)(digits[j]) * 58;
-        digits[j] = (uint8_t)(carry % 256);
-        carry /= 256;
-      }
-      while(carry > 0) {
-        digits[digitslen++] = (uint8_t)(carry % 256);
-        carry /= 256;
-      }
-      
+    while (carry > 0) {
+      digits[digitslen++] = (uint8_t)(carry % 256);
+      carry /= 256;
     }
 
-    vch.clear();
-    vch.reserve(zeroes+digitslen);
-    // zeros
-    for(int i = 0; i < zeroes; i++)
-      vch.push_back(0);
-    
-    // reverse    
-    for(int i = 0; i < digitslen; i++)
-      vch.push_back(digits[digitslen - 1 - i]);
-        
-    return true;
+  }
+
+  vch.clear();
+  vch.reserve(zeroes + digitslen);
+  // zeros
+  for (int i = 0; i < zeroes; i++)
+    vch.push_back(0);
+
+  // reverse    
+  for (int i = 0; i < digitslen; i++)
+    vch.push_back(digits[digitslen - 1 - i]);
+
+  return true;
+
 }
 
 std::string EncodeBase58(const unsigned char* pbegin, const unsigned char* pend) {

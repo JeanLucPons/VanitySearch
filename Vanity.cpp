@@ -494,7 +494,7 @@ bool VanitySearch::checkPrivKey(string addr, Int &key, int32_t incr, int endomor
   string chkAddr = secp.GetAddress(p, mode);
   if (chkAddr != addr) {
     if (mode) {
-      // Compressed address (key may be negated)
+      // Compressed address (key may be the opposite one)
       k.Neg();
       k.Add(&secp.order);
       p = secp.ComputePublicKey(&k);
