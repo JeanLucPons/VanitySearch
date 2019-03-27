@@ -856,15 +856,16 @@ void Int::MontgomeryMult(Int *a, Int *b) {
 void Int::ModMulK1(Int *a, Int *b) {
 
 #ifndef WIN64
-#if __GNUC__ <= 6
-  #warning "GCC lass than 7 detected, upgrade gcc to get best perfromance"
+#if (__GNUC__ > 7) || (__GNUC__ == 7 && (__GNUC_MINOR__ > 2))
+  unsigned char c;
+#else
+  #warning "GCC lass than 7.3 detected, upgrade gcc to get best perfromance"
   volatile unsigned char c;
-#else
-  unsigned char c;
 #endif
 #else
   unsigned char c;
 #endif
+
 
   uint64_t ah, al;
   uint64_t t[5];
@@ -917,11 +918,11 @@ void Int::ModMulK1(Int *a, Int *b) {
 void Int::ModMulK1(Int *a) {
 
 #ifndef WIN64
-#if __GNUC__ <= 6
-  #warning "GCC lass than 7 detected, upgrade gcc to get best perfromance"
-  volatile unsigned char c;
-#else
+#if (__GNUC__ > 7) || (__GNUC__ == 7 && (__GNUC_MINOR__ > 2))
   unsigned char c;
+#else
+  #warning "GCC lass than 7.3 detected, upgrade gcc to get best perfromance"
+  volatile unsigned char c;
 #endif
 #else
   unsigned char c;
@@ -977,11 +978,11 @@ void Int::ModMulK1(Int *a) {
 void Int::ModSquareK1(Int *a) {
 
 #ifndef WIN64
-#if __GNUC__ <= 6
-  #warning "GCC lass than 7 detected, upgrade gcc to get best perfromance"
-  volatile unsigned char c;
-#else
+#if (__GNUC__ > 7) || (__GNUC__ == 7 && (__GNUC_MINOR__ > 2))
   unsigned char c;
+#else
+  #warning "GCC lass than 7.3 detected, upgrade gcc to get best perfromance"
+  volatile unsigned char c;
 #endif
 #else
   unsigned char c;
