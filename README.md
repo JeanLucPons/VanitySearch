@@ -20,40 +20,39 @@ VanitySearch may not compute a good grid size for your GPU, so try different val
 
 You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/releases
 
-  ```
-  VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-i inputfile] [-o outputfile] [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]] [-s seed] [-t threadNumber] prefix
-  prefix: prefix to search
-  -v: Print version
-  -check: Check CPU and GPU kernel vs CPU
-  -u: Search uncompressed addresses
-  -o outputfile: Output results to the specified file
-  -i inputfile: Get list of prefixes to search from specified file
-  -gpu: Enable gpu calculation
-  -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0
-  -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)
-  -s seed: Specify a seed for the base key, default is random
-  -t threadNumber: Specify number of CPU thread, default is number of core
-  -nosse : Disable SSE hash function
-  -l : List cuda enabled devices
-  -stop: Stop when prefix is found
-  ```
+```
+VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-i inputfile] [-o outputfile] [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]] [-s seed] [-t threadNumber] prefix
+prefix: prefix to search
+-v: Print version
+-check: Check CPU and GPU kernel vs CPU
+-u: Search uncompressed addresses
+-o outputfile: Output results to the specified file
+-i inputfile: Get list of prefixes to search from specified file
+-gpu: Enable gpu calculation
+-gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0
+-g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)
+-s seed: Specify a seed for the base key, default is random
+-t threadNumber: Specify number of CPU thread, default is number of core
+-nosse : Disable SSE hash function
+-l : List cuda enabled devices
+-stop: Stop when prefix is found
+```
  
-  Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 645):
-  ```
-  C:\C++\VanitySearch\x64\Release>VanitySearch.exe -stop -gpu 1TryMe
-  Start Sat Mar 16 10:57:45 2019
-  Difficulty: 15318045009
-  Search: 1TryMe
-  Base Key:683AC982A0347D0D27673EF42CAC67B9CEA8389462C692D19BF08DE372981F48
-  Number of CPU thread: 7
-  GPU: GPU #0 GeForce GTX 645 (3x192 cores) Grid(24x128)
-  57.722 MK/s (GPU 41.286 MK/s) (2^33.06) [P 44.26%][50.00% in 00:00:28][0]
-  Pub Addr: 1TryMeRzymSKUSKGfyLn1FF2RTsekyKsm
-  Prv Addr: 5JyPvV4BLPmmaxNjLFRHcNKmAStjS2AAS4pVWdZ5s7xQiFFLjY4
-  Prv Key : 0x986144BE9775573076E111462CB3A680A324CF324190E4FD9A0F8F0F925ACDE6
-  Check   : 1D8JVzhB5nxzBPWYU7TAzfM5SnzEs1GSsq
-  Check   : 1TryMeRzymSKUSKGfyLn1FF2RTsekyKsm (comp)
-  ```
+Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 645):
+```
+C:\C++\VanitySearch\x64\Release>VanitySearch.exe -stop -gpu 1TryMe
+VanitySearch v1.10
+Difficulty: 15318045009
+Search: 1TryMe [Compressed]
+Start Wed Mar 27 10:19:04 2019
+Base Key:681E8A2A2F580C427EF025A2CFE556E07EA7055B2A92B6234DB0B5AAFDA2E5FF
+Number of CPU thread: 7
+GPU: GPU #0 GeForce GTX 645 (3x192 cores) Grid(24x128)
+59.567 MK/s (GPU 43.544 MK/s) (2^33.71) [P 59.98%][60.00% in 00:00:00][0]
+Pub Addr: 1TryMeGTxspHHGDWRX5KD8zPPM6KoNdfV
+Priv (WIF): L4hqNRo8dwoWN9GWCSuFagrbsysUpbLxG3rDXJRCXGubC3oPB62z
+Priv (HEX): 0xDF546BDE70567A14A83AC69B17EF5845239F39B35820243DC3859AC46894DCDF
+```
 
 # Trying to attack a list of addresses
 
@@ -114,20 +113,19 @@ $ make gpu=1 ccap=20 all
 Runnig VanitySearch (Intel(R) Xeon(R) CPU, 8 cores,  @ 2.93GHz, Quadro 600 (x2))
 ```
 $export LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64
-pons@linpons:~/VanitySearch$ ./VanitySearch -stop -t 7 -gpu -gpuId 0,1 1TryMe
-Start Sat Mar 16 11:02:33 2019
+pons@linpons:~/VanitySearch$ ./VanitySearch -t 7 -gpu -gpuId 0,1 1TryMe
+VanitySearch v1.10
 Difficulty: 15318045009
-Search: 1TryMe
-Base Key:E23BAA6FCF17CB2A7BDE3A0471FB7557A4C535F0D90FD02C0526E7E68BA26B93
+Search: 1TryMe [Compressed]
+Start Wed Mar 27 10:26:43 2019
+Base Key:C6718D8E50C1A5877DE3E52021C116F7598826873C61496BDB7CAD668CE3DCE5
 Number of CPU thread: 7
 GPU: GPU #1 Quadro 600 (2x48 cores) Grid(16x128)
 GPU: GPU #0 Quadro 600 (2x48 cores) Grid(16x128)
-39.580 MK/s (GPU 25.949 MK/s) (2^31.16) [P 14.46%][50.00% in 00:03:27][0]
-Pub Addr: 1TryMeo5s9d1NEwoXBf8t5ek5sLaAUz1Y
-Prv Addr: 5KXvQFLZkUtE63w34xXFbcgLm9CNiww9XPJfFnyVfhkWcXp9waj
-Prv Key : 0xE23BAA6FCF17CB2A7BDE3A0471FB7557A54635F0DEE6D02C0526E7E68BA36836
-Check   : 1CMuWQeiDcR2jj4NPqXM2FQPe7MrhKt3rG
-Check   : 1TryMeo5s9d1NEwoXBf8t5ek5sLaAUz1Y (comp)
+40.284 MK/s (GPU 27.520 MK/s) (2^31.84) [P 22.24%][50.00% in 00:02:47][0]  
+Pub Addr: 1TryMeERTZK7RCTemSJB5SNb2WcKSx45p
+Priv (WIF): Ky9bMLDpb9o5rBwHtLaidREyA6NzLFkWJ19QjPDe2XDYJdmdUsRk
+Priv (HEX): 0x398E7271AF3E5A78821C1ADFDE3EE90760A6B65F72D856CFE455B1264350BCE8
 ```
 
 # License
