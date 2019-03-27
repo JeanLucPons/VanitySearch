@@ -16,6 +16,10 @@ VanitySearch may not compute a good grid size for your GPU, so try different val
   <li>Seed protected by pbkdf2_hmac_sha512 (BIP38)</li>
 </ul>
 
+# Discussion Thread
+
+[Disucussion about VanitySearch@bitcointalk](https://bitcointalk.org/index.php?topic=5112311.0)
+
 # Usage
 
 You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/releases
