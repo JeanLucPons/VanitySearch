@@ -162,6 +162,8 @@ int main(int argc, char* argv[]) {
     printUsage();
   }
 
+  printf("VanitySearch v" RELEASE "\n");
+
   int a = 1;
   bool gpuEnable = false;
   bool stop = false;
@@ -272,11 +274,9 @@ int main(int argc, char* argv[]) {
   // Let one CPU core free per gpu is gpu is enabled
   // It will avoid to hang the system
   if( !tSpecified && nbCPUThread>1 && gpuEnable)
-    nbCPUThread-=gpuId.size();
+    nbCPUThread-=(int)gpuId.size();
   if(nbCPUThread<0)
     nbCPUThread = 0;
-
-  printf("VanitySearch v" RELEASE "\n");
 
   VanitySearch *v = new VanitySearch(secp, prefix, seed,searchMode,gpuEnable,stop,outputFile,sse,maxFound);
   v->Search(nbCPUThread,gpuId,gridSize);
