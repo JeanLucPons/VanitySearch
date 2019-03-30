@@ -43,6 +43,9 @@
     <ClInclude Include="SECP256k1.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Vanity.h" />
+    <ClInclude Include="GPU\GPUMath.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GPU\GPUGenerate.cpp">

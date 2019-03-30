@@ -141,7 +141,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
       <EnableFiberSafeOptimizations>false</EnableFiberSafeOptimizations>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>true</BufferSecurityCheck>
-      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -189,6 +189,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="GPU\GPUEngine.h" />
     <ClInclude Include="GPU\GPUGroup.h" />
     <ClInclude Include="GPU\GPUHash.h" />
+    <ClInclude Include="GPU\GPUMath.h" />
     <ClInclude Include="hash\ripemd160.h" />
     <ClInclude Include="hash\sha256.h" />
     <ClInclude Include="hash\sha512.h" />

@@ -467,3 +467,107 @@ __device__ void RIPEMD160Transform(uint32_t s[5],uint32_t* w) {
   s[3] = s[4] + a1 + b2;
   s[4] = t + b1 + c2;
 }
+
+// ---------------------------------------------------------------------------------
+// Key encoding
+// ---------------------------------------------------------------------------------
+
+__device__ __noinline__ void _GetHash160Comp(uint64_t *x, uint8_t isOdd, uint8_t *hash) {
+
+  uint32_t *x32 = (uint32_t *)(x);
+  uint32_t publicKeyBytes[16];
+  uint32_t s[16];
+
+  // Compressed public key
+  publicKeyBytes[0] = __byte_perm(x32[7], 0x2 + isOdd, 0x4321);
+  publicKeyBytes[1] = __byte_perm(x32[7], x32[6], 0x0765);
+  publicKeyBytes[2] = __byte_perm(x32[6], x32[5], 0x0765);
+  publicKeyBytes[3] = __byte_perm(x32[5], x32[4], 0x0765);
+  publicKeyBytes[4] = __byte_perm(x32[4], x32[3], 0x0765);
+  publicKeyBytes[5] = __byte_perm(x32[3], x32[2], 0x0765);
+  publicKeyBytes[6] = __byte_perm(x32[2], x32[1], 0x0765);
+  publicKeyBytes[7] = __byte_perm(x32[1], x32[0], 0x0765);
+  publicKeyBytes[8] = __byte_perm(x32[0], 0x80, 0x0456);
+  publicKeyBytes[9] = 0;
+  publicKeyBytes[10] = 0;
+  publicKeyBytes[11] = 0;
+  publicKeyBytes[12] = 0;
+  publicKeyBytes[13] = 0;
+  publicKeyBytes[14] = 0;
+  publicKeyBytes[15] = 0x108;
+
+  SHA256Initialize(s);
+  SHA256Transform(s, publicKeyBytes);
+
+#pragma unroll 8
+  for (int i = 0; i < 8; i++)
+    s[i] = bswap32(s[i]);
+
+  *(uint64_t *)(s + 8) = 0x80ULL;
+  *(uint64_t *)(s + 10) = 0ULL;
+  *(uint64_t *)(s + 12) = 0ULL;
+  *(uint64_t *)(s + 14) = ripemd160_sizedesc_32;
+
+  RIPEMD160Initialize((uint32_t *)hash);
+  RIPEMD160Transform((uint32_t *)hash, s);
+
+}
+
+__device__ __noinline__ void _GetHash160(uint64_t *x, uint64_t *y, uint8_t *hash) {
+
+  uint32_t *x32 = (uint32_t *)(x);
+  uint32_t *y32 = (uint32_t *)(y);
+  uint32_t publicKeyBytes[32];
+  uint32_t s[16];
+
+  // Uncompressed public key
+  publicKeyBytes[0] = __byte_perm(x32[7], 0x04, 0x4321);
+  publicKeyBytes[1] = __byte_perm(x32[7], x32[6], 0x0765);
+  publicKeyBytes[2] = __byte_perm(x32[6], x32[5], 0x0765);
+  publicKeyBytes[3] = __byte_perm(x32[5], x32[4], 0x0765);
+  publicKeyBytes[4] = __byte_perm(x32[4], x32[3], 0x0765);
+  publicKeyBytes[5] = __byte_perm(x32[3], x32[2], 0x0765);
+  publicKeyBytes[6] = __byte_perm(x32[2], x32[1], 0x0765);
+  publicKeyBytes[7] = __byte_perm(x32[1], x32[0], 0x0765);
+  publicKeyBytes[8] = __byte_perm(x32[0], y32[7], 0x0765);
+  publicKeyBytes[9] = __byte_perm(y32[7], y32[6], 0x0765);
+  publicKeyBytes[10] = __byte_perm(y32[6], y32[5], 0x0765);
+  publicKeyBytes[11] = __byte_perm(y32[5], y32[4], 0x0765);
+  publicKeyBytes[12] = __byte_perm(y32[4], y32[3], 0x0765);
+  publicKeyBytes[13] = __byte_perm(y32[3], y32[2], 0x0765);
+  publicKeyBytes[14] = __byte_perm(y32[2], y32[1], 0x0765);
+  publicKeyBytes[15] = __byte_perm(y32[1], y32[0], 0x0765);
+  publicKeyBytes[16] = __byte_perm(y32[0], 0x80, 0x0456);
+  publicKeyBytes[17] = 0;
+  publicKeyBytes[18] = 0;
+  publicKeyBytes[19] = 0;
+  publicKeyBytes[20] = 0;
+  publicKeyBytes[21] = 0;
+  publicKeyBytes[22] = 0;
+  publicKeyBytes[23] = 0;
+  publicKeyBytes[24] = 0;
+  publicKeyBytes[25] = 0;
+  publicKeyBytes[26] = 0;
+  publicKeyBytes[27] = 0;
+  publicKeyBytes[28] = 0;
+  publicKeyBytes[29] = 0;
+  publicKeyBytes[30] = 0;
+  publicKeyBytes[31] = 0x208;
+
+  SHA256Initialize(s);
+  SHA256Transform(s, publicKeyBytes);
+  SHA256Transform(s, publicKeyBytes + 16);
+
+#pragma unroll 8
+  for (int i = 0; i < 8; i++)
+    s[i] = bswap32(s[i]);
+
+  *(uint64_t *)(s + 8) = 0x80ULL;
+  *(uint64_t *)(s + 10) = 0ULL;
+  *(uint64_t *)(s + 12) = 0ULL;
+  *(uint64_t *)(s + 14) = ripemd160_sizedesc_32;
+
+  RIPEMD160Initialize((uint32_t *)hash);
+  RIPEMD160Transform((uint32_t *)hash, s);
+
+}
