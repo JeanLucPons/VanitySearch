@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="GPU\GPUEngine.cu">
+      <Filter>GPU</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="GPU">
+      <UniqueIdentifier>{1303a313-79bf-44c2-bdd2-d9cdf550a501}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="hash">
+      <UniqueIdentifier>{4bae4f95-7d4a-486b-9adb-b231b475b527}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GPU\GPUCompute.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUEngine.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUGroup.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUHash.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\ripemd160.h">
+      <Filter>hash</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\sha256.h">
+      <Filter>hash</Filter>
+    </ClInclude>
+    <ClInclude Include="hash\sha512.h">
+      <Filter>hash</Filter>
+    </ClInclude>
+    <ClInclude Include="Base58.h" />
+    <ClInclude Include="Int.h" />
+    <ClInclude Include="IntGroup.h" />
+    <ClInclude Include="Point.h" />
+    <ClInclude Include="Random.h" />
+    <ClInclude Include="SECP256k1.h" />
+    <ClInclude Include="Timer.h" />
+    <ClInclude Include="Vanity.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="GPU\GPUGenerate.cpp">
+      <Filter>GPU</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\ripemd160.cpp">
+      <Filter>hash</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\ripemd160_sse.cpp">
+      <Filter>hash</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\sha256.cpp">
+      <Filter>hash</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\sha256_sse.cpp">
+      <Filter>hash</Filter>
+    </ClCompile>
+    <ClCompile Include="hash\sha512.cpp">
+      <Filter>hash</Filter>
+    </ClCompile>
+    <ClCompile Include="Base58.cpp" />
+    <ClCompile Include="Int.cpp" />
+    <ClCompile Include="IntGroup.cpp" />
+    <ClCompile Include="IntMod.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Point.cpp" />
+    <ClCompile Include="Random.cpp" />
+    <ClCompile Include="SECP256K1.cpp" />
+    <ClCompile Include="Timer.cpp" />
+    <ClCompile Include="Vanity.cpp" />
+  </ItemGroup>
+</Project>

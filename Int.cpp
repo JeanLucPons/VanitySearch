@@ -147,7 +147,7 @@ void Int::Add(Int *a,Int *b) {
 
 // ------------------------------------------------
 
-int Int::IsGreater(Int *a) {
+bool Int::IsGreater(Int *a) {
 
   int i;
 
@@ -167,7 +167,7 @@ int Int::IsGreater(Int *a) {
 
 // ------------------------------------------------
 
-int Int::IsLower(Int *a) {
+bool Int::IsLower(Int *a) {
 
   int i;
 
@@ -187,7 +187,7 @@ int Int::IsLower(Int *a) {
 
 // ------------------------------------------------
 
-int Int::IsGreaterOrEqual(Int *a) {
+bool Int::IsGreaterOrEqual(Int *a) {
 
   Int p;
   p.Sub(this,a);
@@ -197,7 +197,7 @@ int Int::IsGreaterOrEqual(Int *a) {
 
 // ------------------------------------------------
 
-int Int::IsLowerOrEqual(Int *a) {
+bool Int::IsLowerOrEqual(Int *a) {
 
   int i = NB64BLOCK - 1;
 
@@ -215,7 +215,7 @@ int Int::IsLowerOrEqual(Int *a) {
 
 }
 
-int Int::IsEqual(Int *a) {
+bool Int::IsEqual(Int *a) {
 
 return
 
@@ -233,11 +233,11 @@ return
 
 }
 
-int Int::IsOne() {
+bool Int::IsOne() {
   return IsEqual(&_ONE);
 }
 
-int Int::IsZero() {
+bool Int::IsZero() {
 
 #if NB64BLOCK > 5
   return (bits64[8] | bits64[7] | bits64[6] | bits64[5] | bits64[4] | bits64[3] | bits64[2] | bits64[1] | bits64[0]) == 0;
@@ -388,19 +388,19 @@ void Int::SubOne() {
 
 // ------------------------------------------------
 
-int Int::IsPositive() {
+bool Int::IsPositive() {
   return (int64_t)(bits64[NB64BLOCK - 1])>=0;
 }
 
 // ------------------------------------------------
 
-int Int::IsNegative() {
+bool Int::IsNegative() {
   return (int64_t)(bits64[NB64BLOCK - 1])<0;
 }
 
 // ------------------------------------------------
 
-int Int::IsStrictPositive() {
+bool Int::IsStrictPositive() {
   if( IsPositive() )
 	  return !IsZero();
   else
@@ -409,13 +409,13 @@ int Int::IsStrictPositive() {
 
 // ------------------------------------------------
 
-int Int::IsEven() {
+bool Int::IsEven() {
   return (bits[0] & 0x1) == 0;
 }
 
 // ------------------------------------------------
 
-int Int::IsOdd() {
+bool Int::IsOdd() {
   return (bits[0] & 0x1) == 1;
 }
 
@@ -423,7 +423,7 @@ int Int::IsOdd() {
 
 void Int::Neg() {
 
-	unsigned char c=0;
+	volatile unsigned char c=0;
 	c = _subborrow_u64(c, 0, bits64[0], bits64 + 0);
 	c = _subborrow_u64(c, 0, bits64[1], bits64 + 1);
 	c = _subborrow_u64(c, 0, bits64[2], bits64 + 2);
@@ -549,7 +549,7 @@ void Int::Mult(Int *a) {
 void Int::IMult(int64_t a) {
 
 	// Make a positive
-	if (a < 0) {
+	if (a < 0LL) {
 		a = -a;
 		Neg();
 	}
@@ -568,32 +568,15 @@ void Int::Mult(uint64_t a) {
 // ------------------------------------------------
 
 void Int::IMult(Int *a, int64_t b) {
+  
+  Set(a);
 
   // Make b positive
-  if (b < 0) {
-
-    uint64_t tmp[NB64BLOCK];
-    b = -b;
-    // Negate a
-    unsigned char c = 0;
-    c = _subborrow_u64(c, 0, a->bits64[0], tmp + 0);
-    c = _subborrow_u64(c, 0, a->bits64[1], tmp + 1);
-    c = _subborrow_u64(c, 0, a->bits64[2], tmp + 2);
-    c = _subborrow_u64(c, 0, a->bits64[3], tmp + 3);
-    c = _subborrow_u64(c, 0, a->bits64[4], tmp + 4);
-#if NB64BLOCK > 5
-    c = _subborrow_u64(c, 0, a->bits64[5], tmp + 5);
-    c = _subborrow_u64(c, 0, a->bits64[6], tmp + 6);
-    c = _subborrow_u64(c, 0, a->bits64[7], tmp + 7);
-    c = _subborrow_u64(c, 0, a->bits64[8], tmp + 8);
-#endif
-    imm_mul(tmp, b, bits64);
-
-  } else {
-
-    imm_mul(a->bits64, b, bits64);
-
+  if (b < 0LL) {
+	Neg();
+	b = -b;
   }
+  imm_mul(bits64, b, bits64);
 
 }
 
@@ -1189,14 +1172,14 @@ void Int::Check() {
 
   // ModInv -------------------------------------------------------------------------------------------
 
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 1000 && ok; i++) {
     a.Rand(BISIZE);
     b = a;
     a.ModInv();
     a.ModMul(&b);
     if (!a.IsOne()) {
-      printf("ModInv() Results Wrong %s\n", a.GetBase16().c_str());
-      return;
+      printf("ModInv() Results Wrong [%d] %s\n",i, a.GetBase16().c_str());
+	  ok = false;
     }
   }
 
@@ -1218,7 +1201,7 @@ void Int::Check() {
   }
 
   if (!ok) {
-    printf("ModInv()/ModExp() Results Wrong %s\n", a.GetBase16().c_str());
+    printf("ModInv()/ModExp() Results Wrong:\nModInv=%s\nModExp=%s\n", a.GetBase16().c_str(),b.GetBase16().c_str());
     return;
   } else {
     printf("ModInv()/ModExp() Results OK\n");

@@ -2,6 +2,11 @@ DOC/
 .vs/
 VanitySearchNoCUDA.*
 VanitySearch.vcxproj.user
+VanitySearchCUDA8.vcxproj.user
+VanitySearchCUDA8.vcxproj.user
+VanitySearchCUDA8.VC.opendb
+VanitySearchCUDA8.sdf
+vc140.pdb
 x64/
 obj/
 .idea/

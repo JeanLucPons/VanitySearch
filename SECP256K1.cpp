@@ -700,7 +700,7 @@ Int Secp256K1::GetY(Int x,bool isEven) {
 
 }
 
-int Secp256K1::EC(Point &p) {
+bool Secp256K1::EC(Point &p) {
 
   Int _s;
   Int _p;

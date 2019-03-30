@@ -32,7 +32,7 @@ public:
   Point ComputePublicKey(Int *privKey);
   Point NextKey(Point &key);
   void Check();
-  int  EC(Point &p);
+  bool  EC(Point &p);
   void GetHash160(bool compressed,
     Point &k0, Point &k1, Point &k2, Point &k3,
     uint8_t *h0, uint8_t *h1, uint8_t *h2, uint8_t *h3);

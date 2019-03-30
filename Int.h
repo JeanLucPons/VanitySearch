@@ -75,18 +75,18 @@ public:
   void ShiftL64Bit();
 
   // Comp 
-  int  IsGreater(Int *a);
-  int  IsGreaterOrEqual(Int *a);
-  int  IsLowerOrEqual(Int *a);
-  int  IsLower(Int *a);
-  int  IsEqual(Int *a);
-  int  IsZero();
-  int  IsOne();
-  int  IsStrictPositive();
-  int  IsPositive();
-  int  IsNegative();
-  int  IsEven();
-  int  IsOdd();
+  bool IsGreater(Int *a);
+  bool IsGreaterOrEqual(Int *a);
+  bool IsLowerOrEqual(Int *a);
+  bool IsLower(Int *a);
+  bool IsEqual(Int *a);
+  bool IsZero();
+  bool IsOne();
+  bool IsStrictPositive();
+  bool IsPositive();
+  bool IsNegative();
+  bool IsEven();
+  bool IsOdd();
 
   // Modular arithmetic
 

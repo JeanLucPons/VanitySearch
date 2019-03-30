@@ -479,9 +479,9 @@ void Int::ModInv() {
 
     // Right shift all variables by 62bits
     shiftR(62, u.bits64);
-    shiftR(62, v.bits64);
-    shiftR(62, r.bits64);
-    shiftR(62, s.bits64);
+	shiftR(62, v.bits64);
+	shiftR(62, r.bits64);
+	shiftR(62, s.bits64);
 
   }
 
