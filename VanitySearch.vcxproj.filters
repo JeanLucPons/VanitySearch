@@ -38,6 +38,9 @@
     <ClInclude Include="GPU\GPUHash.h">
       <Filter>GPU</Filter>
     </ClInclude>
+    <ClInclude Include="GPU\GPUMath.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GPU\GPUGenerate.cpp">

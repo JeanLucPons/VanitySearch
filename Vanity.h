@@ -33,9 +33,10 @@ class VanitySearch;
 typedef struct {
 
   VanitySearch *obj;
-  int threadId;
+  int  threadId;
   bool isRunning;
   bool hasStarted;
+  bool rekeyRequest;
   int  gridSize;
   int  gpuId;
 
@@ -66,7 +67,7 @@ class VanitySearch {
 public:
 
   VanitySearch(Secp256K1 &secp, std::vector<std::string> &prefix, std::string seed, int searchMode, 
-               bool useGpu,bool stop,std::string outputFile, bool useSSE,uint32_t maxFound);
+               bool useGpu,bool stop,std::string outputFile, bool useSSE,uint32_t maxFound,uint64_t rekey);
   void Search(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize);
   void FindKeyCPU(TH_PARAM *p);
   void FindKeyGPU(TH_PARAM *p);
@@ -83,12 +84,15 @@ private:
   bool isAlive(TH_PARAM *p);
   bool isSingularPrefix(std::string pref);
   bool hasStarted(TH_PARAM *p);
+  void rekeyRequest(TH_PARAM *p);
   uint64_t getGPUCount();
   uint64_t getCPUCount();
   bool initPrefix(std::string &prefix, PREFIX_ITEM *it);
   void dumpPrefixes();
   double getDiffuclty();
   void updateFound();
+  void getCPUStartingKey(int thId, Int& key, Point& startP);
+  void getGPUStartingKeys(int thId, int groupSize, int nbThread, Int *keys, Point *p);
 
   Secp256K1 secp;
   Int startKey;
@@ -101,6 +105,8 @@ private:
   int nbCPUThread;
   int nbGPUThread;
   int nbFoundKey;
+  uint64_t rekey;
+  uint64_t lastRekey;
   uint32_t nbPrefix;
   std::string outputFile;
   bool useSSE;

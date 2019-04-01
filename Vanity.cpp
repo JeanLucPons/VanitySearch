@@ -37,7 +37,7 @@ Point _2Gn;
 // ----------------------------------------------------------------------------
 
 VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,string seed,int searchMode, 
-                           bool useGpu, bool stop, string outputFile, bool useSSE, uint32_t maxFound) {
+                           bool useGpu, bool stop, string outputFile, bool useSSE, uint32_t maxFound,uint64_t rekey) {
 
   this->secp = secp;
   this->searchMode = searchMode;
@@ -47,6 +47,8 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
   this->useSSE = useSSE;
   this->nbGPUThread = 0;
   this->maxFound = maxFound;
+  this->rekey = rekey;
+  lastRekey = 0;
   prefixes.clear();
 
   // Create a 65536 items lookup table
@@ -144,8 +146,10 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
   _2Gn = secp.DoubleDirect(Gn[CPU_GRP_SIZE/2-1]);
 
   // Constant for endomorphism
-  // (beta^3 = 1 mod p) 
-  // (lambda^3 = 1 mod n)
+  // if a is a nth primitive root of unity, a^-1 is also a nth primitive root.
+  // beta^3 = 1 mod p implies also beta^2 = beta^-1 mop (by multiplying both side by beta^-1)
+  // (beta^3 = 1 mod p),  beta2 = beta^-1 = beta^2
+  // (lambda^3 = 1 mod n), lamba2 = lamba^-1 = lamba^2
   beta.SetBase16("7ae96a2b657c07106e64479eac3434e99cf0497512f58995c1396c28719501ee");
   lambda.SetBase16("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72");
   beta2.SetBase16("851695d49a83f8ef919bb86153cbcb16630fb68aed0a766a3ec693d68e6afa40");
@@ -171,7 +175,11 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
   ctimeBuff = ctime(&now);
   printf("Start %s", ctimeBuff);
 
-  printf("Base Key:%s\n",startKey.GetBase16().c_str());
+  if (rekey > 0) {
+    printf("Base Key: Randomly changed every %.0f Mkeys\n",(double)rekey);
+  } else {
+    printf("Base Key:%s\n", startKey.GetBase16().c_str());
+  }
 
 }
 
@@ -817,6 +825,21 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
 }
 
 // ----------------------------------------------------------------------------
+void VanitySearch::getCPUStartingKey(int thId,Int& key,Point& startP) {
+
+  if (rekey > 0) {
+    key.Rand(256);
+  } else {
+    key.Set(&startKey);
+    Int off((int64_t)thId);
+    off.ShiftL(64);
+    key.Add(&off);
+  }
+  Int km(&key);
+  km.Add((uint64_t)CPU_GRP_SIZE / 2);
+  startP = secp.ComputePublicKey(&km);
+
+}
 
 void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
@@ -828,13 +851,9 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
   IntGroup *grp = new IntGroup(CPU_GRP_SIZE/2+1);
 
   // Group Init
-  Int key(&startKey);
-  Int off((int64_t)thId);
-  off.ShiftL(64);
-  key.Add(&off);
-  Int km(&key);
-  km.Add((uint64_t)CPU_GRP_SIZE/2);
-  Point startP = secp.ComputePublicKey(&km);
+  Int  key;
+  Point startP;
+  getCPUStartingKey(thId,key,startP);
 
   Int dx[CPU_GRP_SIZE/2+1];
   Point pts[CPU_GRP_SIZE];
@@ -848,8 +867,14 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
   grp->Set(dx);
 
   ph->hasStarted = true;
+  ph->rekeyRequest = false;
 
   while (!endOfSearch) {
+
+    if (ph->rekeyRequest) {
+      getCPUStartingKey(thId, key, startP);
+      ph->rekeyRequest = false;
+    }
 
     // Fill group
     int i;
@@ -1013,6 +1038,28 @@ void VanitySearch::FindKeyCPU(TH_PARAM *ph) {
 
 // ----------------------------------------------------------------------------
 
+void VanitySearch::getGPUStartingKeys(int thId, int groupSize, int nbThread, Int *keys, Point *p) {
+
+  for (int i = 0; i < nbThread; i++) {
+    if (rekey > 0) {
+      keys[i].Rand(256);
+    } else {
+      keys[i].Set(&startKey);
+      Int offT((uint64_t)i);
+      offT.ShiftL(80);
+      Int offG((uint64_t)thId);
+      offG.ShiftL(112);
+      keys[i].Add(&offT);
+      keys[i].Add(&offG);
+    }
+    Int k(keys + i);
+    // Starting key is at the middle of the group
+    k.Add((uint64_t)(groupSize / 2));
+    p[i] = secp.ComputePublicKey(&k);
+  }
+
+}
+
 void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
 
   bool ok = true;
@@ -1021,7 +1068,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
 
   // Global init
   int thId = ph->threadId;
-  GPUEngine g(ph->gridSize, ph->gpuId, maxFound);
+  GPUEngine g(ph->gridSize, ph->gpuId, maxFound, (rekey!=0));
   int nbThread = g.GetNbThread();
   Point *p = new Point[nbThread];
   Int *keys = new Int[nbThread];
@@ -1031,31 +1078,29 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
 
   counters[thId] = 0;
 
-  for (int i = 0; i < nbThread; i++) {
-    keys[i].Set(&startKey);
-    Int offT((uint64_t)i);
-    offT.ShiftL(80);
-    Int offG((uint64_t)thId);
-    offG.ShiftL(112);
-    keys[i].Add(&offT);
-    keys[i].Add(&offG);
-    Int k(keys+i);
-    // Starting key is at the middle of the group
-    k.Add((uint64_t)(g.GetGroupSize()/2));
-    p[i] = secp.ComputePublicKey(&k);
-  }
+  getGPUStartingKeys(thId, g.GetGroupSize(), nbThread, keys, p);
+
   g.SetSearchMode(searchMode);
   if (onlyFull) {
     g.SetPrefix(usedPrefixL,nbPrefix);
   } else {
     g.SetPrefix(usedPrefix);
   }
+
+  getGPUStartingKeys(thId, g.GetGroupSize(), nbThread, keys, p);
   ok = g.SetKeys(p);
+  ph->rekeyRequest = false;
 
   ph->hasStarted = true;
 
   // GPU Thread
   while (ok && !endOfSearch) {
+
+    if (ph->rekeyRequest) {
+      getGPUStartingKeys(thId, g.GetGroupSize(), nbThread, keys, p);
+      ok = g.SetKeys(p);
+      ph->rekeyRequest = false;
+    }
 
     // Call kernel
     ok = g.Launch(found);
@@ -1111,6 +1156,17 @@ bool VanitySearch::hasStarted(TH_PARAM *p) {
     hasStarted = hasStarted && p[i].hasStarted;
 
   return hasStarted;
+
+}
+
+// ----------------------------------------------------------------------------
+
+void VanitySearch::rekeyRequest(TH_PARAM *p) {
+
+  bool hasStarted = true;
+  int total = nbCPUThread + nbGPUThread;
+  for (int i = 0; i < total; i++)
+  p[i].rekeyRequest = true;
 
 }
 
@@ -1246,6 +1302,12 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
       printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]  \r",
         avgKeyRate / 1000000.0, avgGpuKeyRate / 1000000.0,
           log2((double)count), GetExpectedTime(avgKeyRate, (double)count).c_str(),nbFoundKey);
+    }
+
+    if ((count- lastRekey) > (1000000*rekey)) {
+      // Rekey request
+      rekeyRequest(params);
+      lastRekey = count;
     }
 
     lastCount = count;

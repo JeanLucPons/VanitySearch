@@ -23,7 +23,7 @@
 #include <string.h>
 #include <stdexcept>
 
-#define RELEASE "1.10"
+#define RELEASE "1.11"
 
 using namespace std;
 
@@ -31,23 +31,27 @@ using namespace std;
 
 void printUsage() {
 
-  printf("VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-i inputfile] [-o outputfile] [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]] [-m maxFound] [-s seed] [-t threadNumber] prefix\n");
+  printf("VanitySeacrh [-check] [-v] [-u] [-b] [-gpu] [-stop] [-i inputfile]\n");
+  printf("             [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]]\n");
+  printf("             [-o outputfile] [-m maxFound] [-s seed] [-t threadNumber]\n");
+  printf("             [-nosse] [-r rekey] [-check] [prefix]\n\n");
   printf(" prefix: prefix to search\n");
   printf(" -v: Print version\n");
-  printf(" -check: Check CPU and GPU kernel vs CPU\n");
   printf(" -u: Search uncompressed addresses\n");
   printf(" -b: Search both uncompressed or compressed addresses\n");
-  printf(" -o outputfile: Output results to the specified file\n");
-  printf(" -i inputfile: Get list of prefixes to search from specified file\n");
   printf(" -gpu: Enable gpu calculation\n");
+  printf(" -stop: Stop when all prefixes are found\n");
+  printf(" -i inputfile: Get list of prefixes to search from specified file\n");
+  printf(" -o outputfile: Output results to the specified file\n");
   printf(" -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0\n");
   printf(" -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)\n");
+  printf(" -m : Specify maximun number of prefixes found by each kernel call\n");
   printf(" -s seed: Specify a seed for the base key, default is random\n");
   printf(" -t threadNumber: Specify number of CPU thread, default is number of core\n");
   printf(" -nosse : Disable SSE hash function\n");
   printf(" -l : List cuda enabled devices\n");
-  printf(" -m : Specifiy maximun number of prefixes found by each kernel call\n");
-  printf(" -stop: Stop when all prefixes are found\n");
+  printf(" -check: Check CPU and GPU kernel vs CPU\n");
+  printf(" -r [keynumber]: Rekey interval in MegaKey, default is disabled\n");
   exit(-1);
 
 }
@@ -162,8 +166,6 @@ int main(int argc, char* argv[]) {
     printUsage();
   }
 
-  printf("VanitySearch v" RELEASE "\n");
-
   int a = 1;
   bool gpuEnable = false;
   bool stop = false;
@@ -177,6 +179,7 @@ int main(int argc, char* argv[]) {
   bool tSpecified = false;
   bool sse = true;
   uint32_t maxFound = 65536;
+  uint64_t rekey = 0;
 
   while (a < argc) {
 
@@ -199,7 +202,7 @@ int main(int argc, char* argv[]) {
       secp.Check();
 
 #ifdef WITHGPU
-      GPUEngine g(gridSize[0],gpuId[0],maxFound);
+      GPUEngine g(gridSize[0],gpuId[0],maxFound,false);
       g.SetSearchMode(searchMode);
       g.Check(secp);
 #else
@@ -249,7 +252,10 @@ int main(int argc, char* argv[]) {
       a++;
       maxFound = getInt("maxFound", argv[a]);
       a++;
-      tSpecified = true;
+    } else if (strcmp(argv[a], "-r") == 0) {
+      a++;
+      rekey = (uint64_t)getInt("rekey", argv[a]);
+      a++;
     } else if (a == argc - 1) {
       prefix.push_back(string(argv[a]));
       a++;
@@ -259,6 +265,8 @@ int main(int argc, char* argv[]) {
     }
 
   }
+
+  printf("VanitySearch v" RELEASE "\n");
 
   if(gpuId.size()!=gridSize.size()) {
     if(gridSize.size()==1 && gridSize[0]==-1) {
@@ -278,7 +286,7 @@ int main(int argc, char* argv[]) {
   if(nbCPUThread<0)
     nbCPUThread = 0;
 
-  VanitySearch *v = new VanitySearch(secp, prefix, seed,searchMode,gpuEnable,stop,outputFile,sse,maxFound);
+  VanitySearch *v = new VanitySearch(secp, prefix, seed,searchMode,gpuEnable,stop,outputFile,sse,maxFound,rekey);
   v->Search(nbCPUThread,gpuId,gridSize);
 
   return 0;

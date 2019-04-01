@@ -57,7 +57,7 @@ class GPUEngine {
 
 public:
 
-  GPUEngine(int nbThreadGroup,int gpuId,uint32_t maxFound); 
+  GPUEngine(int nbThreadGroup,int gpuId,uint32_t maxFound,bool rekey); 
   ~GPUEngine();
   void SetPrefix(std::vector<prefix_t> prefixes);
   void SetPrefix(std::vector<LPREFIX> prefixes,uint32_t totalPrefix);
@@ -94,6 +94,7 @@ private:
   uint32_t searchMode;
   bool littleEndian;
   bool lostWarning;
+  bool rekey;
   uint32_t maxFound;
   uint32_t outputSize;
 

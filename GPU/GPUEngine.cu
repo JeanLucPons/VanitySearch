@@ -144,9 +144,10 @@ int _ConvertSMVer2Cores(int major, int minor) {
 
 }
 
-GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound) {
+GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound,bool rekey) {
 
   // Initialise CUDA
+  this->rekey = rekey;
   initialised = false;
   cudaError_t err;
 
@@ -439,9 +440,12 @@ bool GPUEngine::SetKeys(Point *p) {
 
   // Fill device memory
   cudaMemcpy(inputKey, inputKeyPinned, nbThread*32*2, cudaMemcpyHostToDevice);
-  // We do not need the input pinned memory anymore
-  cudaFreeHost(inputKeyPinned);
-  inputKeyPinned = NULL;
+
+  if (!rekey) {
+    // We do not need the input pinned memory anymore
+    cudaFreeHost(inputKeyPinned);
+    inputKeyPinned = NULL;
+  }
 
   cudaError_t err = cudaGetLastError();
   if (err != cudaSuccess) {
