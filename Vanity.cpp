@@ -1304,10 +1304,12 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
           log2((double)count), GetExpectedTime(avgKeyRate, (double)count).c_str(),nbFoundKey);
     }
 
-    if ((count- lastRekey) > (1000000*rekey)) {
-      // Rekey request
-      rekeyRequest(params);
-      lastRekey = count;
+    if (rekey > 0) {
+      if ((count - lastRekey) > (1000000 * rekey)) {
+        // Rekey request
+        rekeyRequest(params);
+        lastRekey = count;
+      }
     }
 
     lastCount = count;
