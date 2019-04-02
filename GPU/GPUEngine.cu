@@ -44,6 +44,14 @@ __global__ void comp_keys(uint32_t mode,prefix_t *prefix, uint32_t *lookup32, ui
 
 }
 
+__global__ void comp_keys_p2sh(uint32_t mode, prefix_t *prefix, uint32_t *lookup32, uint64_t *keys, uint32_t maxFound, uint32_t *found) {
+
+  int xPtr = (blockIdx.x*blockDim.x) * 8;
+  int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
+  ComputeKeysP2SH(mode, keys + xPtr, keys + yPtr, prefix, lookup32, maxFound, found);
+
+}
+
 __global__ void comp_keys_comp(prefix_t *prefix, uint32_t *lookup32, uint64_t *keys, uint32_t maxFound, uint32_t *found) {
 
   int xPtr = (blockIdx.x*blockDim.x) * 8;
@@ -51,6 +59,7 @@ __global__ void comp_keys_comp(prefix_t *prefix, uint32_t *lookup32, uint64_t *k
   ComputeKeysComp(keys + xPtr, keys + yPtr, prefix, lookup32, maxFound, found);
 
 }
+
 
 //#define FULLCHECK
 #ifdef FULLCHECK
@@ -251,6 +260,7 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound,bool rekey)
   }
 
   searchMode = SEARCH_COMPRESSED;
+  searchType = P2PKH;
   initialised = true;
   inputPrefixLookUp = NULL;
 
@@ -324,6 +334,10 @@ int GPUEngine::GetNbThread() {
 
 void GPUEngine::SetSearchMode(int searchMode) {
   this->searchMode = searchMode;
+}
+
+void GPUEngine::SetSearchType(int searchType) {
+  this->searchType = searchType;
 }
 
 void GPUEngine::SetPrefix(std::vector<prefix_t> prefixes) {
@@ -401,12 +415,17 @@ bool GPUEngine::callKernel() {
   cudaMemset(outputPrefix,0,4);
 
   // Call the kernel (Perform STEP_SIZE keys per thread)
-  if( searchMode==SEARCH_COMPRESSED ) {
-    comp_keys_comp<<< nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >>>
-        (inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
+  if (searchType == P2SH) {
+    comp_keys_p2sh << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+      (searchMode, inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
   } else {
-    comp_keys<<< nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >>>
+    if (searchMode == SEARCH_COMPRESSED) {
+      comp_keys_comp << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+        (inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
+    } else {
+      comp_keys << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
         (searchMode, inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
+    }
   }
 
   cudaError_t err = cudaGetLastError();
@@ -682,19 +701,19 @@ bool GPUEngine::Check(Secp256K1 &secp) {
       p[j] = secp.NextKey(p[j]);
 
       // Point and endo
-      secp.GetHash160(pt, searchComp, h);
+      secp.GetHash160(P2PKH, searchComp, pt, h);
       prefix_t pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
 	      nbFoundCPU[0]++;
         ok &= CheckHash(h,found, j, i, 0, nbOK + 0);
       }
-      secp.GetHash160(p1, searchComp, h);
+      secp.GetHash160(P2PKH, searchComp, p1, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
         nbFoundCPU[1]++;
         ok &= CheckHash(h, found, j, i, 1, nbOK + 1);
       }
-      secp.GetHash160(p2, searchComp, h);
+      secp.GetHash160(P2PKH, searchComp, p2, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
         nbFoundCPU[2]++;
@@ -706,19 +725,19 @@ bool GPUEngine::Check(Secp256K1 &secp) {
       p1.y.ModNeg();
       p2.y.ModNeg();
 
-      secp.GetHash160(pt, searchComp, h);
+      secp.GetHash160(P2PKH, searchComp, pt, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
         nbFoundCPU[3]++;
         ok &= CheckHash(h, found, j, -i, 0, nbOK + 3);
       }
-      secp.GetHash160(p1, searchComp, h);
+      secp.GetHash160(P2PKH, searchComp, p1, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
         nbFoundCPU[4]++;
         ok &= CheckHash(h, found, j, -i, 1, nbOK + 4);
       }
-      secp.GetHash160(p2, searchComp, h);
+      secp.GetHash160(P2PKH, searchComp, p2, h);
       pr = *(prefix_t *)h;
       if (pr == 0xFEFE || pr == 0x1234) {
         nbFoundCPU[5]++;

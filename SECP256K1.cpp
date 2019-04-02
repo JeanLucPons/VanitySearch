@@ -64,24 +64,30 @@ void PrintResult(bool ok) {
 
 void CheckAddress(Secp256K1 *T,std::string address,std::string privKeyStr) {
 
-  Int privKey = T->DecodePrivateKey((char *)privKeyStr.c_str());
+  bool isCompressed;
+  int type;
+
+  Int privKey = T->DecodePrivateKey((char *)privKeyStr.c_str(),&isCompressed);
   Point pub = T->ComputePublicKey(&privKey);
-  std::string calcAddress = T->GetAddress(pub,false);
-  std::string calcAddressComp = T->GetAddress(pub,true);
 
-  printf("Adress : %s ",address.c_str());
+  switch (address.data()[0]) {
+  case '1': type = P2PKH; break;
+  case '3': type = P2SH; break;
+  default:
+    printf("Failed ! \n%s Address format not supported\n", address.c_str());
+    return;
+  }
 
-  if(address == calcAddress) {
+  std::string calcAddress = T->GetAddress(type, isCompressed, pub);
+
+  printf("Adress : %s ", address.c_str());
+
+  if (address == calcAddress) {
     printf("OK!\n");
     return;
   }
 
-  if(address == calcAddressComp) {
-    printf("OK(comp)!\n");
-    return;
-  }
-
-  printf("Failed ! \n%s\n%s (comp)\n",calcAddress.c_str(),calcAddressComp.c_str());
+  printf("Failed ! \n %s\n", calcAddress.c_str());
 
 }
 
@@ -124,28 +130,28 @@ void Secp256K1::Check() {
 
   CheckAddress(this,"15t3Nt1zyMETkHbjJTTshxLnqPzQvAtdCe","5HqoeNmaz17FwZRqn7kCBP1FyJKSe4tt42XZB7426EJ2MVWDeqk");
   CheckAddress(this,"1BoatSLRHtKNngkdXEeobR76b53LETtpyT","5J4XJRyLVgzbXEgh8VNi4qovLzxRftzMd8a18KkdXv4EqAwX3tS");
-  CheckAddress(this,"1JeanLucgidKHxfY5gkqGmoVjo1yaU4EDt","5JHMHsrrLNoEnPacZJ6VCv2YraHxPhApEp2DEa1uFzGndiByVzV");
   CheckAddress(this,"1Test6BNjSJC5qwYXsjwKVLvz7DpfLehy","5HytzR8p5hp8Cfd8jsVFnwMNXMsEW1sssFxMQYqEUjGZN72iLJ2");
-  CheckAddress(this,"1BitcoinP7vnLpsUHWbzDALyJKnNo16Qms","5HwKrREWhgtupmZH9cE1wFvHQJhbXMxm28L5KaVhtReBKGXL2J1");
   CheckAddress(this,"16S5PAsGZ8VFM1CRGGLqm37XHrp46f6CTn","KxMUSkFhEzt2eJHscv2vNSTnnV2cgAXgL4WDQBTx7Ubd9TZmACAz");
-  CheckAddress(this,"1Tst2RwMxZn9cYY5mQhCdJic3JJrK7Fq7" , "L1vamTpSeK9CgynRpSJZeqvUXf6dJa25sfjb2uvtnhj65R5TymgF");
-  
+  CheckAddress(this,"1Tst2RwMxZn9cYY5mQhCdJic3JJrK7Fq7","L1vamTpSeK9CgynRpSJZeqvUXf6dJa25sfjb2uvtnhj65R5TymgF");
+  CheckAddress(this,"3CyQYcByvcWK8BkYJabBS82yDLNWt6rWSx","KxMUSkFhEzt2eJHscv2vNSTnnV2cgAXgL4WDQBTx7Ubd9TZmACAz");
+  CheckAddress(this,"31to1KQe67YjoDfYnwFJThsGeQcFhVDM5Q","KxV2Tx5jeeqLHZ1V9ufNv1doTZBZuAc5eY24e6b27GTkDhYwVad7");
+
   // 1ViViGLEawN27xRzGrEhhYPQrZiTKvKLo
   pub.x.SetBase16(/*04*/"75249c39f38baa6bf20ab472191292349426dc3652382cdc45f65695946653dc");
   pub.y.SetBase16("978b2659122fe1df1be132167f27b74e5d4a2f3ecbbbd0b3fbcc2f4983518674");
-  printf("Check Calc PubKey (full) %s :",GetAddress(pub,false).c_str());
+  printf("Check Calc PubKey (full) %s :",GetAddress(P2PKH, false,pub).c_str());
   PrintResult(EC(pub));
 
   // 1Gp7rQ4GdooysEAEJAS2o4Ktjvf1tZCihp
   pub.x.SetBase16(/*02*/"2b70d6a249aeb187d6f079ecc0fb34d075056ca985384240166a2080c7d2beb5");
   pub.y = GetY(pub.x,true);
-  printf("Check Calc PubKey (even) %s:",GetAddress(pub,true).c_str());
+  printf("Check Calc PubKey (even) %s:",GetAddress(P2PKH, true, pub).c_str());
   PrintResult(EC(pub));
 
   // 18aPiLmTow7Xgu96msrDYvSSWweCvB9oBA
   pub.x.SetBase16(/*03*/"3bf3d80f868fa33c6353012cb427e98b080452f19b5c1149ea2acfe4b7599739");
   pub.y = GetY(pub.x,false);
-  printf("Check Calc PubKey (odd) %s:",GetAddress(pub,true).c_str());
+  printf("Check Calc PubKey (odd) %s:",GetAddress(P2PKH, true, pub).c_str());
   PrintResult(EC(pub));
 
 }
@@ -173,7 +179,7 @@ Point Secp256K1::NextKey(Point &key) {
   return AddDirect(key,G);
 }
 
-Int Secp256K1::DecodePrivateKey(char *key) {
+Int Secp256K1::DecodePrivateKey(char *key,bool *compressed) {
 
   Int ret;
   std::vector<unsigned char> privKey;
@@ -212,7 +218,7 @@ Int Secp256K1::DecodePrivateKey(char *key) {
       printf("Warning, Invalid private key checksum !\n");			
     }
     
-
+    *compressed = false;
     return ret;
 
   } else if(key[0] == 'K' || key[0] == 'L') {
@@ -244,6 +250,7 @@ Int Secp256K1::DecodePrivateKey(char *key) {
       printf("Warning, Invalid private key checksum !\n");			
     }
 
+    *compressed = true;
     return ret;
 
   }
@@ -305,7 +312,25 @@ Int Secp256K1::DecodePrivateKey(char *key) {
 (buff)[30] = 0; \
 (buff)[31] = 0x208;
 
-void Secp256K1::GetHash160(bool compressed,
+#define KEYBUFFSCRIPT(buff,h) \
+(buff)[0] = 0x00140000 | (uint32_t)h[0] << 8 | (uint32_t)h[1]; \
+(buff)[1] = (uint32_t)h[2] << 24 | (uint32_t)h[3] << 16 | (uint32_t)h[4] << 8 | (uint32_t)h[5];\
+(buff)[2] = (uint32_t)h[6] << 24 | (uint32_t)h[7] << 16 | (uint32_t)h[8] << 8 | (uint32_t)h[9];\
+(buff)[3] = (uint32_t)h[10] << 24 | (uint32_t)h[11] << 16 | (uint32_t)h[12] << 8 | (uint32_t)h[13];\
+(buff)[4] = (uint32_t)h[14] << 24 | (uint32_t)h[15] << 16 | (uint32_t)h[16] << 8 | (uint32_t)h[17];\
+(buff)[5] = (uint32_t)h[18] << 24 | (uint32_t)h[19] << 16 | 0x8000; \
+(buff)[6] = 0; \
+(buff)[7] = 0; \
+(buff)[8] = 0; \
+(buff)[9] = 0; \
+(buff)[10] = 0; \
+(buff)[11] = 0; \
+(buff)[12] = 0; \
+(buff)[13] = 0; \
+(buff)[14] = 0; \
+(buff)[15] = 0xB0;
+
+void Secp256K1::GetHash160(int type,bool compressed,
   Point &k0,Point &k1,Point &k2,Point &k3,
   uint8_t *h0,uint8_t *h1,uint8_t *h2,uint8_t *h3) {
 
@@ -321,67 +346,130 @@ void Secp256K1::GetHash160(bool compressed,
   unsigned char sh3[64] __attribute__((aligned(16)));
 #endif
 
-  if(!compressed) {
+  switch (type) {
 
-    uint32_t b0[32];
-    uint32_t b1[32];
-    uint32_t b2[32];
-    uint32_t b3[32];
+  case P2PKH:
+  {
 
-    KEYBUFFUNCOMP(b0, k0);
-    KEYBUFFUNCOMP(b1, k1);
-    KEYBUFFUNCOMP(b2, k2);
-    KEYBUFFUNCOMP(b3, k3);
+    if (!compressed) {
 
-    sha256sse_65(b0,b1,b2,b3,sh0,sh1,sh2,sh3);
-    ripemd160sse_32(sh0,sh1,sh2,sh3,h0,h1,h2,h3);
+      uint32_t b0[32];
+      uint32_t b1[32];
+      uint32_t b2[32];
+      uint32_t b3[32];
 
-  } else {
+      KEYBUFFUNCOMP(b0, k0);
+      KEYBUFFUNCOMP(b1, k1);
+      KEYBUFFUNCOMP(b2, k2);
+      KEYBUFFUNCOMP(b3, k3);
 
+      sha256sse_2B(b0, b1, b2, b3, sh0, sh1, sh2, sh3);
+      ripemd160sse_32(sh0, sh1, sh2, sh3, h0, h1, h2, h3);
+
+    } else {
+
+      uint32_t b0[16];
+      uint32_t b1[16];
+      uint32_t b2[16];
+      uint32_t b3[16];
+
+      KEYBUFFCOMP(b0, k0);
+      KEYBUFFCOMP(b1, k1);
+      KEYBUFFCOMP(b2, k2);
+      KEYBUFFCOMP(b3, k3);
+
+      sha256sse_1B(b0, b1, b2, b3, sh0, sh1, sh2, sh3);
+      ripemd160sse_32(sh0, sh1, sh2, sh3, h0, h1, h2, h3);
+
+    }
+
+  }
+  break;
+
+  case P2SH:
+  {
+
+    unsigned char kh0[20];
+    unsigned char kh1[20];
+    unsigned char kh2[20];
+    unsigned char kh3[20];
+
+    GetHash160(P2PKH,compressed,k0,k1,k2,k3,kh0,kh1,kh2,kh3);
+
+    // Redeem Script (1 to 1 P2SH)
     uint32_t b0[16];
     uint32_t b1[16];
     uint32_t b2[16];
     uint32_t b3[16];
 
-    KEYBUFFCOMP(b0, k0);
-    KEYBUFFCOMP(b1, k1);
-    KEYBUFFCOMP(b2, k2);
-    KEYBUFFCOMP(b3, k3);
+    KEYBUFFSCRIPT(b0, kh0);
+    KEYBUFFSCRIPT(b1, kh1);
+    KEYBUFFSCRIPT(b2, kh2);
+    KEYBUFFSCRIPT(b3, kh3);
 
-    sha256sse_33(b0,b1,b2,b3,sh0,sh1,sh2,sh3);
-    ripemd160sse_32(sh0,sh1,sh2,sh3,h0,h1,h2,h3);
+    sha256sse_1B(b0, b1, b2, b3, sh0, sh1, sh2, sh3);
+    ripemd160sse_32(sh0, sh1, sh2, sh3, h0, h1, h2, h3);
+
+  }
+  break;
 
   }
 
 }
 
-void Secp256K1::GetHash160(Point &pubKey,bool compressed,unsigned char *hash) {
+void Secp256K1::GetHash160(int type, bool compressed, Point &pubKey, unsigned char *hash) {
 
-  unsigned char publicKeyBytes[128];
-  unsigned char shapk[64];
+  switch (type) {
 
-  if(!compressed) {
+  case P2PKH:
+  {
+    unsigned char publicKeyBytes[128];
+    unsigned char shapk[64];
 
-    // Full public key
-    publicKeyBytes[0] = 0x4;
-    pubKey.x.Get32Bytes(publicKeyBytes + 1);
-    pubKey.y.Get32Bytes(publicKeyBytes + 33);
-    sha256(publicKeyBytes,65,shapk);
+    if (!compressed) {
 
-  } else {
+      // Full public key
+      publicKeyBytes[0] = 0x4;
+      pubKey.x.Get32Bytes(publicKeyBytes + 1);
+      pubKey.y.Get32Bytes(publicKeyBytes + 33);
+      sha256(publicKeyBytes, 65, shapk);
 
-    // Compressed public key
-    publicKeyBytes[0] = pubKey.y.IsEven() ? 0x2 : 0x3;
-    pubKey.x.Get32Bytes(publicKeyBytes + 1);
-    sha256_33(publicKeyBytes,shapk);
+    } else {
+
+      // Compressed public key
+      publicKeyBytes[0] = pubKey.y.IsEven() ? 0x2 : 0x3;
+      pubKey.x.Get32Bytes(publicKeyBytes + 1);
+      sha256_33(publicKeyBytes, shapk);
+
+    }
+
+    ripemd160_32(shapk, hash);
+  }
+  break;
+
+  case P2SH:
+  {
+
+    // Redeem Script (1 to 1 P2SH)
+    unsigned char script[64];
+    unsigned char address[25];
+    unsigned char shapk[64];
+
+    script[0] = 0x00;  // OP_0
+    script[1] = 0x14;  // PUSH 20 bytes
+    GetHash160(P2PKH, compressed, pubKey, script + 2);
+
+    sha256(script, 22, shapk);
+    ripemd160_32(shapk, hash);
+
+  }
+  break;
 
   }
 
-  ripemd160_32(shapk,hash);
-
 }
 
-std::string Secp256K1::GetPrivAddress(Int &privKey,bool compressed) {
+std::string Secp256K1::GetPrivAddress(bool compressed,Int &privKey) {
 
   unsigned char adress[38];
 
@@ -421,46 +509,61 @@ std::string Secp256K1::GetPrivAddress(Int &privKey,bool compressed) {
 
 }
 
-std::string Secp256K1::GetAddress(unsigned char *hash20,bool compressed) {
+std::string Secp256K1::GetAddress(int type, bool compressed,unsigned char *hash160) {
 
-  unsigned char adress[25];
-  adress[0] = 0; // Version
-  memcpy(adress + 1,hash20,20);
+  unsigned char address[25];
+  switch(type) {
+    case P2PKH:
+      address[0] = 0x00;
+      break;
+    case P2SH:
+      address[0] = 0x05;
+      break;
+  }
+  memcpy(address + 1, hash160,20);
 
   // Compute checksum
   unsigned char sha1[32];
   unsigned char sha2[32];
-  sha256(adress,21,sha1);
+  sha256(address,21,sha1);
   sha256(sha1,32,sha2);
-  adress[21] = sha2[0];
-  adress[22] = sha2[1];
-  adress[23] = sha2[2];
-  adress[24] = sha2[3];
+  address[21] = sha2[0];
+  address[22] = sha2[1];
+  address[23] = sha2[2];
+  address[24] = sha2[3];
 
   // Base58
-  return EncodeBase58(adress,adress + 25);
+  return EncodeBase58(address, address + 25);
 
 }
 
-std::string Secp256K1::GetAddress(Point &pubKey,bool compressed) {
+std::string Secp256K1::GetAddress(int type, bool compressed, Point &pubKey) {
 
-  unsigned char adress[25];
+  unsigned char address[25];
 
-  adress[0] = 0; // Version
-  GetHash160(pubKey,compressed,adress + 1);
+  switch (type) {
+  case P2PKH:
+    address[0] = 0x00;
+    break;
+  case P2SH:
+    address[0] = 0x05;
+    break;
+  }
+
+  GetHash160(type,compressed,pubKey, address + 1);
 
   // Compute checksum
   unsigned char sha1[32];
   unsigned char sha2[32];
-  sha256(adress,21,sha1);
+  sha256(address,21,sha1);
   sha256(sha1,32,sha2);
-  adress[21] = sha2[0];
-  adress[22] = sha2[1];
-  adress[23] = sha2[2];
-  adress[24] = sha2[3];
+  address[21] = sha2[0];
+  address[22] = sha2[1];
+  address[23] = sha2[2];
+  address[24] = sha2[3];
 
   // Base58
-  return EncodeBase58(adress,adress + 25);
+  return EncodeBase58(address, address + 25);
 
 }
 

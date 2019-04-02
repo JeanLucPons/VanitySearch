@@ -62,8 +62,8 @@ public:
   void SetPrefix(std::vector<prefix_t> prefixes);
   void SetPrefix(std::vector<LPREFIX> prefixes,uint32_t totalPrefix);
   bool SetKeys(Point *p);
-  void SetSearchMode(int serachMode);
-  void SetMaxFound(uint32_t max);
+  void SetSearchMode(int searchMode);
+  void SetSearchType(int searchType);
   bool Launch(std::vector<ITEM> &prefixFound,bool spinWait=false);
   int GetNbThread();
   int GetGroupSize();
@@ -92,6 +92,7 @@ private:
   uint32_t *outputPrefixPinned;
   bool initialised;
   uint32_t searchMode;
+  uint32_t searchType;
   bool littleEndian;
   bool lostWarning;
   bool rekey;

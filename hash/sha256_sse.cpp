@@ -213,8 +213,7 @@ namespace _sha256sse
 
 } // end namespace
 
-
-void sha256sse_33(
+void sha256sse_1B(
   uint32_t *i0, 
   uint32_t *i1,
   uint32_t *i2,
@@ -279,7 +278,7 @@ void sha256sse_33(
 }
 
 
-void sha256sse_65(
+void sha256sse_2B(
   uint32_t *i0,
   uint32_t *i1,
   uint32_t *i2,

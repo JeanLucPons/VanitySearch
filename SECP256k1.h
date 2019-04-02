@@ -22,6 +22,10 @@
 #include <string>
 #include <vector>
 
+// Address type
+#define P2PKH 0
+#define P2SH  1
+
 class Secp256K1 {
 
 public:
@@ -33,16 +37,20 @@ public:
   Point NextKey(Point &key);
   void Check();
   bool  EC(Point &p);
-  void GetHash160(bool compressed,
+
+  void GetHash160(int type,bool compressed,
     Point &k0, Point &k1, Point &k2, Point &k3,
     uint8_t *h0, uint8_t *h1, uint8_t *h2, uint8_t *h3);
-  void GetHash160(Point &pubKey,bool compressed,unsigned char *hash);
-  std::string GetAddress(Point &pubKey,bool compressed);
-  std::string GetAddress(unsigned char *hash20, bool compressed);
-  std::string GetPrivAddress(Int &privKey, bool compressed);
+
+  void GetHash160(int type,bool compressed, Point &pubKey, unsigned char *hash);
+
+  std::string GetAddress(int type, bool compressed, Point &pubKey);
+  std::string GetAddress(int type, bool compressed, unsigned char *hash160);
+  std::string GetPrivAddress(bool compressed, Int &privKey );
+
   bool CheckPudAddress(std::string address);
 
-  static Int DecodePrivateKey(char *key);
+  static Int DecodePrivateKey(char *key,bool *compressed);
 
   Point Add(Point &p1, Point &p2);
   Point AddDirect(Point &p1, Point &p2);

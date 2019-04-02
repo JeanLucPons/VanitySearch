@@ -48,6 +48,7 @@ VanitySearch::VanitySearch(Secp256K1 &secp, vector<std::string> &inputPrefixes,s
   this->nbGPUThread = 0;
   this->maxFound = maxFound;
   this->rekey = rekey;
+  this->searchType = -1;
   lastRekey = 0;
   prefixes.clear();
 
@@ -211,19 +212,26 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
     return false;
   }
 
-  if (prefix.data()[0] != '1') {
-    printf("Ignoring prefix \"%s\" (must start with 1)\n", prefix.c_str());
+  if (prefix.data()[0] != '1' && prefix.data()[0] != '3') {
+    printf("Ignoring prefix \"%s\" (must start with 1 or 3)\n", prefix.c_str());
     return false;
   }
   
-  // Try to attack a full address ?
   wrong = !DecodeBase58(prefix, result);
 
   if (wrong) {
     printf("Ignoring prefix \"%s\" (0, I, O and l not allowed)\n", prefix.c_str());
     return false;
   }
-  
+
+  int aType = (prefix.data()[0] == '1') ? P2PKH : P2SH;
+  if( searchType==-1 ) searchType = aType;
+  if (aType != searchType) {
+    printf("Ignoring prefix \"%s\" (Cannot merge P2PKH and P2SH)\n", prefix.c_str());
+    return false;
+  }
+
+  // Try to attack a full address ?
   if (result.size() > 21) {
 
     // mamma mia !
@@ -242,7 +250,6 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
 
   }
   
-
   // Prefix containing only '1'
   if (isSingularPrefix(prefix)) {
 
@@ -265,17 +272,19 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
 
   // Search for highest hash160 16bit prefix (most probable)
 
-  while (result.size() < 25 && !wrong) {
-    wrong = !DecodeBase58(dummy1, result);
+  while (result.size() < 25) {
+    DecodeBase58(dummy1, result);
     if (result.size() < 25) {
       dummy1.append("1");
       nbDigit++;
     }
   }
 
-  if (wrong) {
-    printf("Ignoring prefix \"%s\" (0, I, O and l not allowed)\n", prefix.c_str());
-    return false;
+  if (searchType == P2SH) {
+    if (result.data()[0] != 5) {
+      printf("Ignoring prefix \"%s\" (Unreachable, 31h1 to 3R2c only)\n", prefix.c_str());
+      return false;
+    }
   }
 
   if (result.size() != 25) {
@@ -431,7 +440,11 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex) {
   }
 
   fprintf(f, "\nPub Addr: %s\n", addr.c_str());
-  fprintf(f, "Priv (WIF): %s\n", pAddr.c_str());
+  if (searchType == P2PKH) {
+    fprintf(f, "Priv (WIF): p2pkh:%s\n", pAddr.c_str());
+  } else {
+    fprintf(f, "Priv (WIF): p2wpkh-p2sh:%s\n", pAddr.c_str());
+  }
   fprintf(f, "Priv (HEX): 0x%s\n", pAddrHex.c_str());
 
   if(needToClose)
@@ -499,14 +512,14 @@ bool VanitySearch::checkPrivKey(string addr, Int &key, int32_t incr, int endomor
 
   // Check addresses
   Point p = secp.ComputePublicKey(&k);
-  string chkAddr = secp.GetAddress(p, mode);
+  string chkAddr = secp.GetAddress(searchType, mode, p);
   if (chkAddr != addr) {
     if (mode) {
       // Compressed address (key may be the opposite one)
       k.Neg();
       k.Add(&secp.order);
       p = secp.ComputePublicKey(&k);
-      string chkAddr = secp.GetAddress(p, mode);
+      string chkAddr = secp.GetAddress(searchType, mode, p);
       if (chkAddr != addr) {
         printf("\nWarning, wrong private key generated !\n");
         printf("  Addr :%s\n", addr.c_str());
@@ -521,7 +534,7 @@ bool VanitySearch::checkPrivKey(string addr, Int &key, int32_t incr, int endomor
     }
   }
 
-  output(addr, secp.GetPrivAddress(k, mode), k.GetBase16());
+  output(addr, secp.GetPrivAddress(mode ,k), k.GetBase16());
 
   return true;
 
@@ -543,7 +556,7 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
 
         // Found it !
         // You believe it ?
-        if (checkPrivKey(secp.GetAddress(hash160,mode), key, incr, endomorphism, mode)) {
+        if (checkPrivKey(secp.GetAddress(searchType,mode,hash160), key, incr, endomorphism, mode)) {
           // Mark it as found
           items[i].found = true;
           nbFoundKey++;
@@ -557,8 +570,9 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
   } else {
 	  
     char a[64];
-    string addr = secp.GetAddress(hash160,mode);
 	  
+    string addr = secp.GetAddress(searchType, mode, hash160);
+
     for (int i = 0; i < items.size(); i++) {
 
       if(stopWhenFound && items[i].found)
@@ -616,7 +630,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   Point pte2[1];
 
   // Point
-  secp.GetHash160(p1, compressed, h0);
+  secp.GetHash160(searchType,compressed, p1, h0);
   prefix_t pr0 = *(prefix_t *)h0;
   if (prefixes[pr0].items)
     checkAddr(pr0, h0, key, i, 0, compressed);
@@ -625,7 +639,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   pte1[0].x.ModMulK1(&p1.x, &beta);
   pte1[0].y.Set(&p1.y);
 
-  secp.GetHash160(pte1[0], compressed, h0);
+  secp.GetHash160(searchType, compressed, pte1[0], h0);
 
   pr0 = *(prefix_t *)h0;
   if (prefixes[pr0].items)
@@ -635,7 +649,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   pte2[0].x.ModMulK1(&p1.x, &beta2);
   pte2[0].y.Set(&p1.y);
 
-  secp.GetHash160(pte2[0], compressed, h0);
+  secp.GetHash160(searchType, compressed, pte2[0], h0);
 
   pr0 = *(prefix_t *)h0;
   if (prefixes[pr0].items)
@@ -644,7 +658,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   // Curve symetrie
   // if (x,y) = k*G, then (x, -y) is -k*G
   p1.y.ModNeg();
-  secp.GetHash160(p1, compressed, h0);
+  secp.GetHash160(searchType, compressed, p1, h0);
   pr0 = *(prefix_t *)h0;
   if (prefixes[pr0].items)
     checkAddr(pr0, h0, key, -i, 0, compressed);
@@ -652,7 +666,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   // Endomorphism #1
   pte1[0].y.ModNeg();
 
-  secp.GetHash160(pte1[0], compressed, h0);
+  secp.GetHash160(searchType, compressed, pte1[0], h0);
 
   pr0 = *(prefix_t *)h0;
   if (prefixes[pr0].items)
@@ -661,7 +675,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   // Endomorphism #2
   pte2[0].y.ModNeg();
 
-  secp.GetHash160(pte2[0], compressed, h0);
+  secp.GetHash160(searchType, compressed, pte2[0], h0);
 
   pr0 = *(prefix_t *)h0;
   if (prefixes[pr0].items)
@@ -681,7 +695,7 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   Point pte2[4];
 
   // Point -------------------------------------------------------------------------
-  secp.GetHash160(compressed, p1, p2, p3, p4, h0, h1, h2, h3);
+  secp.GetHash160(searchType, compressed, p1, p2, p3, p4, h0, h1, h2, h3);
 
   prefix_t pr0 = *(prefix_t *)h0;
   prefix_t pr1 = *(prefix_t *)h1;
@@ -708,7 +722,7 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   pte1[3].x.ModMulK1(&p4.x, &beta);
   pte1[3].y.Set(&p4.y);
 
-  secp.GetHash160(compressed, pte1[0], pte1[1], pte1[2], pte1[3], h0, h1, h2, h3);
+  secp.GetHash160(searchType, compressed, pte1[0], pte1[1], pte1[2], pte1[3], h0, h1, h2, h3);
 
   pr0 = *(prefix_t *)h0;
   pr1 = *(prefix_t *)h1;
@@ -735,7 +749,7 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   pte2[3].x.ModMulK1(&p4.x, &beta2);
   pte2[3].y.Set(&p4.y);
 
-  secp.GetHash160(compressed, pte2[0], pte2[1], pte2[2], pte2[3], h0, h1, h2, h3);
+  secp.GetHash160(searchType, compressed, pte2[0], pte2[1], pte2[2], pte2[3], h0, h1, h2, h3);
 
   pr0 = *(prefix_t *)h0;
   pr1 = *(prefix_t *)h1;
@@ -759,7 +773,7 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   p3.y.ModNeg();
   p4.y.ModNeg();
 
-  secp.GetHash160(compressed, p1, p2, p3, p4, h0, h1, h2, h3);
+  secp.GetHash160(searchType, compressed, p1, p2, p3, p4, h0, h1, h2, h3);
 
   pr0 = *(prefix_t *)h0;
   pr1 = *(prefix_t *)h1;
@@ -783,7 +797,7 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   pte1[3].y.ModNeg();
 
 
-  secp.GetHash160(compressed, pte1[0], pte1[1], pte1[2], pte1[3], h0, h1, h2, h3);
+  secp.GetHash160(searchType, compressed, pte1[0], pte1[1], pte1[2], pte1[3], h0, h1, h2, h3);
 
   pr0 = *(prefix_t *)h0;
   pr1 = *(prefix_t *)h1;
@@ -806,7 +820,7 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   pte2[2].y.ModNeg();
   pte2[3].y.ModNeg();
 
-  secp.GetHash160(compressed, pte2[0], pte2[1], pte2[2], pte2[3], h0, h1, h2, h3);
+  secp.GetHash160(searchType, compressed, pte2[0], pte2[1], pte2[2], pte2[3], h0, h1, h2, h3);
 
   pr0 = *(prefix_t *)h0;
   pr1 = *(prefix_t *)h1;
@@ -1081,6 +1095,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
   getGPUStartingKeys(thId, g.GetGroupSize(), nbThread, keys, p);
 
   g.SetSearchMode(searchMode);
+  g.SetSearchType(searchType);
   if (onlyFull) {
     g.SetPrefix(usedPrefixL,nbPrefix);
   } else {

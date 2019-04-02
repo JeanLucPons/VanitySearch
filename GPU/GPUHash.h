@@ -571,3 +571,87 @@ __device__ __noinline__ void _GetHash160(uint64_t *x, uint64_t *y, uint8_t *hash
   RIPEMD160Transform((uint32_t *)hash, s);
 
 }
+
+__device__ __noinline__ void _GetHash160P2SHComp(uint64_t *x, uint8_t isOdd, uint8_t *hash) {
+
+  uint32_t h[5];
+  uint32_t scriptBytes[16];
+  uint32_t s[16];
+  _GetHash160Comp(x,isOdd,(uint8_t *)h);
+
+  // P2SH script script
+  scriptBytes[0] = __byte_perm(h[0], 0x14, 0x5401);
+  scriptBytes[1] = __byte_perm(h[0], h[1], 0x2345);
+  scriptBytes[2] = __byte_perm(h[1], h[2], 0x2345);
+  scriptBytes[3] = __byte_perm(h[2], h[3], 0x2345);
+  scriptBytes[4] = __byte_perm(h[3], h[4], 0x2345);
+  scriptBytes[5] = __byte_perm(h[4], 0x80, 0x2345);
+  scriptBytes[6] = 0;
+  scriptBytes[7] = 0;
+  scriptBytes[8] = 0;
+  scriptBytes[9] = 0;
+  scriptBytes[10] = 0;
+  scriptBytes[11] = 0;
+  scriptBytes[12] = 0;
+  scriptBytes[13] = 0;
+  scriptBytes[14] = 0;
+  scriptBytes[15] = 0xB0;
+
+  SHA256Initialize(s);
+  SHA256Transform(s, scriptBytes);
+
+#pragma unroll 8
+  for (int i = 0; i < 8; i++)
+    s[i] = bswap32(s[i]);
+
+  *(uint64_t *)(s + 8) = 0x80ULL;
+  *(uint64_t *)(s + 10) = 0ULL;
+  *(uint64_t *)(s + 12) = 0ULL;
+  *(uint64_t *)(s + 14) = ripemd160_sizedesc_32;
+
+  RIPEMD160Initialize((uint32_t *)hash);
+  RIPEMD160Transform((uint32_t *)hash, s);
+
+}
+
+__device__ __noinline__ void _GetHash160P2SHUncomp(uint64_t *x, uint64_t *y, uint8_t *hash) {
+
+  uint32_t h[5];
+  uint32_t scriptBytes[16];
+  uint32_t s[16];
+  _GetHash160(x, y, (uint8_t*)h);
+
+  // P2SH script script
+  scriptBytes[0] = __byte_perm(h[0], 0x14, 0x5401);
+  scriptBytes[1] = __byte_perm(h[0], h[1], 0x2345);
+  scriptBytes[2] = __byte_perm(h[1], h[2], 0x2345);
+  scriptBytes[3] = __byte_perm(h[2], h[3], 0x2345);
+  scriptBytes[4] = __byte_perm(h[3], h[4], 0x2345);
+  scriptBytes[5] = __byte_perm(h[4], 0x80, 0x2345);
+  scriptBytes[6] = 0;
+  scriptBytes[7] = 0;
+  scriptBytes[8] = 0;
+  scriptBytes[9] = 0;
+  scriptBytes[10] = 0;
+  scriptBytes[11] = 0;
+  scriptBytes[12] = 0;
+  scriptBytes[13] = 0;
+  scriptBytes[14] = 0;
+  scriptBytes[15] = 0xB0;
+
+  SHA256Initialize(s);
+  SHA256Transform(s, scriptBytes);
+
+#pragma unroll 8
+  for (int i = 0; i < 8; i++)
+    s[i] = bswap32(s[i]);
+
+  *(uint64_t *)(s + 8) = 0x80ULL;
+  *(uint64_t *)(s + 10) = 0ULL;
+  *(uint64_t *)(s + 12) = 0ULL;
+  *(uint64_t *)(s + 14) = ripemd160_sizedesc_32;
+
+  RIPEMD160Initialize((uint32_t *)hash);
+  RIPEMD160Transform((uint32_t *)hash, s);
+
+}

@@ -98,6 +98,7 @@ private:
   Int startKey;
   uint64_t counters[256];
   double startTime;
+  int searchType;
   int searchMode;
   bool useGpu;
   bool stopWhenFound;
