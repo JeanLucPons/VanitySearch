@@ -59,6 +59,36 @@ Priv (WIF): p2pkh:L5NuSjQRARifQJbZ5RyLrQhbSz25jYxupnqqydnBdANeH3QNoUph
 Priv (HEX): 0xF36DD1EEC2A9658E50B39B280D4002ED3A07C7B6C07B37B191973BDDFBF9E375
 ```
 
+```
+C:\C++\VanitySearch\x64\Release>VanitySearch.exe -stop -gpu 3MyCoin
+VanitySearch v1.11
+Difficulty: 15318045009
+Search: 3MyCoin [Compressed]
+Start Wed Apr  3 14:52:45 2019
+Base Key:FAF4F856077398AE087372110BF47A1A713C8F94B19CDD962D240B6A853CAD8B
+Number of CPU thread: 7
+GPU: GPU #0 GeForce GTX 1050 Ti (6x128 cores) Grid(48x128)
+124.232 MK/s (GPU 115.601 MK/s) (2^33.18) [P 47.02%][50.00% in 00:00:07][0]
+Pub Addr: 3MyCoinoA167kmgPprAidSvv5NoM3Nh6N3
+Priv (WIF): p2wpkh-p2sh:L2qvghanHHov914THEzDMTpAyoRmxo7Rh85FLE9oKwYUrycWqudp
+Priv (HEX): 0xA7D14FBF43696CA0B3DBFFD0AB7C9ED740FE338B2B856E09F2E681543A444D58
+```
+
+```
+C:\C++\VanitySearch\x64\Release>VanitySearch.exe -stop -gpu bc1quantum
+VanitySearch v1.11
+Difficulty: 1073741824
+Search: bc1quantum [Compressed]
+Start Wed Apr  3 15:01:15 2019
+Base Key:B00FD8CDA85B11D4744C09E65C527D35E231D19084FBCA0BF2E48186F31936AE
+Number of CPU thread: 7
+GPU: GPU #0 GeForce GTX 1050 Ti (6x128 cores) Grid(48x128)
+256.896 MK/s (GPU 226.482 MK/s) (2^28.94) [P 38.03%][50.00% in 00:00:00][0]
+Pub Addr: bc1quantum898l8mx5pkvq2x250kkqsj7enpx3u4yt
+Priv (WIF): p2wpkh:L37xBVcFGeAZ9Tii7igqXBWmfiBhiwwiKQmchNXPV2LNREXQDLCp
+Priv (HEX): 0xB00FD8CDA85B11D4744C09E65C527D35E2B1D19095CFCA0BF2E48186F31979C2
+```
+
 # Trying to attack a list of addresses
 
 The bitcoin address (P2PKH) consists of a hash160 (displayed in Base58 format) which means that there are 2<sup>160</sup> possible addresses. A secure hash function can be seen as a pseudo number generator, it transforms a given message in a random number. In this case, a number (uniformaly distributed) in the range [0,2<sup>160</sup>]. So, the probability to hit a particular number after n tries is 1-(1-1/2<sup>160</sup>)<sup>n</sup>. We perform n Bernoulli trials statistically independent.\
