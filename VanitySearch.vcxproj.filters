@@ -41,6 +41,7 @@
     <ClInclude Include="GPU\GPUMath.h">
       <Filter>GPU</Filter>
     </ClInclude>
+    <ClInclude Include="Bech32.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GPU\GPUGenerate.cpp">
@@ -71,6 +72,7 @@
     <ClCompile Include="Vanity.cpp" />
     <ClCompile Include="Base58.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Bech32.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="GPU\GPUEngine.cu">

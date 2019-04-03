@@ -22,6 +22,7 @@
 #include <string>
 #include <string.h>
 #include <stdexcept>
+#include "Bech32.h"
 
 #define RELEASE "1.11"
 

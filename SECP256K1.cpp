@@ -19,6 +19,7 @@
 #include "hash/sha256.h"
 #include "hash/ripemd160.h"
 #include "Base58.h"
+#include "Bech32.h"
 #include <string.h>
 
 Secp256K1::Secp256K1() {
@@ -71,8 +72,13 @@ void CheckAddress(Secp256K1 *T,std::string address,std::string privKeyStr) {
   Point pub = T->ComputePublicKey(&privKey);
 
   switch (address.data()[0]) {
-  case '1': type = P2PKH; break;
-  case '3': type = P2SH; break;
+  case '1': 
+    type = P2PKH; break;
+  case '3': 
+    type = P2SH; break;
+  case 'b': 
+  case 'B':
+    type = BECH32; break;
   default:
     printf("Failed ! \n%s Address format not supported\n", address.c_str());
     return;
@@ -135,7 +141,8 @@ void Secp256K1::Check() {
   CheckAddress(this,"1Tst2RwMxZn9cYY5mQhCdJic3JJrK7Fq7","L1vamTpSeK9CgynRpSJZeqvUXf6dJa25sfjb2uvtnhj65R5TymgF");
   CheckAddress(this,"3CyQYcByvcWK8BkYJabBS82yDLNWt6rWSx","KxMUSkFhEzt2eJHscv2vNSTnnV2cgAXgL4WDQBTx7Ubd9TZmACAz");
   CheckAddress(this,"31to1KQe67YjoDfYnwFJThsGeQcFhVDM5Q","KxV2Tx5jeeqLHZ1V9ufNv1doTZBZuAc5eY24e6b27GTkDhYwVad7");
-
+  CheckAddress(this,"bc1q6tqytpg06uhmtnhn9s4f35gkt8yya5a24dptmn","L2wAVD273GwAxGuEDHvrCqPfuWg5wWLZWy6H3hjsmhCvNVuCERAQ");
+  
   // 1ViViGLEawN27xRzGrEhhYPQrZiTKvKLo
   pub.x.SetBase16(/*04*/"75249c39f38baa6bf20ab472191292349426dc3652382cdc45f65695946653dc");
   pub.y.SetBase16("978b2659122fe1df1be132167f27b74e5d4a2f3ecbbbd0b3fbcc2f4983518674");
@@ -349,6 +356,7 @@ void Secp256K1::GetHash160(int type,bool compressed,
   switch (type) {
 
   case P2PKH:
+  case BECH32:
   {
 
     if (!compressed) {
@@ -422,6 +430,7 @@ void Secp256K1::GetHash160(int type, bool compressed, Point &pubKey, unsigned ch
   switch (type) {
 
   case P2PKH:
+  case BECH32:
   {
     unsigned char publicKeyBytes[128];
     unsigned char shapk[64];
@@ -452,7 +461,6 @@ void Secp256K1::GetHash160(int type, bool compressed, Point &pubKey, unsigned ch
 
     // Redeem Script (1 to 1 P2SH)
     unsigned char script[64];
-    unsigned char address[25];
     unsigned char shapk[64];
 
     script[0] = 0x00;  // OP_0
@@ -513,12 +521,22 @@ std::string Secp256K1::GetAddress(int type, bool compressed,unsigned char *hash1
 
   unsigned char address[25];
   switch(type) {
+
     case P2PKH:
       address[0] = 0x00;
       break;
+
     case P2SH:
       address[0] = 0x05;
       break;
+
+    case BECH32:
+    {
+      char output[128];
+      segwit_addr_encode(output, "bc", 0, hash160, 20);
+      return std::string(output);
+    }
+    break;
   }
   memcpy(address + 1, hash160,20);
 
@@ -542,9 +560,21 @@ std::string Secp256K1::GetAddress(int type, bool compressed, Point &pubKey) {
   unsigned char address[25];
 
   switch (type) {
+
   case P2PKH:
     address[0] = 0x00;
     break;
+
+  case BECH32:
+  {
+    char output[128];
+    uint8_t h160[20];
+    GetHash160(type, compressed, pubKey, h160);
+    segwit_addr_encode(output,"bc",0,h160,20);
+    return std::string(output);
+  }
+  break;
+
   case P2SH:
     address[0] = 0x05;
     break;

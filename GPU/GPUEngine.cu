@@ -419,6 +419,7 @@ bool GPUEngine::callKernel() {
     comp_keys_p2sh << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
       (searchMode, inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
   } else {
+    // P2PKH or BECH32
     if (searchMode == SEARCH_COMPRESSED) {
       comp_keys_comp << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
         (inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);

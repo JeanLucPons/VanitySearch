@@ -23,8 +23,9 @@
 #include <vector>
 
 // Address type
-#define P2PKH 0
-#define P2SH  1
+#define P2PKH  0
+#define P2SH   1
+#define BECH32 2
 
 class Secp256K1 {
 

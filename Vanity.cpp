@@ -17,6 +17,7 @@
 
 #include "Vanity.h"
 #include "Base58.h"
+#include "Bech32.h"
 #include "hash/sha256.h"
 #include "hash/sha512.h"
 #include "IntGroup.h"
@@ -212,108 +213,185 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
     return false;
   }
 
-  if (prefix.data()[0] != '1' && prefix.data()[0] != '3') {
-    printf("Ignoring prefix \"%s\" (must start with 1 or 3)\n", prefix.c_str());
-    return false;
-  }
+  int aType = -1;
   
-  wrong = !DecodeBase58(prefix, result);
 
-  if (wrong) {
-    printf("Ignoring prefix \"%s\" (0, I, O and l not allowed)\n", prefix.c_str());
+  switch (prefix.data()[0]) {
+  case '1':
+    aType = P2PKH;
+    break;
+  case '3':
+    aType = P2SH;
+    break;
+  case 'b':
+  case 'B':
+    std::transform(prefix.begin(), prefix.end(), prefix.begin(), ::tolower);
+    if(strncmp(prefix.c_str(), "bc1q", 4) == 0)
+      aType = BECH32;
+    break;
+  }
+
+  if (aType==-1) {
+    printf("Ignoring prefix \"%s\" (must start with 1 or 3 or bc1q)\n", prefix.c_str());
     return false;
   }
 
-  int aType = (prefix.data()[0] == '1') ? P2PKH : P2SH;
-  if( searchType==-1 ) searchType = aType;
+  if (searchType == -1) searchType = aType;
   if (aType != searchType) {
-    printf("Ignoring prefix \"%s\" (Cannot merge P2PKH and P2SH)\n", prefix.c_str());
+    printf("Ignoring prefix \"%s\" (P2PKH, P2SH or BECH32 allowed at once)\n", prefix.c_str());
     return false;
   }
 
-  // Try to attack a full address ?
-  if (result.size() > 21) {
+  if (aType == BECH32) {
 
-    // mamma mia !
-    //if (!secp.CheckPudAddress(prefix)) {
-    //  printf("Warning, \"%s\" (address checksum may never match)\n", prefix.c_str());
-    //}
-    it->difficulty = pow(2, 160);
-    it->isFull = true;
-    memcpy(it->hash160, result.data() + 1, 20);
-    it->sPrefix = *(prefix_t *)(it->hash160);
-    it->lPrefix = *(prefixl_t *)(it->hash160);
-    it->prefix = (char *)prefix.c_str();
-    it->prefixLength = (int)prefix.length();
-    it->found = false;
-    return true;
+    // BECH32
+    uint8_t witprog[40];
+    size_t witprog_len;
+    int witver;
+    const char* hrp = "bc";
 
-  }
-  
-  // Prefix containing only '1'
-  if (isSingularPrefix(prefix)) {
+    int ret = segwit_addr_decode(&witver, witprog, &witprog_len, hrp, prefix.c_str());
 
-    if (prefix.length() > 21) {
-      printf("Ignoring prefix \"%s\" (Too much 1)\n", prefix.c_str());
+    // Try to attack a full address ?
+    if (ret && witprog_len==20) {
+
+      // mamma mia !
+      it->difficulty = pow(2, 160);
+      it->isFull = true;
+      memcpy(it->hash160, witprog, 20);
+      it->sPrefix = *(prefix_t *)(it->hash160);
+      it->lPrefix = *(prefixl_t *)(it->hash160);
+      it->prefix = (char *)prefix.c_str();
+      it->prefixLength = (int)prefix.length();
+      it->found = false;
+      return true;
+
+    }
+
+    if (prefix.length() < 5) {
+      printf("Ignoring prefix \"%s\" (too short, length<5 )\n", prefix.c_str());
+      return false;
+    }
+
+    if (prefix.length() >= 36) {
+      printf("Ignoring prefix \"%s\" (too long, length>36 )\n", prefix.c_str());
+      return false;
+    }
+
+    uint8_t data[64];
+    memset(data,0,64);
+    size_t data_length;
+    if(!bech32_decode_nocheck(data,&data_length,prefix.c_str()+4)) {
+      printf("Ignoring prefix \"%s\" (Only \"023456789acdefghjklmnpqrstuvwxyz\" allowed)\n", prefix.c_str());
       return false;
     }
 
     // Difficulty
-    it->difficulty = pow(256, prefix.length()-1);
+    it->sPrefix = *(prefix_t *)data;
+    it->difficulty = pow(2, 5*(prefix.length()-4));
     it->isFull = false;
-    it->sPrefix = 0;
     it->lPrefix = 0;
     it->prefix = (char *)prefix.c_str();
     it->prefixLength = (int)prefix.length();
     it->found = false;
+
+    return true;
+
+  } else {
+
+    // P2PKH/P2SH
+
+    wrong = !DecodeBase58(prefix, result);
+
+    if (wrong) {
+      printf("Ignoring prefix \"%s\" (0, I, O and l not allowed)\n", prefix.c_str());
+      return false;
+    }
+
+    // Try to attack a full address ?
+    if (result.size() > 21) {
+
+      // mamma mia !
+      //if (!secp.CheckPudAddress(prefix)) {
+      //  printf("Warning, \"%s\" (address checksum may never match)\n", prefix.c_str());
+      //}
+      it->difficulty = pow(2, 160);
+      it->isFull = true;
+      memcpy(it->hash160, result.data() + 1, 20);
+      it->sPrefix = *(prefix_t *)(it->hash160);
+      it->lPrefix = *(prefixl_t *)(it->hash160);
+      it->prefix = (char *)prefix.c_str();
+      it->prefixLength = (int)prefix.length();
+      it->found = false;
+      return true;
+
+    }
+
+    // Prefix containing only '1'
+    if (isSingularPrefix(prefix)) {
+
+      if (prefix.length() > 21) {
+        printf("Ignoring prefix \"%s\" (Too much 1)\n", prefix.c_str());
+        return false;
+      }
+
+      // Difficulty
+      it->difficulty = pow(256, prefix.length() - 1);
+      it->isFull = false;
+      it->sPrefix = 0;
+      it->lPrefix = 0;
+      it->prefix = (char *)prefix.c_str();
+      it->prefixLength = (int)prefix.length();
+      it->found = false;
+      return true;
+
+    }
+
+    // Search for highest hash160 16bit prefix (most probable)
+
+    while (result.size() < 25) {
+      DecodeBase58(dummy1, result);
+      if (result.size() < 25) {
+        dummy1.append("1");
+        nbDigit++;
+      }
+    }
+
+    if (searchType == P2SH) {
+      if (result.data()[0] != 5) {
+        printf("Ignoring prefix \"%s\" (Unreachable, 31h1 to 3R2c only)\n", prefix.c_str());
+        return false;
+      }
+    }
+
+    if (result.size() != 25) {
+      printf("Ignoring prefix \"%s\" (Invalid size)\n", prefix.c_str());
+      return false;
+    }
+
+    //printf("VanitySearch: Found prefix %s\n",GetHex(result).c_str() );
+    it->sPrefix = *(prefix_t *)(result.data() + 1);
+
+    dummy1.append("1");
+    DecodeBase58(dummy1, result);
+
+    if (result.size() == 25) {
+      //printf("VanitySearch: Found prefix %s\n", GetHex(result).c_str());
+      it->sPrefix = *(prefix_t *)(result.data() + 1);
+      nbDigit++;
+    }
+
+    // Difficulty
+    it->difficulty = pow(2, 192) / pow(58, nbDigit);
+    it->isFull = false;
+    it->lPrefix = 0;
+    it->prefix = (char *)prefix.c_str();
+    it->prefixLength = (int)prefix.length();
+    it->found = false;
+
     return true;
 
   }
-
-  // Search for highest hash160 16bit prefix (most probable)
-
-  while (result.size() < 25) {
-    DecodeBase58(dummy1, result);
-    if (result.size() < 25) {
-      dummy1.append("1");
-      nbDigit++;
-    }
-  }
-
-  if (searchType == P2SH) {
-    if (result.data()[0] != 5) {
-      printf("Ignoring prefix \"%s\" (Unreachable, 31h1 to 3R2c only)\n", prefix.c_str());
-      return false;
-    }
-  }
-
-  if (result.size() != 25) {
-    printf("Ignoring prefix \"%s\" (Invalid size)\n", prefix.c_str());
-    return false;
-  }
-
-  //printf("VanitySearch: Found prefix %s\n",GetHex(result).c_str() );
-  it->sPrefix = *(prefix_t *)(result.data() + 1);
-
-  dummy1.append("1");
-  DecodeBase58(dummy1, result);
-
-  if (result.size() == 25) {
-    //printf("VanitySearch: Found prefix %s\n", GetHex(result).c_str());
-    it->sPrefix = *(prefix_t *)(result.data() + 1);
-    nbDigit++;
-  }
-
-  // Difficulty
-  it->difficulty = pow(2, 192) / pow(58, nbDigit);
-  it->isFull = false;
-  it->lPrefix = 0;
-  it->prefix = (char *)prefix.c_str();
-  it->prefixLength = (int)prefix.length();
-  it->found = false;
-
-  return true;
-
 }
 
 // ----------------------------------------------------------------------------
@@ -440,10 +518,16 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex) {
   }
 
   fprintf(f, "\nPub Addr: %s\n", addr.c_str());
-  if (searchType == P2PKH) {
+  switch (searchType) {
+  case P2PKH:
     fprintf(f, "Priv (WIF): p2pkh:%s\n", pAddr.c_str());
-  } else {
+    break;
+  case P2SH:
     fprintf(f, "Priv (WIF): p2wpkh-p2sh:%s\n", pAddr.c_str());
+    break;
+  case BECH32:
+    fprintf(f, "Priv (WIF): p2wpkh:%s\n", pAddr.c_str());
+    break;
   }
   fprintf(f, "Priv (HEX): 0x%s\n", pAddrHex.c_str());
 
