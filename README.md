@@ -14,6 +14,7 @@ VanitySearch may not compute a good grid size for your GPU, so try different val
   <li>Multi-GPU support</li>
   <li>CUDA optimisation via inline PTX assembly</li>
   <li>Seed protected by pbkdf2_hmac_sha512 (BIP38)</li>
+  <li>Support P2PKH, P2SH and BECH32 addresses
 </ul>
 
 # Discussion Thread
@@ -42,20 +43,20 @@ prefix: prefix to search
 -stop: Stop when prefix is found
 ```
  
-Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 645):
+Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 1050 Ti):
 ```
 C:\C++\VanitySearch\x64\Release>VanitySearch.exe -stop -gpu 1TryMe
-VanitySearch v1.10
+VanitySearch v1.11
 Difficulty: 15318045009
 Search: 1TryMe [Compressed]
-Start Wed Mar 27 10:19:04 2019
-Base Key:681E8A2A2F580C427EF025A2CFE556E07EA7055B2A92B6234DB0B5AAFDA2E5FF
+Start Wed Apr  3 08:47:08 2019
+Base Key:87B1EC7916A180ACCF07CAAEFA7F6508F3898F61AF49C201D70DF1543CCBA572
 Number of CPU thread: 7
-GPU: GPU #0 GeForce GTX 645 (3x192 cores) Grid(24x128)
-59.567 MK/s (GPU 43.544 MK/s) (2^33.71) [P 59.98%][60.00% in 00:00:00][0]
-Pub Addr: 1TryMeGTxspHHGDWRX5KD8zPPM6KoNdfV
-Priv (WIF): L4hqNRo8dwoWN9GWCSuFagrbsysUpbLxG3rDXJRCXGubC3oPB62z
-Priv (HEX): 0xDF546BDE70567A14A83AC69B17EF5845239F39B35820243DC3859AC46894DCDF
+GPU: GPU #0 GeForce GTX 1050 Ti (6x128 cores) Grid(48x128)
+245.830 MK/s (GPU 226.348 MK/s) (2^30.87) [P 12.06%][50.00% in 00:00:35][0]
+Pub Addr: 1TryMeTKr3tuJZYHMSNWdPZfhRRNYj3yE
+Priv (WIF): p2pkh:L5NuSjQRARifQJbZ5RyLrQhbSz25jYxupnqqydnBdANeH3QNoUph
+Priv (HEX): 0xF36DD1EEC2A9658E50B39B280D4002ED3A07C7B6C07B37B191973BDDFBF9E375
 ```
 
 # Trying to attack a list of addresses
