@@ -24,6 +24,8 @@
 namespace _sha256
 {
 
+  static const unsigned char pad[64] = { 0x80 };
+
 #ifndef WIN64
 #define _byteswap_ulong __builtin_bswap32
 #define _byteswap_uint64 __builtin_bswap64
@@ -225,10 +227,9 @@ void CSHA256::Write(const unsigned char* data, size_t len)
 
 void CSHA256::Finalize(unsigned char hash[OUTPUT_SIZE])
 {
-    static const unsigned char pad[64] = {0x80};
     unsigned char sizedesc[8];
     WRITEBE64(sizedesc, bytes << 3);
-    Write(pad, 1 + ((119 - (bytes % 64)) % 64));
+    Write(_sha256::pad, 1 + ((119 - (bytes % 64)) % 64));
     Write(sizedesc, 8);
     WRITEBE32(hash, s[0]);
     WRITEBE32(hash + 4, s[1]);
@@ -248,15 +249,15 @@ void sha256(unsigned char *input, int length, unsigned char *digest) {
 
 }
 
-const uint8_t sizedesc_33[8] = {0,0,0,0,0,0,1,8};
+const uint8_t sizedesc_33[8] = { 0,0,0,0,0,0,1,8 };
+const uint8_t sizedesc_65[8] = { 0,0,0,0,0,0,2,8 };
 
 void sha256_33(unsigned char *input, unsigned char *digest) {
 
-  static const unsigned char pad[64] = { 0x80, };
   uint32_t s[8];
 
   _sha256::Initialize(s);
-  memcpy(input + 33, pad, 23);
+  memcpy(input + 33, _sha256::pad, 23);
   memcpy(input + 56, sizedesc_33, 8);
   _sha256::Transform(s, input);
 
@@ -269,6 +270,28 @@ void sha256_33(unsigned char *input, unsigned char *digest) {
   WRITEBE32(digest + 24, s[6]);
   WRITEBE32(digest + 28, s[7]);
 
+
+}
+
+void sha256_65(unsigned char *input, unsigned char *digest) {
+
+  uint32_t s[8];
+
+  memcpy(input + 65, _sha256::pad, 55);
+  memcpy(input + 120, sizedesc_65, 8);
+
+  _sha256::Initialize(s);
+  _sha256::Transform(s, input);
+  _sha256::Transform(s, input+64);
+
+  WRITEBE32(digest, s[0]);
+  WRITEBE32(digest + 4, s[1]);
+  WRITEBE32(digest + 8, s[2]);
+  WRITEBE32(digest + 12, s[3]);
+  WRITEBE32(digest + 16, s[4]);
+  WRITEBE32(digest + 20, s[5]);
+  WRITEBE32(digest + 24, s[6]);
+  WRITEBE32(digest + 28, s[7]);
 
 }
 

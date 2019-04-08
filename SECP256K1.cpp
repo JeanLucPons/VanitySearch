@@ -441,7 +441,7 @@ void Secp256K1::GetHash160(int type, bool compressed, Point &pubKey, unsigned ch
       publicKeyBytes[0] = 0x4;
       pubKey.x.Get32Bytes(publicKeyBytes + 1);
       pubKey.y.Get32Bytes(publicKeyBytes + 33);
-      sha256(publicKeyBytes, 65, shapk);
+      sha256_65(publicKeyBytes, shapk);
 
     } else {
 
