@@ -24,7 +24,7 @@
 #include <stdexcept>
 #include "Bech32.h"
 
-#define RELEASE "1.11"
+#define RELEASE "1.12"
 
 using namespace std;
 
