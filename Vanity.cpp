@@ -572,6 +572,8 @@ void VanitySearch::updateFound() {
 
 // ----------------------------------------------------------------------------
 
+static int nbFail = 0;
+
 bool VanitySearch::checkPrivKey(string addr, Int &key, int32_t incr, int endomorphism, bool mode) {
 
   Int k(&key);
@@ -598,19 +600,12 @@ bool VanitySearch::checkPrivKey(string addr, Int &key, int32_t incr, int endomor
   Point p = secp.ComputePublicKey(&k);
   string chkAddr = secp.GetAddress(searchType, mode, p);
   if (chkAddr != addr) {
-    if (mode) {
-      // Compressed address (key may be the opposite one)
-      k.Neg();
-      k.Add(&secp.order);
-      p = secp.ComputePublicKey(&k);
-      string chkAddr = secp.GetAddress(searchType, mode, p);
-      if (chkAddr != addr) {
-        printf("\nWarning, wrong private key generated !\n");
-        printf("  Addr :%s\n", addr.c_str());
-        printf("  Check:%s\n", chkAddr.c_str());
-        return false;
-      }
-    } else {
+    //Key may be the opposite one (negative zero or compressed key)
+    k.Neg();
+    k.Add(&secp.order);
+    p = secp.ComputePublicKey(&k);
+    string chkAddr = secp.GetAddress(searchType, mode, p);
+    if (chkAddr != addr) {
       printf("\nWarning, wrong private key generated !\n");
       printf("  Addr :%s\n", addr.c_str());
       printf("  Check:%s\n", chkAddr.c_str());

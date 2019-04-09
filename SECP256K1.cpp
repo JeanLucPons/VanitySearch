@@ -427,13 +427,14 @@ void Secp256K1::GetHash160(int type,bool compressed,
 
 void Secp256K1::GetHash160(int type, bool compressed, Point &pubKey, unsigned char *hash) {
 
+  unsigned char shapk[64];
+
   switch (type) {
 
   case P2PKH:
   case BECH32:
   {
     unsigned char publicKeyBytes[128];
-    unsigned char shapk[64];
 
     if (!compressed) {
 
@@ -461,7 +462,6 @@ void Secp256K1::GetHash160(int type, bool compressed, Point &pubKey, unsigned ch
 
     // Redeem Script (1 to 1 P2SH)
     unsigned char script[64];
-    unsigned char shapk[64];
 
     script[0] = 0x00;  // OP_0
     script[1] = 0x14;  // PUSH 20 bytes
