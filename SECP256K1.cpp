@@ -44,9 +44,14 @@ void Secp256K1::Init() {
 
   // Compute Generator table
   Point N(G);
-  for(int i = 0; i < 256; i++) {
-    GTable[i] = N;
+  for(int i = 0; i < 32; i++) {
+    GTable[i * 256] = N;
     N = DoubleDirect(N);
+    for (int j = 1; j < 255; j++) {
+      GTable[i * 256 + j] = N;
+      N = AddDirect(N, GTable[i * 256]);
+    }
+    GTable[i * 256 + 255] = N; // Dummy point for check function
   }
 
 }
@@ -103,10 +108,10 @@ void Secp256K1::Check() {
 
   bool ok = true;
   int i = 0;
-  while(i < 256 && EC(GTable[i])) {
+  while(i < 256*32 && EC(GTable[i])) {
     i++;
   }
-  PrintResult(i == 256);
+  PrintResult(i == 256*32);
 
   printf("Check Double :");
   Point Pt(G);
@@ -166,15 +171,26 @@ void Secp256K1::Check() {
 
 Point Secp256K1::ComputePublicKey(Int *privKey) {
 
+  int i = 0;
+  uint8_t b;
   Point Q;
   Q.Clear();
-  for(int i = 0; i < 256; i++) {
-    if(privKey->GetBit(i))
-      if(Q.isZero())
-        Q = GTable[i];
-      else
-        Q = Add(Q,GTable[i]);
+
+  // Search first significant byte
+  for (i = 0; i < 32; i++) {
+    b = privKey->GetByte(i);
+    if(b)
+      break;
   }
+  Q = GTable[256 * i + (b-1)];
+  i++;
+
+  for(; i < 32; i++) {
+    b = privKey->GetByte(i);
+    if(b)
+      Q = Add(Q, GTable[256 * i + (b-1)]);
+  }
+
   Q.Reduce();
   return Q;
 

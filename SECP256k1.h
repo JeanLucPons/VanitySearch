@@ -64,7 +64,7 @@ public:
 private:
 
   Int GetY(Int x, bool isEven);
-  Point GTable[256];       // Generator table
+  Point GTable[256*32];       // Generator table
 
 };
 

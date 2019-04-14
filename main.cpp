@@ -149,6 +149,8 @@ void parseFile(string fileName, vector<string> &lines) {
 
 }
 
+Secp256K1 secp;
+
 // ------------------------------------------------------------------------------------------
 
 int main(int argc, char* argv[]) {
@@ -158,7 +160,6 @@ int main(int argc, char* argv[]) {
   rseed((unsigned long)time(NULL));
 
   // Init SecpK1
-  Secp256K1 secp;
   secp.Init();
 
   // Browse arguments
