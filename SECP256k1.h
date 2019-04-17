@@ -48,6 +48,8 @@ public:
   std::string GetAddress(int type, bool compressed, Point &pubKey);
   std::string GetAddress(int type, bool compressed, unsigned char *hash160);
   std::string GetPrivAddress(bool compressed, Int &privKey );
+  std::string GetPublicKeyHex(bool compressed, Point &p);
+  Point ParsePublicKeyHex(std::string str, bool &isCompressed);
 
   bool CheckPudAddress(std::string address);
 
@@ -62,6 +64,8 @@ public:
   Int   order;             // Curve order
 
 private:
+
+  uint8_t GetByte(std::string &str,int idx);
 
   Int GetY(Int x, bool isEven);
   Point GTable[256*32];       // Generator table

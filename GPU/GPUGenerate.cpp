@@ -21,20 +21,20 @@
 using namespace std;
 
 
-void GPUEngine::GenerateCode(Secp256K1 &secp, int size) {
+void GPUEngine::GenerateCode(Secp256K1 *secp, int size) {
 
   // Compute generator table
   Point *Gn = new Point[size];
-  Point g = secp.G;
+  Point g = secp->G;
   Gn[0] = g;
-  g = secp.DoubleDirect(g);
+  g = secp->DoubleDirect(g);
   Gn[1] = g;
   for (int i = 2; i < size; i++) {
-    g = secp.AddDirect(g, secp.G);
+    g = secp->AddDirect(g, secp->G);
     Gn[i] = g;
   }
   // _2Gn = CPU_GRP_SIZE*G
-  Point _2Gn = secp.DoubleDirect(Gn[size / 2 - 1]);
+  Point _2Gn = secp->DoubleDirect(Gn[size / 2 - 1]);
 
   // Write file
   FILE *f = fopen("GPU/GPUGroup.h", "w");

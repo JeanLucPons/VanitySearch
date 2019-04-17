@@ -66,8 +66,10 @@ class VanitySearch {
 
 public:
 
-  VanitySearch(Secp256K1 &secp, std::vector<std::string> &prefix, std::string seed, int searchMode, 
-               bool useGpu,bool stop,std::string outputFile, bool useSSE,uint32_t maxFound,uint64_t rekey);
+  VanitySearch(Secp256K1 *secp, std::vector<std::string> &prefix, std::string seed, int searchMode, 
+               bool useGpu,bool stop,std::string outputFile, bool useSSE,uint32_t maxFound,uint64_t rekey,
+               Point &startPubKey);
+
   void Search(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize);
   void FindKeyCPU(TH_PARAM *p);
   void FindKeyGPU(TH_PARAM *p);
@@ -94,8 +96,10 @@ private:
   void getCPUStartingKey(int thId, Int& key, Point& startP);
   void getGPUStartingKeys(int thId, int groupSize, int nbThread, Int *keys, Point *p);
 
-  Secp256K1 secp;
+  Secp256K1 *secp;
   Int startKey;
+  Point startPubKey;
+  bool startPubKeySpecified;
   uint64_t counters[256];
   double startTime;
   int searchType;
