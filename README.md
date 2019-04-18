@@ -131,7 +131,7 @@ Bob sends back this file to Alice. It can also be done by email. The partial pri
 
 ## Step 3
 
-Alice can then reconstructs the final private key using her private key and the keyinfo.txt from Bob.
+Alice can then reconstructs the final private key using her private key (the one generated in step 1) and the keyinfo.txt from Bob.
 
 ```
 VanitySearch.exe -rp L4U2Ca2wyo721n7j9nXM9oUWLzCj19nKtLeJuTXZP3AohW9wVgrH keyinfo.txt
