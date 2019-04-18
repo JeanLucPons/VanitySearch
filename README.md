@@ -108,12 +108,13 @@ For instance, Alice wants a nice prefix but does not have CPU power. Bob has the
 
 ## Step 1
 
-Alice generates a key pair on her computer then send the generated public key and the wanted prefix to Bob. It can be done by email, nothing is secrret.  Nevertheless, Alice has to keep safely the private key and not expose it.
+Alice generates a key pair on her computer then send the generated public key and the wanted prefix to Bob. It can be done by email, nothing is secret.  Nevertheless, Alice has to keep safely the private key and not expose it.
 ```
 VanitySearch.exe -s "AliceSeed" -kp
 Priv : L4U2Ca2wyo721n7j9nXM9oUWLzCj19nKtLeJuTXZP3AohW9wVgrH
 Pub  : 03FC71AE1E88F143E8B05326FC9A83F4DAB93EA88FFEACD37465ED843FCC75AA81
 ```
+Note: The key pair is a standard SecpK1 key pair and can be generated with a third party software.
 
 ## Step 2
 
@@ -126,11 +127,11 @@ It generates a keyinfo.txt file containing the partial private key.
 Pub Addr: 1ALicegohz9YgrLLa4ADCmam7X2Zr6xJZx
 PartialPriv: L2hbovuDd8nG4nxjDq1yd5qDsSQiG8xFsAFbHMcThqfjSP6WLg89
 ```
-Bob sends back this file to Alice. It can also be done by email, The partial private key does not allow someone to guess the final Alice'private key.
+Bob sends back this file to Alice. It can also be done by email. The partial private key does not allow anyone to guess the final Alice's private key.
 
 ## Step 3
 
-Alice can then reconstruct the final private key using her private key and the keyinfo.txt from Bob.
+Alice can then reconstructs the final private key using her private key and the keyinfo.txt from Bob.
 
 ```
 VanitySearch.exe -rp L4U2Ca2wyo721n7j9nXM9oUWLzCj19nKtLeJuTXZP3AohW9wVgrH keyinfo.txt
