@@ -25,7 +25,7 @@
 #include "hash/sha512.h"
 #include "hash/sha256.h"
 
-#define RELEASE "1.12"
+#define RELEASE "1.13"
 
 using namespace std;
 
@@ -48,16 +48,16 @@ void printUsage() {
   printf(" -o outputfile: Output results to the specified file\n");
   printf(" -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0\n");
   printf(" -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)\n");
-  printf(" -m : Specify maximun number of prefixes found by each kernel call\n");
+  printf(" -m: Specify maximun number of prefixes found by each kernel call\n");
   printf(" -s seed: Specify a seed for the base key, default is random\n");
   printf(" -t threadNumber: Specify number of CPU thread, default is number of core\n");
-  printf(" -nosse : Disable SSE hash function\n");
-  printf(" -l : List cuda enabled devices\n");
+  printf(" -nosse: Disable SSE hash function\n");
+  printf(" -l: List cuda enabled devices\n");
   printf(" -check: Check CPU and GPU kernel vs CPU\n");
   printf(" -kp: Generate key pair\n");
   printf(" -rp privkey partialkeyfile: Reconstruct final private key(s) from partial key(s) info.\n");
   printf(" -sp startPubKey: Start the search with a pubKey (for private key splitting)\n");
-  printf(" -r [keynumber]: Rekey interval in MegaKey, default is disabled\n");
+  printf(" -r rekey: Rekey interval in MegaKey, default is disabled\n");
   exit(-1);
 
 }
@@ -228,21 +228,22 @@ void outputAdd(string outputFile, int addrType, string addr, string pAddr, strin
 }
 
 // ------------------------------------------------------------------------------------------
-#define CHECK_ADDR() \
-  p = secp->ComputePublicKey(&fullPriv); \
-  cAddr = secp->GetAddress(addrType, compressed, p); \
-  if (cAddr == addr) { \
-    found = true; \
+#define CHECK_ADDR()                                           \
+  fullPriv.ModAddK1order(&e, &partialPrivKey);                 \
+  p = secp->ComputePublicKey(&fullPriv);                       \
+  cAddr = secp->GetAddress(addrType, compressed, p);           \
+  if (cAddr == addr) {                                         \
+    found = true;                                              \
     string pAddr = secp->GetPrivAddress(compressed, fullPriv); \
-    string pAddrHex = fullPriv.GetBase16(); \
-    outputAdd(outputFile, addrType, addr, pAddr, pAddrHex); \
+    string pAddrHex = fullPriv.GetBase16();                    \
+    outputAdd(outputFile, addrType, addr, pAddr, pAddrHex);    \
   }
 
 void reconstructAdd(Secp256K1 *secp, string fileName, string outputFile, string privAddr) {
 
   bool compressed;
   int addrType;
-  Int lambda; 
+  Int lambda;
   Int lambda2;
   lambda.SetBase16("5363ad4cc05c30e0a5261c028812645a122e22ea20816678df02967c1b23bd72");
   lambda2.SetBase16("ac9c52b33fa3cf1f5ad9e3fd77ed9ba4a880b9fc8ec739c2e0cfc810b51283ce");
@@ -304,34 +305,30 @@ void reconstructAdd(Secp256K1 *secp, string fileName, string outputFile, string 
     } else {
 
       // Reconstruct the address
+      Int fullPriv;
       Point p;
       Int e;
-      Int kn;
-      Int fullPriv;
       string cAddr;
       bool found = false;
 
       // No sym, no endo
-      fullPriv.ModAddK1order(&privKey, &partialPrivKey);
+      e.Set(&privKey);
       CHECK_ADDR();
 
       // No sym, endo 1
       e.Set(&privKey);
       e.ModMulK1order(&lambda);
-      fullPriv.ModAddK1order(&e, &partialPrivKey);
       CHECK_ADDR();
 
       // No sym, endo 2
       e.Set(&privKey);
       e.ModMulK1order(&lambda2);
-      fullPriv.ModAddK1order(&e, &partialPrivKey);
       CHECK_ADDR();
 
       // sym, no endo
-      kn.Set(&privKey);
-      kn.Neg();
-      kn.Add(&secp->order);
-      fullPriv.ModAddK1order(&kn, &partialPrivKey);
+      e.Set(&privKey);
+      e.Neg();
+      e.Add(&secp->order);
       CHECK_ADDR();
 
       // sym, endo 1
@@ -339,7 +336,6 @@ void reconstructAdd(Secp256K1 *secp, string fileName, string outputFile, string 
       e.ModMulK1order(&lambda);
       e.Neg();
       e.Add(&secp->order);
-      fullPriv.ModAddK1order(&e, &partialPrivKey);
       CHECK_ADDR();
 
       // sym, endo 2
@@ -347,7 +343,6 @@ void reconstructAdd(Secp256K1 *secp, string fileName, string outputFile, string 
       e.ModMulK1order(&lambda2);
       e.Neg();
       e.Add(&secp->order);
-      fullPriv.ModAddK1order(&e, &partialPrivKey);
       CHECK_ADDR();
 
       if (!found) {

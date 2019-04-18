@@ -205,6 +205,7 @@ Point Secp256K1::NextKey(Point &key) {
 Int Secp256K1::DecodePrivateKey(char *key,bool *compressed) {
 
   Int ret;
+  ret.SetInt32(0);
   std::vector<unsigned char> privKey;
 
   if(key[0] == '5') {
