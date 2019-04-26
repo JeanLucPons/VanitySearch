@@ -14,7 +14,8 @@ VanitySearch may not compute a good grid size for your GPU, so try different val
   <li>Multi-GPU support</li>
   <li>CUDA optimisation via inline PTX assembly</li>
   <li>Seed protected by pbkdf2_hmac_sha512 (BIP38)</li>
-  <li>Support P2PKH, P2SH and BECH32 addresses
+  <li>Support P2PKH, P2SH and BECH32 addresses</li>
+  <li>Support split-key vanity address</li>    
 </ul>
 
 # Discussion Thread
@@ -26,21 +27,32 @@ VanitySearch may not compute a good grid size for your GPU, so try different val
 You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/releases
 
 ```
-VanitySeacrh [-check] [-v] [-u] [-gpu] [-stop] [-i inputfile] [-o outputfile] [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]] [-s seed] [-t threadNumber] prefix
-prefix: prefix to search
--v: Print version
--check: Check CPU and GPU kernel vs CPU
--u: Search uncompressed addresses
--o outputfile: Output results to the specified file
--i inputfile: Get list of prefixes to search from specified file
--gpu: Enable gpu calculation
--gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0
--g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)
--s seed: Specify a seed for the base key, default is random
--t threadNumber: Specify number of CPU thread, default is number of core
--nosse : Disable SSE hash function
--l : List cuda enabled devices
--stop: Stop when prefix is found
+VanitySeacrh [-check] [-v] [-u] [-b] [-gpu] [-stop] [-i inputfile]
+             [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]]
+             [-o outputfile] [-m maxFound] [-s seed] [-t threadNumber]
+             [-nosse] [-r rekey] [-check] [-kp] [-sp startPubKey]
+             [-rp privkey partialkeyfile] [prefix]
+
+ prefix: prefix to search
+ -v: Print version
+ -u: Search uncompressed addresses
+ -b: Search both uncompressed or compressed addresses
+ -gpu: Enable gpu calculation
+ -stop: Stop when all prefixes are found
+ -i inputfile: Get list of prefixes to search from specified file
+ -o outputfile: Output results to the specified file
+ -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0
+ -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)
+ -m: Specify maximun number of prefixes found by each kernel call
+ -s seed: Specify a seed for the base key, default is random
+ -t threadNumber: Specify number of CPU thread, default is number of core
+ -nosse: Disable SSE hash function
+ -l: List cuda enabled devices
+ -check: Check CPU and GPU kernel vs CPU
+ -kp: Generate key pair
+ -rp privkey partialkeyfile: Reconstruct final private key(s) from partial key(s) info.
+ -sp startPubKey: Start the search with a pubKey (for private key splitting)
+ -r rekey: Rekey interval in MegaKey, default is disabled
 ```
  
 Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 1050 Ti):
@@ -88,6 +100,54 @@ Pub Addr: bc1quantum898l8mx5pkvq2x250kkqsj7enpx3u4yt
 Priv (WIF): p2wpkh:L37xBVcFGeAZ9Tii7igqXBWmfiBhiwwiKQmchNXPV2LNREXQDLCp
 Priv (HEX): 0xB00FD8CDA85B11D4744C09E65C527D35E2B1D19095CFCA0BF2E48186F31979C2
 ```
+
+# Generate a vanity address for a third party using split-key
+
+It is possible to generate a vanity address for a third party in a safe manner using split-key.\
+For instance, Alice wants a nice prefix but does not have CPU power. Bob has the requested CPU power but cannot know the private key of Alice, Alice has to use a split-key.
+
+## Step 1
+
+Alice generates a key pair on her computer then send the generated public key and the wanted prefix to Bob. It can be done by email, nothing is secret.  Nevertheless, Alice has to keep safely the private key and not expose it.
+```
+VanitySearch.exe -s "AliceSeed" -kp
+Priv : L4U2Ca2wyo721n7j9nXM9oUWLzCj19nKtLeJuTXZP3AohW9wVgrH
+Pub  : 03FC71AE1E88F143E8B05326FC9A83F4DAB93EA88FFEACD37465ED843FCC75AA81
+```
+Note: The key pair is a standard SecpK1 key pair and can be generated with a third party software.
+
+## Step 2
+
+Bob runs VanitySearch using the Alice's public key and the wanted prefix.
+```
+VanitySearch.exe -sp 03FC71AE1E88F143E8B05326FC9A83F4DAB93EA88FFEACD37465ED843FCC75AA81 -gpu -stop -o keyinfo.txt 1ALice
+```
+It generates a keyinfo.txt file containing the partial private key.
+```
+Pub Addr: 1ALicegohz9YgrLLa4ADCmam7X2Zr6xJZx
+PartialPriv: L2hbovuDd8nG4nxjDq1yd5qDsSQiG8xFsAFbHMcThqfjSP6WLg89
+```
+Bob sends back this file to Alice. It can also be done by email. The partial private key does not allow anyone to guess the final Alice's private key.
+
+## Step 3
+
+Alice can then reconstructs the final private key using her private key (the one generated in step 1) and the keyinfo.txt from Bob.
+
+```
+VanitySearch.exe -rp L4U2Ca2wyo721n7j9nXM9oUWLzCj19nKtLeJuTXZP3AohW9wVgrH keyinfo.txt
+
+Pub Addr: 1ALicegohz9YgrLLa4ADCmam7X2Zr6xJZx
+Priv (WIF): p2pkh:L1NHFgT826hYNpNN2qd85S7F7cyZTEJ4QQeEinsCFzknt3nj9gqg
+Priv (HEX): 0x7BC226A19A1E9770D3B0584FF2CF89E5D43F0DC19076A7DE1943F284DA3FB2D0
+```
+
+## How it works
+
+Basically the -sp (start public key) adds the specified starting public key (let's call it Q) to the starting keys of each threads. That means that when you search (using -sp), you do not search for addr(k.G) but for addr(k<sub>part</sub>.G+Q) where k is the private key in the first case and k<sub>part</sub> the "partial private key" in the second case. G is the SecpK1 generator point.\
+Then the requester can reconstruct the final private key by doing k<sub>part</sub>+k<sub>secret</sub> (mod n) where k<sub>part</sub> is the partial private key found by the searcher and k<sub>secret</sub> is the private key of Q (Q=k<sub>secret</sub>.G). This is the purpose of the -rp option.\
+The searcher has found a match for addr(k<sub>part</sub>.G+k<sub>secret</sub>.G) without knowing k<sub>secret</sub> so the requester has the wanted address addr(k<sub>part</sub>.G+Q) and the corresponding private key k<sub>part</sub>+k<sub>secret</sub> (mod n). The searcher is not able to guess this final private key because he doesn't know k<sub>secret</sub> (he knows only Q).
+
+Note: This explanation is simplified, it does not take care of symmetry and endomorphism optimizations but the idea is the same.
 
 # Trying to attack a list of addresses
 
