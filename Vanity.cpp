@@ -349,7 +349,6 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
       it->lPrefix = *(prefixl_t *)(it->hash160);
       it->prefix = (char *)prefix.c_str();
       it->prefixLength = (int)prefix.length();
-      it->found = false;
       return true;
 
     }
@@ -379,7 +378,6 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
     it->lPrefix = 0;
     it->prefix = (char *)prefix.c_str();
     it->prefixLength = (int)prefix.length();
-    it->found = false;
 
     return true;
 
@@ -409,7 +407,6 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
       it->lPrefix = *(prefixl_t *)(it->hash160);
       it->prefix = (char *)prefix.c_str();
       it->prefixLength = (int)prefix.length();
-      it->found = false;
       return true;
 
     }
@@ -429,7 +426,6 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
       it->lPrefix = 0;
       it->prefix = (char *)prefix.c_str();
       it->prefixLength = (int)prefix.length();
-      it->found = false;
       return true;
 
     }
@@ -475,7 +471,6 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
     it->lPrefix = 0;
     it->prefix = (char *)prefix.c_str();
     it->prefixLength = (int)prefix.length();
-    it->found = false;
 
     return true;
 
