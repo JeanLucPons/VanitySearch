@@ -33,7 +33,7 @@ using namespace std;
 
 void printUsage() {
 
-  printf("VanitySeacrh [-check] [-v] [-u] [-b] [-gpu] [-stop] [-i inputfile]\n");
+  printf("VanitySeacrh [-check] [-v] [-u] [-b] [-c] [-gpu] [-stop] [-i inputfile]\n");
   printf("             [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]]\n");
   printf("             [-o outputfile] [-m maxFound] [-s seed] [-t threadNumber]\n");
   printf("             [-nosse] [-r rekey] [-check] [-kp] [-sp startPubKey]\n");
@@ -42,6 +42,7 @@ void printUsage() {
   printf(" -v: Print version\n");
   printf(" -u: Search uncompressed addresses\n");
   printf(" -b: Search both uncompressed or compressed addresses\n");
+  printf(" -c: Case unsensitive search\n");
   printf(" -gpu: Enable gpu calculation\n");
   printf(" -stop: Stop when all prefixes are found\n");
   printf(" -i inputfile: Get list of prefixes to search from specified file\n");
@@ -391,6 +392,7 @@ int main(int argc, char* argv[]) {
   Point startPuKey;
   startPuKey.Clear();
   bool startPubKeyCompressed;
+  bool caseSensitive = true;
 
   while (a < argc) {
 
@@ -403,6 +405,9 @@ int main(int argc, char* argv[]) {
       a++;
     } else if (strcmp(argv[a], "-stop") == 0) {
       stop = true;
+      a++;
+    } else if (strcmp(argv[a], "-c") == 0) {
+      caseSensitive = false;
       a++;
     } else if (strcmp(argv[a], "-v") == 0) {
       printf("%s\n",RELEASE);
@@ -518,7 +523,8 @@ int main(int argc, char* argv[]) {
     searchMode = (startPubKeyCompressed)?SEARCH_COMPRESSED:SEARCH_UNCOMPRESSED;
   }
 
-  VanitySearch *v = new VanitySearch(secp, prefix, seed,searchMode,gpuEnable,stop,outputFile,sse,maxFound,rekey,startPuKey);
+  VanitySearch *v = new VanitySearch(secp, prefix, seed, searchMode, gpuEnable, stop, outputFile, sse,
+    maxFound, rekey, caseSensitive, startPuKey);
   v->Search(nbCPUThread,gpuId,gridSize);
 
   return 0;

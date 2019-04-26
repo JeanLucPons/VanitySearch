@@ -42,24 +42,27 @@ typedef struct {
 
 } TH_PARAM;
 
+
 typedef struct {
 
   char *prefix;
   int prefixLength;
   prefix_t sPrefix;
   double difficulty;
-  bool found;
+  bool *found;
 
   // For dreamer ;)
   bool isFull;
   prefixl_t lPrefix;
   uint8_t hash160[20];
-
+  
 } PREFIX_ITEM;
 
 typedef struct {
+
   std::vector<PREFIX_ITEM> *items;
   bool found;
+
 } PREFIX_TABLE_ITEM;
 
 class VanitySearch {
@@ -68,7 +71,7 @@ public:
 
   VanitySearch(Secp256K1 *secp, std::vector<std::string> &prefix, std::string seed, int searchMode, 
                bool useGpu,bool stop,std::string outputFile, bool useSSE,uint32_t maxFound,uint64_t rekey,
-               Point &startPubKey);
+               bool caseSensitive,Point &startPubKey);
 
   void Search(int nbThread,std::vector<int> gpuId,std::vector<int> gridSize);
   void FindKeyCPU(TH_PARAM *p);
@@ -95,6 +98,8 @@ private:
   void updateFound();
   void getCPUStartingKey(int thId, Int& key, Point& startP);
   void getGPUStartingKeys(int thId, int groupSize, int nbThread, Int *keys, Point *p);
+  void enumCaseUnsentivePrefix(std::string s, std::vector<std::string> &list);
+  bool prefixMatch(char *prefix, char *addr);
 
   Secp256K1 *secp;
   Int startKey;
@@ -104,6 +109,8 @@ private:
   double startTime;
   int searchType;
   int searchMode;
+  bool checkAlways;
+  bool caseSensitive;
   bool useGpu;
   bool stopWhenFound;
   bool endOfSearch;

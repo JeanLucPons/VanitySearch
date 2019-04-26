@@ -39,7 +39,7 @@ Point _2Gn;
 
 VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,string seed,int searchMode, 
                            bool useGpu, bool stop, string outputFile, bool useSSE, uint32_t maxFound,
-                           uint64_t rekey, Point &startPubKey) {
+                           uint64_t rekey, bool caseSensitive, Point &startPubKey) {
 
   this->secp = secp;
   this->searchMode = searchMode;
@@ -52,6 +52,8 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
   this->rekey = rekey;
   this->searchType = -1;
   this->startPubKey = startPubKey;
+  this->checkAlways = false;
+  this->caseSensitive = caseSensitive;
   this->startPubKeySpecified = !startPubKey.isZero();
 
   lastRekey = 0;
@@ -69,23 +71,91 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
   if(loadingProgress)
     printf("[Building lookup16   0.0%%]\r");
 
+
   nbPrefix = 0;
   onlyFull = true;
   for (int i = 0; i < (int)inputPrefixes.size(); i++) {
+
     PREFIX_ITEM it;
-    if (initPrefix(inputPrefixes[i], &it)) {
-      std::vector<PREFIX_ITEM> *items;
-      items = prefixes[it.sPrefix].items;
-      if (items == NULL) {
-        prefixes[it.sPrefix].items = new vector<PREFIX_ITEM>();
-        prefixes[it.sPrefix].found = false;
-        items = prefixes[it.sPrefix].items;
-        usedPrefix.push_back(it.sPrefix);
+    std::vector<PREFIX_ITEM> itPrefixes;
+
+    if (!caseSensitive) {
+
+      // For caseunsensitive search, loop through all possible combination
+      // and fill up lookup table
+      vector<string> subList;
+      enumCaseUnsentivePrefix(inputPrefixes[i], subList);
+
+      bool *found = new bool;
+      *found = false;
+
+      for (int j = 0; j < (int)subList.size(); j++) {
+        if (initPrefix(subList[j], &it)) {
+          it.found = found;
+          it.prefix = strdup(it.prefix); // We need to allocate here, subList will be destroyed
+          itPrefixes.push_back(it);
+        }
       }
-      items->push_back(it);
+
+      if (itPrefixes.size() > 0) {
+
+        // Compute difficulty for case unsensitive search
+        // Not obvious to perform the right calculation here using standard double
+        // Improvement are welcome
+
+        // Get the min difficulty and divide by the number of item having the same difficulty
+        // Should give good result when difficulty is large enough
+        double dMin = itPrefixes[0].difficulty;
+        int nbMin = 1;
+        for (int j = 1; j < (int)itPrefixes.size(); j++) {
+          if (itPrefixes[j].difficulty == dMin) {
+            nbMin++;
+          } else if (itPrefixes[j].difficulty < dMin) {
+            dMin = itPrefixes[j].difficulty;
+            nbMin=1;
+          }
+        }
+
+        dMin /= (double)nbMin;
+
+        // Updates
+        for (int j = 0; j < (int)itPrefixes.size(); j++)
+          itPrefixes[j].difficulty = dMin;
+
+      }
+
+    } else {
+
+      if (initPrefix(inputPrefixes[i], &it)) {
+        bool *found = new bool;
+        *found = false;
+        it.found = found;
+        itPrefixes.push_back(it);
+      }
+
+    }
+
+    if (itPrefixes.size() > 0) {
+
+      // Add the item to all correspoding prefixes in the lookup table
+      for (int j = 0; j < (int)itPrefixes.size(); j++) {
+
+        prefix_t p = itPrefixes[j].sPrefix;
+
+        if (prefixes[p].items == NULL) {
+          prefixes[p].items = new vector<PREFIX_ITEM>();
+          prefixes[p].found = false;
+          usedPrefix.push_back(p);
+        }
+        (*prefixes[p].items).push_back(itPrefixes[j]);
+
+      }
+
       onlyFull &= it.isFull;
       nbPrefix++;
+
     }
+
     if(loadingProgress && i%1000==0)
       printf("[Building lookup16 %5.1f%%]\r",(((double)i)/(double)(inputPrefixes.size()-1)) * 100.0);
   }
@@ -94,6 +164,11 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
     printf("\n");
 
   //dumpPrefixes();
+
+  if (!caseSensitive && searchType == BECH32) {
+    printf("Error, case unsensitive search with BECH32 not allowed.\n");
+    exit(1);
+  }
 
   if (nbPrefix == 0) {
     printf("VanitySearch: nothing to search !\n");
@@ -104,14 +179,15 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
   uint32_t unique_sPrefix = 0;
   uint32_t minI = 0xFFFFFFFF;
   uint32_t maxI = 0;
-  for (int i = 0; i < prefixes.size(); i++) {
-    std::vector<PREFIX_ITEM> *items;
-    items = prefixes[i].items;
-    if (items) {
+  for (int i = 0; i < (int)prefixes.size(); i++) {
+    if (prefixes[i].items) {
       LPREFIX lit;
       lit.sPrefix = i;
-      for (int j = 0; j < items->size(); j++)
-        lit.lPrefixes.push_back((*items)[j].lPrefix);
+      if (prefixes[i].items) {
+        for (int j = 0; j < (int)prefixes[i].items->size(); j++) {
+          lit.lPrefixes.push_back((*prefixes[i].items)[j].lPrefix);
+        }
+      }
       sort(lit.lPrefixes.begin(), lit.lPrefixes.end());
       usedPrefixL.push_back(lit);
       if( (uint32_t)lit.lPrefixes.size()>maxI ) maxI = (uint32_t)lit.lPrefixes.size();
@@ -126,11 +202,16 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
     printf("\n");
 
   _difficulty = getDiffuclty();
-  string seachInfo = string(searchModes[searchMode]) + (startPubKeySpecified?" With Public Key":"");
+  string seachInfo = string(searchModes[searchMode]) + (startPubKeySpecified?", with public key":"");
   if (nbPrefix == 1) {
-    prefix_t p0 = usedPrefix[0];
-    printf("Difficulty: %.0f\n", _difficulty);
-    printf("Search: %s [%s]\n", (*prefixes[p0].items)[0].prefix, seachInfo.c_str());
+    if (!caseSensitive) {
+      // Case unsensitive search
+      printf("Difficulty: %.0f\n", _difficulty);
+      printf("Search: %s [%s, Case unsensitive] (Lookup size %d)\n", inputPrefixes[0].c_str(), seachInfo.c_str(), unique_sPrefix);
+    } else {
+      printf("Difficulty: %.0f\n", _difficulty);
+      printf("Search: %s [%s]\n", inputPrefixes[0].c_str(), seachInfo.c_str());
+    }
   } else {
     if (onlyFull) {
       printf("Search: %d addresses (Lookup size %d,[%d,%d]) [%s]\n", nbPrefix, unique_sPrefix, minI, maxI, seachInfo.c_str());
@@ -309,7 +390,8 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
     wrong = !DecodeBase58(prefix, result);
 
     if (wrong) {
-      printf("Ignoring prefix \"%s\" (0, I, O and l not allowed)\n", prefix.c_str());
+      if (caseSensitive)
+        printf("Ignoring prefix \"%s\" (0, I, O and l not allowed)\n", prefix.c_str());
       return false;
     }
 
@@ -364,7 +446,8 @@ bool VanitySearch::initPrefix(std::string &prefix,PREFIX_ITEM *it) {
 
     if (searchType == P2SH) {
       if (result.data()[0] != 5) {
-        printf("Ignoring prefix \"%s\" (Unreachable, 31h1 to 3R2c only)\n", prefix.c_str());
+        if(caseSensitive)
+          printf("Ignoring prefix \"%s\" (Unreachable, 31h1 to 3R2c only)\n", prefix.c_str());
         return false;
       }
     }
@@ -406,13 +489,48 @@ void VanitySearch::dumpPrefixes() {
   for (int i = 0; i < 0xFFFF; i++) {
     if (prefixes[i].items) {
       printf("%04X\n", i);
-      std::vector<PREFIX_ITEM> *items = prefixes[i].items;
-      for (int j = 0; j < (*items).size(); j++) {
-        printf("  %d\n", (*items)[j].sPrefix);
-        printf("  %g\n", (*items)[j].difficulty);
-        printf("  %s\n", (*items)[j].prefix);
+      for (int j = 0; j < (int)prefixes[i].items->size(); j++) {
+        printf("  %d\n", (*prefixes[i].items)[j].sPrefix);
+        printf("  %g\n", (*prefixes[i].items)[j].difficulty);
+        printf("  %s\n", (*prefixes[i].items)[j].prefix);
       }
     }
+  }
+
+}
+// ----------------------------------------------------------------------------
+
+void VanitySearch::enumCaseUnsentivePrefix(std::string s, std::vector<std::string> &list) {
+
+  char letter[64];
+  int letterpos[64];
+  int nbLetter = 0;
+  int length = (int)s.length();
+
+  for (int i = 1; i < length; i++) {
+    char c = s.data()[i];
+    if( (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ) {
+      letter[nbLetter] = tolower(c);
+      letterpos[nbLetter] = i;
+      nbLetter++;
+    }
+  }
+
+  int total = 1 << nbLetter;
+
+  for (int i = 0; i < total; i++) {
+
+    char tmp[64];
+    strcpy(tmp, s.c_str());
+
+    for (int j = 0; j < nbLetter; j++) {
+      int mask = 1 << j;
+      if (mask&i) tmp[letterpos[j]] = toupper(letter[j]);
+      else         tmp[letterpos[j]] = letter[j];
+    }
+
+    list.push_back(string(tmp));
+
   }
 
 }
@@ -428,11 +546,12 @@ double VanitySearch::getDiffuclty() {
 
   for (int i = 0; i < (int)usedPrefix.size(); i++) {
     int p = usedPrefix[i];
-    std::vector<PREFIX_ITEM>& items = *prefixes[p].items;
-    for (int j = 0; j < items.size(); j++) {
-      if (!items[j].found) {
-        if(items[j].difficulty<min)
-          min = items[j].difficulty;
+    if (prefixes[p].items) {
+      for (int j = 0; j < (int)prefixes[p].items->size(); j++) {
+        if (!*((*prefixes[p].items)[j].found)) {
+          if ((*prefixes[p].items)[j].difficulty < min)
+            min = (*prefixes[p].items)[j].difficulty;
+        }
       }
     }
   }
@@ -565,12 +684,15 @@ void VanitySearch::updateFound() {
   if (stopWhenFound) {
 
     bool allFound = true;
-    for (int i = 0; i < usedPrefix.size(); i++) {
+    for (int i = 0; i < (int)usedPrefix.size(); i++) {
       bool iFound = true;
-      if (!prefixes[usedPrefix[i]].found) {
-        std::vector<PREFIX_ITEM>& items = *prefixes[usedPrefix[i]].items;
-        for (int j = 0; j < items.size(); j++)
-          iFound &= items[j].found;
+      prefix_t p = usedPrefix[i];
+      if (!prefixes[p].found) {
+        if (prefixes[p].items) {
+          for(int j=0;j<(int)prefixes[p].items->size();j++) {
+            iFound &= *((*prefixes[p].items)[j].found);
+          }
+        }
         prefixes[usedPrefix[i]].found = iFound;
       }
       allFound &= iFound;
@@ -646,61 +768,59 @@ bool VanitySearch::checkPrivKey(string addr, Int &key, int32_t incr, int endomor
 
 void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism, bool mode) {
 
-  vector<PREFIX_ITEM>& items = *prefixes[prefIdx].items;
-  
-  if (onlyFull) {
-	  
-	// Full addresses
-    for (int i = 0; i < items.size(); i++) {
+  vector<PREFIX_ITEM> *pi = prefixes[prefIdx].items;
 
-      if(stopWhenFound && items[i].found)
+  if (onlyFull) {
+
+    // Full addresses
+    for (int i = 0; i < (int)pi->size(); i++) {
+
+      if (stopWhenFound && *((*pi)[i].found))
         continue;
 
-      if (ripemd160_comp_hash(items[i].hash160, hash160) ) {
+      if (ripemd160_comp_hash((*pi)[i].hash160, hash160)) {
 
         // Found it !
+        *((*pi)[i].found) = true;
         // You believe it ?
-        if (checkPrivKey(secp->GetAddress(searchType,mode,hash160), key, incr, endomorphism, mode)) {
-          // Mark it as found
-          items[i].found = true;
+        if (checkPrivKey(secp->GetAddress(searchType, mode, hash160), key, incr, endomorphism, mode)) {
           nbFoundKey++;
           updateFound();
         }
-        
+
       }
 
     }
-    
+
   } else {
-	  
+
     char a[64];
-	  
+
     string addr = secp->GetAddress(searchType, mode, hash160);
 
-    for (int i = 0; i < items.size(); i++) {
+    for (int i = 0; i < (int)pi->size(); i++) {
 
-      if(stopWhenFound && items[i].found)
+      if (stopWhenFound && *((*pi)[i].found))
         continue;
-        
-      strncpy(a, addr.c_str(),items[i].prefixLength);
-      a[items[i].prefixLength] = 0;
-        
-      if (strcmp(items[i].prefix, a) == 0) {
+
+      strncpy(a, addr.c_str(), (*pi)[i].prefixLength);
+      a[(*pi)[i].prefixLength] = 0;
+
+      if (strcmp((*pi)[i].prefix, a) == 0) {
 
         // Found it !
+        *((*pi)[i].found) = true;
         if (checkPrivKey(addr, key, incr, endomorphism, mode)) {
-          // Mark it as found
-          items[i].found = true;
           nbFoundKey++;
           updateFound();
         }
 
       }
-	
+
     }
 
   }
-  
+
 }
 
 // ----------------------------------------------------------------------------
@@ -736,7 +856,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   // Point
   secp->GetHash160(searchType,compressed, p1, h0);
   prefix_t pr0 = *(prefix_t *)h0;
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, i, 0, compressed);
 
   // Endomorphism #1
@@ -746,7 +866,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   secp->GetHash160(searchType, compressed, pte1[0], h0);
 
   pr0 = *(prefix_t *)h0;
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, i, 1, compressed);
 
   // Endomorphism #2
@@ -756,7 +876,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   secp->GetHash160(searchType, compressed, pte2[0], h0);
 
   pr0 = *(prefix_t *)h0;
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, i, 2, compressed);
 
   // Curve symetrie
@@ -764,7 +884,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   p1.y.ModNeg();
   secp->GetHash160(searchType, compressed, p1, h0);
   pr0 = *(prefix_t *)h0;
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, -i, 0, compressed);
 
   // Endomorphism #1
@@ -773,7 +893,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   secp->GetHash160(searchType, compressed, pte1[0], h0);
 
   pr0 = *(prefix_t *)h0;
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, -i, 1, compressed);
 
   // Endomorphism #2
@@ -782,7 +902,7 @@ void VanitySearch::checkAddresses(bool compressed, Int key, int i, Point p1) {
   secp->GetHash160(searchType, compressed, pte2[0], h0);
 
   pr0 = *(prefix_t *)h0;
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, -i, 2, compressed);
 
 }
@@ -806,13 +926,13 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   prefix_t pr2 = *(prefix_t *)h2;
   prefix_t pr3 = *(prefix_t *)h3;
 
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, i, 0, compressed);
-  if (prefixes[pr1].items)
+  if (checkAlways || prefixes[pr1].items)
     checkAddr(pr1, h1, key, i + 1, 0, compressed);
-  if (prefixes[pr2].items)
+  if (checkAlways || prefixes[pr2].items)
     checkAddr(pr2, h2, key, i + 2, 0, compressed);
-  if (prefixes[pr3].items)
+  if (checkAlways || prefixes[pr3].items)
     checkAddr(pr3, h3, key, i + 3, 0, compressed);
 
   // Endomorphism #1
@@ -833,13 +953,13 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   pr2 = *(prefix_t *)h2;
   pr3 = *(prefix_t *)h3;
 
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, i, 1, compressed);
-  if (prefixes[pr1].items)
+  if (checkAlways || prefixes[pr1].items)
     checkAddr(pr1, h1, key, (i + 1), 1, compressed);
-  if (prefixes[pr2].items)
+  if (checkAlways || prefixes[pr2].items)
     checkAddr(pr2, h2, key, (i + 2), 1, compressed);
-  if (prefixes[pr3].items)
+  if (checkAlways || prefixes[pr3].items)
     checkAddr(pr3, h3, key, (i + 3), 1, compressed);
 
   // Endomorphism #2
@@ -860,13 +980,13 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   pr2 = *(prefix_t *)h2;
   pr3 = *(prefix_t *)h3;
 
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, i, 2, compressed);
-  if (prefixes[pr1].items)
+  if (checkAlways || prefixes[pr1].items)
     checkAddr(pr1, h1, key, (i + 1), 2, compressed);
-  if (prefixes[pr2].items)
+  if (checkAlways || prefixes[pr2].items)
     checkAddr(pr2, h2, key, (i + 2), 2, compressed);
-  if (prefixes[pr3].items)
+  if (checkAlways || prefixes[pr3].items)
     checkAddr(pr3, h3, key, (i + 3), 2, compressed);
 
   // Curve symetrie -------------------------------------------------------------------------
@@ -884,13 +1004,13 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   pr2 = *(prefix_t *)h2;
   pr3 = *(prefix_t *)h3;
 
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, -i, 0, compressed);
-  if (prefixes[pr1].items)
+  if (checkAlways || prefixes[pr1].items)
     checkAddr(pr1, h1, key, -(i + 1), 0, compressed);
-  if (prefixes[pr2].items)
+  if (checkAlways || prefixes[pr2].items)
     checkAddr(pr2, h2, key, -(i + 2), 0, compressed);
-  if (prefixes[pr3].items)
+  if (checkAlways || prefixes[pr3].items)
     checkAddr(pr3, h3, key, -(i + 3), 0, compressed);
 
   // Endomorphism #1
@@ -908,13 +1028,13 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   pr2 = *(prefix_t *)h2;
   pr3 = *(prefix_t *)h3;
 
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, -i, 1, compressed);
-  if (prefixes[pr1].items)
+  if (checkAlways || prefixes[pr1].items)
     checkAddr(pr1, h1, key, -(i + 1), 1, compressed);
-  if (prefixes[pr2].items)
+  if (checkAlways || prefixes[pr2].items)
     checkAddr(pr2, h2, key, -(i + 2), 1, compressed);
-  if (prefixes[pr3].items)
+  if (checkAlways || prefixes[pr3].items)
     checkAddr(pr3, h3, key, -(i + 3), 1, compressed);
 
   // Endomorphism #2
@@ -931,13 +1051,13 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
   pr2 = *(prefix_t *)h2;
   pr3 = *(prefix_t *)h3;
 
-  if (prefixes[pr0].items)
+  if (checkAlways || prefixes[pr0].items)
     checkAddr(pr0, h0, key, -i, 2, compressed);
-  if (prefixes[pr1].items)
+  if (checkAlways || prefixes[pr1].items)
     checkAddr(pr1, h1, key, -(i + 1), 2, compressed);
-  if (prefixes[pr2].items)
+  if (checkAlways || prefixes[pr2].items)
     checkAddr(pr2, h2, key, -(i + 2), 2, compressed);
-  if (prefixes[pr3].items)
+  if (checkAlways || prefixes[pr3].items)
     checkAddr(pr3, h3, key, -(i + 3), 2, compressed);
 
 }
