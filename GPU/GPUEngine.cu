@@ -380,9 +380,9 @@ void GPUEngine::SetPrefix(std::vector<prefix_t> prefixes) {
 
 }
 
-void GPUEngine::SetPattern(std::string pattern) {
+void GPUEngine::SetPattern(const char *pattern) {
 
-  strcpy((char *)inputPrefixPinned,pattern.c_str());
+  strcpy((char *)inputPrefixPinned,pattern);
 
   // Fill device memory
   cudaMemcpy(inputPrefix, inputPrefixPinned, _64K * 2, cudaMemcpyHostToDevice);

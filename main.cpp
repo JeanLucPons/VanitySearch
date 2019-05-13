@@ -372,7 +372,7 @@ int main(int argc, char* argv[]) {
   // Init SecpK1
   Secp256K1 *secp = new Secp256K1();
   secp->Init();
-
+  
   // Browse arguments
   if (argc < 2) {
     printf("Not enough argument\n");

@@ -64,7 +64,7 @@ public:
   bool SetKeys(Point *p);
   void SetSearchMode(int searchMode);
   void SetSearchType(int searchType);
-  void SetPattern(std::string pattern);
+  void SetPattern(const char *pattern);
   bool Launch(std::vector<ITEM> &prefixFound,bool spinWait=false);
   int GetNbThread();
   int GetGroupSize();

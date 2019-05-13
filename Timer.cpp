@@ -30,6 +30,7 @@ LARGE_INTEGER Timer::qwTicksPerSec;
 
 #include <sys/time.h>
 #include <unistd.h>
+#include <string.h>
 time_t Timer::tickStart;
 
 #endif
@@ -65,7 +66,7 @@ std::string Timer::getSeed(int size) {
 
   std::string ret;
   char tmp[3];
-  unsigned char *buff = (BYTE *)malloc(size);
+  unsigned char *buff = (unsigned char *)malloc(size);
 
 #ifdef WIN64
   
@@ -109,9 +110,18 @@ std::string Timer::getSeed(int size) {
 
 #else
 
-  struct timeval tv;
-  gettimeofday(&tv, NULL);
-  return (uint64_t)(tv.tv_sec << 32) | (uint64_t)(tv.tv_usec);
+  FILE *f = fopen("/dev/urandom","rb");
+  if(f==NULL) {
+    printf("Failed to open /dev/urandom %s\n", strerror( errno ));
+    exit(1);
+  }
+  for (int i = 0; i < size; i++) {
+    if( fread(buff+i,1,1,f)!=1 ) {
+      printf("Failed to read from /dev/urandom %s\n", strerror( errno ));
+      exit(1);
+	}
+  }
+  fclose(f);
 
 #endif
 
