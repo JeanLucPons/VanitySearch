@@ -291,7 +291,6 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
   if (seed.length() == 0) {
     // Default seed
     seed = Timer::getSeed(32);
-    printf("OS Seed:%s\n",seed.c_str());
   }
 
   if (paranoiacSeed) {
