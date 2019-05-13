@@ -25,6 +25,7 @@
 namespace _sha256sse
 {
 
+
 #ifdef WIN64
   static const __declspec(align(16)) uint32_t _init[] = {
 #else
@@ -211,6 +212,217 @@ namespace _sha256sse
 
   }
 
+  // Perform 4 SHA(SHA(bi))[0] in parallel using SSE2
+  void Transform2(__m128i *s, uint32_t *b0, uint32_t *b1, uint32_t *b2, uint32_t *b3) {
+    __m128i a, b, c, d, e, f, g, h;
+    __m128i w0, w1, w2, w3, w4, w5, w6, w7;
+    __m128i w8, w9, w10, w11, w12, w13, w14, w15;
+    __m128i T1, T2;
+
+    a = _mm_load_si128(s + 0);
+    b = _mm_load_si128(s + 1);
+    c = _mm_load_si128(s + 2);
+    d = _mm_load_si128(s + 3);
+    e = _mm_load_si128(s + 4);
+    f = _mm_load_si128(s + 5);
+    g = _mm_load_si128(s + 6);
+    h = _mm_load_si128(s + 7);
+
+    w0 = _mm_set_epi32(b0[0], b1[0], b2[0], b3[0]);
+    w1 = _mm_set_epi32(b0[1], b1[1], b2[1], b3[1]);
+    w2 = _mm_set_epi32(b0[2], b1[2], b2[2], b3[2]);
+    w3 = _mm_set_epi32(b0[3], b1[3], b2[3], b3[3]);
+    w4 = _mm_set_epi32(b0[4], b1[4], b2[4], b3[4]);
+    w5 = _mm_set_epi32(b0[5], b1[5], b2[5], b3[5]);
+    w6 = _mm_set_epi32(b0[6], b1[6], b2[6], b3[6]);
+    w7 = _mm_set_epi32(b0[7], b1[7], b2[7], b3[7]);
+    w8 = _mm_set_epi32(b0[8], b1[8], b2[8], b3[8]);
+    w9 = _mm_set_epi32(b0[9], b1[9], b2[9], b3[9]);
+    w10 = _mm_set_epi32(b0[10], b1[10], b2[10], b3[10]);
+    w11 = _mm_set_epi32(b0[11], b1[11], b2[11], b3[11]);
+    w12 = _mm_set_epi32(b0[12], b1[12], b2[12], b3[12]);
+    w13 = _mm_set_epi32(b0[13], b1[13], b2[13], b3[13]);
+    w14 = _mm_set_epi32(b0[14], b1[14], b2[14], b3[14]);
+    w15 = _mm_set_epi32(b0[15], b1[15], b2[15], b3[15]);
+
+    Round(a, b, c, d, e, f, g, h, 0x428A2F98, w0);
+    Round(h, a, b, c, d, e, f, g, 0x71374491, w1);
+    Round(g, h, a, b, c, d, e, f, 0xB5C0FBCF, w2);
+    Round(f, g, h, a, b, c, d, e, 0xE9B5DBA5, w3);
+    Round(e, f, g, h, a, b, c, d, 0x3956C25B, w4);
+    Round(d, e, f, g, h, a, b, c, 0x59F111F1, w5);
+    Round(c, d, e, f, g, h, a, b, 0x923F82A4, w6);
+    Round(b, c, d, e, f, g, h, a, 0xAB1C5ED5, w7);
+    Round(a, b, c, d, e, f, g, h, 0xD807AA98, w8);
+    Round(h, a, b, c, d, e, f, g, 0x12835B01, w9);
+    Round(g, h, a, b, c, d, e, f, 0x243185BE, w10);
+    Round(f, g, h, a, b, c, d, e, 0x550C7DC3, w11);
+    Round(e, f, g, h, a, b, c, d, 0x72BE5D74, w12);
+    Round(d, e, f, g, h, a, b, c, 0x80DEB1FE, w13);
+    Round(c, d, e, f, g, h, a, b, 0x9BDC06A7, w14);
+    Round(b, c, d, e, f, g, h, a, 0xC19BF174, w15);
+
+    WMIX()
+
+    Round(a, b, c, d, e, f, g, h, 0xE49B69C1, w0);
+    Round(h, a, b, c, d, e, f, g, 0xEFBE4786, w1);
+    Round(g, h, a, b, c, d, e, f, 0x0FC19DC6, w2);
+    Round(f, g, h, a, b, c, d, e, 0x240CA1CC, w3);
+    Round(e, f, g, h, a, b, c, d, 0x2DE92C6F, w4);
+    Round(d, e, f, g, h, a, b, c, 0x4A7484AA, w5);
+    Round(c, d, e, f, g, h, a, b, 0x5CB0A9DC, w6);
+    Round(b, c, d, e, f, g, h, a, 0x76F988DA, w7);
+    Round(a, b, c, d, e, f, g, h, 0x983E5152, w8);
+    Round(h, a, b, c, d, e, f, g, 0xA831C66D, w9);
+    Round(g, h, a, b, c, d, e, f, 0xB00327C8, w10);
+    Round(f, g, h, a, b, c, d, e, 0xBF597FC7, w11);
+    Round(e, f, g, h, a, b, c, d, 0xC6E00BF3, w12);
+    Round(d, e, f, g, h, a, b, c, 0xD5A79147, w13);
+    Round(c, d, e, f, g, h, a, b, 0x06CA6351, w14);
+    Round(b, c, d, e, f, g, h, a, 0x14292967, w15);
+
+    WMIX()
+
+    Round(a, b, c, d, e, f, g, h, 0x27B70A85, w0);
+    Round(h, a, b, c, d, e, f, g, 0x2E1B2138, w1);
+    Round(g, h, a, b, c, d, e, f, 0x4D2C6DFC, w2);
+    Round(f, g, h, a, b, c, d, e, 0x53380D13, w3);
+    Round(e, f, g, h, a, b, c, d, 0x650A7354, w4);
+    Round(d, e, f, g, h, a, b, c, 0x766A0ABB, w5);
+    Round(c, d, e, f, g, h, a, b, 0x81C2C92E, w6);
+    Round(b, c, d, e, f, g, h, a, 0x92722C85, w7);
+    Round(a, b, c, d, e, f, g, h, 0xA2BFE8A1, w8);
+    Round(h, a, b, c, d, e, f, g, 0xA81A664B, w9);
+    Round(g, h, a, b, c, d, e, f, 0xC24B8B70, w10);
+    Round(f, g, h, a, b, c, d, e, 0xC76C51A3, w11);
+    Round(e, f, g, h, a, b, c, d, 0xD192E819, w12);
+    Round(d, e, f, g, h, a, b, c, 0xD6990624, w13);
+    Round(c, d, e, f, g, h, a, b, 0xF40E3585, w14);
+    Round(b, c, d, e, f, g, h, a, 0x106AA070, w15);
+
+    WMIX()
+
+    Round(a, b, c, d, e, f, g, h, 0x19A4C116, w0);
+    Round(h, a, b, c, d, e, f, g, 0x1E376C08, w1);
+    Round(g, h, a, b, c, d, e, f, 0x2748774C, w2);
+    Round(f, g, h, a, b, c, d, e, 0x34B0BCB5, w3);
+    Round(e, f, g, h, a, b, c, d, 0x391C0CB3, w4);
+    Round(d, e, f, g, h, a, b, c, 0x4ED8AA4A, w5);
+    Round(c, d, e, f, g, h, a, b, 0x5B9CCA4F, w6);
+    Round(b, c, d, e, f, g, h, a, 0x682E6FF3, w7);
+    Round(a, b, c, d, e, f, g, h, 0x748F82EE, w8);
+    Round(h, a, b, c, d, e, f, g, 0x78A5636F, w9);
+    Round(g, h, a, b, c, d, e, f, 0x84C87814, w10);
+    Round(f, g, h, a, b, c, d, e, 0x8CC70208, w11);
+    Round(e, f, g, h, a, b, c, d, 0x90BEFFFA, w12);
+    Round(d, e, f, g, h, a, b, c, 0xA4506CEB, w13);
+    Round(c, d, e, f, g, h, a, b, 0xBEF9A3F7, w14);
+    Round(b, c, d, e, f, g, h, a, 0xC67178F2, w15);
+
+    w0 = _mm_add_epi32(a, s[0]);
+    w1 = _mm_add_epi32(b, s[1]);
+    w2 = _mm_add_epi32(c, s[2]);
+    w3 = _mm_add_epi32(d, s[3]);
+    w4 = _mm_add_epi32(e, s[4]);
+    w5 = _mm_add_epi32(f, s[5]);
+    w6 = _mm_add_epi32(g, s[6]);
+    w7 = _mm_add_epi32(h, s[7]);
+    w8 = _mm_set1_epi32(0x80000000);
+    w9 = _mm_xor_si128(w9,w9);
+    w10 = _mm_xor_si128(w10, w10);
+    w11 = _mm_xor_si128(w11, w11);
+    w12 = _mm_xor_si128(w12, w12);
+    w13 = _mm_xor_si128(w13, w13);
+    w14 = _mm_xor_si128(w14, w14);
+    w15 = _mm_set1_epi32(0x100);
+
+    a = _mm_load_si128(s + 0);
+    b = _mm_load_si128(s + 1);
+    c = _mm_load_si128(s + 2);
+    d = _mm_load_si128(s + 3);
+    e = _mm_load_si128(s + 4);
+    f = _mm_load_si128(s + 5);
+    g = _mm_load_si128(s + 6);
+    h = _mm_load_si128(s + 7);
+
+    Round(a, b, c, d, e, f, g, h, 0x428A2F98, w0);
+    Round(h, a, b, c, d, e, f, g, 0x71374491, w1);
+    Round(g, h, a, b, c, d, e, f, 0xB5C0FBCF, w2);
+    Round(f, g, h, a, b, c, d, e, 0xE9B5DBA5, w3);
+    Round(e, f, g, h, a, b, c, d, 0x3956C25B, w4);
+    Round(d, e, f, g, h, a, b, c, 0x59F111F1, w5);
+    Round(c, d, e, f, g, h, a, b, 0x923F82A4, w6);
+    Round(b, c, d, e, f, g, h, a, 0xAB1C5ED5, w7);
+    Round(a, b, c, d, e, f, g, h, 0xD807AA98, w8);
+    Round(h, a, b, c, d, e, f, g, 0x12835B01, w9);
+    Round(g, h, a, b, c, d, e, f, 0x243185BE, w10);
+    Round(f, g, h, a, b, c, d, e, 0x550C7DC3, w11);
+    Round(e, f, g, h, a, b, c, d, 0x72BE5D74, w12);
+    Round(d, e, f, g, h, a, b, c, 0x80DEB1FE, w13);
+    Round(c, d, e, f, g, h, a, b, 0x9BDC06A7, w14);
+    Round(b, c, d, e, f, g, h, a, 0xC19BF174, w15);
+
+    WMIX()
+
+    Round(a, b, c, d, e, f, g, h, 0xE49B69C1, w0);
+    Round(h, a, b, c, d, e, f, g, 0xEFBE4786, w1);
+    Round(g, h, a, b, c, d, e, f, 0x0FC19DC6, w2);
+    Round(f, g, h, a, b, c, d, e, 0x240CA1CC, w3);
+    Round(e, f, g, h, a, b, c, d, 0x2DE92C6F, w4);
+    Round(d, e, f, g, h, a, b, c, 0x4A7484AA, w5);
+    Round(c, d, e, f, g, h, a, b, 0x5CB0A9DC, w6);
+    Round(b, c, d, e, f, g, h, a, 0x76F988DA, w7);
+    Round(a, b, c, d, e, f, g, h, 0x983E5152, w8);
+    Round(h, a, b, c, d, e, f, g, 0xA831C66D, w9);
+    Round(g, h, a, b, c, d, e, f, 0xB00327C8, w10);
+    Round(f, g, h, a, b, c, d, e, 0xBF597FC7, w11);
+    Round(e, f, g, h, a, b, c, d, 0xC6E00BF3, w12);
+    Round(d, e, f, g, h, a, b, c, 0xD5A79147, w13);
+    Round(c, d, e, f, g, h, a, b, 0x06CA6351, w14);
+    Round(b, c, d, e, f, g, h, a, 0x14292967, w15);
+
+    WMIX()
+
+    Round(a, b, c, d, e, f, g, h, 0x27B70A85, w0);
+    Round(h, a, b, c, d, e, f, g, 0x2E1B2138, w1);
+    Round(g, h, a, b, c, d, e, f, 0x4D2C6DFC, w2);
+    Round(f, g, h, a, b, c, d, e, 0x53380D13, w3);
+    Round(e, f, g, h, a, b, c, d, 0x650A7354, w4);
+    Round(d, e, f, g, h, a, b, c, 0x766A0ABB, w5);
+    Round(c, d, e, f, g, h, a, b, 0x81C2C92E, w6);
+    Round(b, c, d, e, f, g, h, a, 0x92722C85, w7);
+    Round(a, b, c, d, e, f, g, h, 0xA2BFE8A1, w8);
+    Round(h, a, b, c, d, e, f, g, 0xA81A664B, w9);
+    Round(g, h, a, b, c, d, e, f, 0xC24B8B70, w10);
+    Round(f, g, h, a, b, c, d, e, 0xC76C51A3, w11);
+    Round(e, f, g, h, a, b, c, d, 0xD192E819, w12);
+    Round(d, e, f, g, h, a, b, c, 0xD6990624, w13);
+    Round(c, d, e, f, g, h, a, b, 0xF40E3585, w14);
+    Round(b, c, d, e, f, g, h, a, 0x106AA070, w15);
+
+    WMIX()
+
+    Round(a, b, c, d, e, f, g, h, 0x19A4C116, w0);
+    Round(h, a, b, c, d, e, f, g, 0x1E376C08, w1);
+    Round(g, h, a, b, c, d, e, f, 0x2748774C, w2);
+    Round(f, g, h, a, b, c, d, e, 0x34B0BCB5, w3);
+    Round(e, f, g, h, a, b, c, d, 0x391C0CB3, w4);
+    Round(d, e, f, g, h, a, b, c, 0x4ED8AA4A, w5);
+    Round(c, d, e, f, g, h, a, b, 0x5B9CCA4F, w6);
+    Round(b, c, d, e, f, g, h, a, 0x682E6FF3, w7);
+    Round(a, b, c, d, e, f, g, h, 0x748F82EE, w8);
+    Round(h, a, b, c, d, e, f, g, 0x78A5636F, w9);
+    Round(g, h, a, b, c, d, e, f, 0x84C87814, w10);
+    Round(f, g, h, a, b, c, d, e, 0x8CC70208, w11);
+    Round(e, f, g, h, a, b, c, d, 0x90BEFFFA, w12);
+    Round(d, e, f, g, h, a, b, c, 0xA4506CEB, w13);
+    Round(c, d, e, f, g, h, a, b, 0xBEF9A3F7, w14);
+    Round(b, c, d, e, f, g, h, a, 0xC67178F2, w15);
+
+    s[0] = _mm_add_epi32(a, s[0]);
+
+  }
+
 } // end namespace
 
 void sha256sse_1B(
@@ -340,6 +552,26 @@ void sha256sse_2B(
   _mm_store_si128((__m128i *)(d1 + 16), _d1);
   _mm_store_si128((__m128i *)(d2 + 16), _d2);
   _mm_store_si128((__m128i *)(d3 + 16), _d3);
+
+}
+
+void sha256sse_checksum(uint32_t *i0, uint32_t *i1, uint32_t *i2, uint32_t *i3,
+  uint8_t *d0, uint8_t *d1, uint8_t *d2, uint8_t *d3) {
+
+  __m128i s[8];
+
+  _sha256sse::Initialize(s);
+  _sha256sse::Transform2(s, i0, i1, i2, i3);
+
+#ifndef WIN64
+  // TODO
+#error "Implement me !"
+#else
+  *((uint32_t *)d0) = _byteswap_ulong(s[0].m128i_u32[3]);
+  *((uint32_t *)d1) = _byteswap_ulong(s[0].m128i_u32[2]);
+  *((uint32_t *)d2) = _byteswap_ulong(s[0].m128i_u32[1]);
+  *((uint32_t *)d3) = _byteswap_ulong(s[0].m128i_u32[0]);
+#endif
 
 }
 

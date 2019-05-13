@@ -32,6 +32,8 @@
 #include "GPUGroup.h"
 #include "GPUMath.h"
 #include "GPUHash.h"
+#include "GPUBase58.h"
+#include "GPUWildcard.h"
 #include "GPUCompute.h"
 
 // ---------------------------------------------------------------------------------------
@@ -60,6 +62,21 @@ __global__ void comp_keys_comp(prefix_t *prefix, uint32_t *lookup32, uint64_t *k
 
 }
 
+__global__ void comp_keys_pattern(uint32_t mode, prefix_t *pattern, uint64_t *keys,  uint32_t maxFound, uint32_t *found) {
+
+  int xPtr = (blockIdx.x*blockDim.x) * 8;
+  int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
+  ComputeKeys(mode, keys + xPtr, keys + yPtr, NULL, (uint32_t *)pattern, maxFound, found);
+
+}
+
+__global__ void comp_keys_p2sh_pattern(uint32_t mode, prefix_t *pattern, uint64_t *keys, uint32_t maxFound, uint32_t *found) {
+
+  int xPtr = (blockIdx.x*blockDim.x) * 8;
+  int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
+  ComputeKeysP2SH(mode, keys + xPtr, keys + yPtr, NULL, (uint32_t *)pattern, maxFound, found);
+
+}
 
 //#define FULLCHECK
 #ifdef FULLCHECK
@@ -262,6 +279,8 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound,bool rekey)
   searchMode = SEARCH_COMPRESSED;
   searchType = P2PKH;
   initialised = true;
+  pattern = "";
+  hasPattern = false;
   inputPrefixLookUp = NULL;
 
 }
@@ -361,6 +380,27 @@ void GPUEngine::SetPrefix(std::vector<prefix_t> prefixes) {
 
 }
 
+void GPUEngine::SetPattern(std::string pattern) {
+
+  strcpy((char *)inputPrefixPinned,pattern.c_str());
+
+  // Fill device memory
+  cudaMemcpy(inputPrefix, inputPrefixPinned, _64K * 2, cudaMemcpyHostToDevice);
+
+  // We do not need the input pinned memory anymore
+  cudaFreeHost(inputPrefixPinned);
+  inputPrefixPinned = NULL;
+  lostWarning = false;
+
+  cudaError_t err = cudaGetLastError();
+  if (err != cudaSuccess) {
+    printf("GPUEngine: SetPattern: %s\n", cudaGetErrorString(err));
+  }
+
+  hasPattern = true;
+
+}
+
 void GPUEngine::SetPrefix(std::vector<LPREFIX> prefixes, uint32_t totalPrefix) {
 
   // Allocate memory for the second level of lookup tables
@@ -409,6 +449,7 @@ void GPUEngine::SetPrefix(std::vector<LPREFIX> prefixes, uint32_t totalPrefix) {
   }
 
 }
+
 bool GPUEngine::callKernel() {
 
   // Reset nbFound
@@ -416,17 +457,36 @@ bool GPUEngine::callKernel() {
 
   // Call the kernel (Perform STEP_SIZE keys per thread)
   if (searchType == P2SH) {
-    comp_keys_p2sh << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
-      (searchMode, inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
-  } else {
-    // P2PKH or BECH32
-    if (searchMode == SEARCH_COMPRESSED) {
-      comp_keys_comp << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
-        (inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
+
+    if (hasPattern) {
+      comp_keys_p2sh_pattern << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+        (searchMode, inputPrefix, inputKey, maxFound, outputPrefix);
     } else {
-      comp_keys << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+      comp_keys_p2sh << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
         (searchMode, inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
     }
+
+  } else {
+
+    // P2PKH or BECH32
+    if (hasPattern) {
+      if (searchType == BECH32) {
+        // TODO
+        printf("GPUEngine: (TODO) BECH32 not yet supported with wildard\n");
+        return false;
+      }
+      comp_keys_pattern << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+        (searchMode, inputPrefix, inputKey, maxFound, outputPrefix);
+    } else {
+      if (searchMode == SEARCH_COMPRESSED) {
+        comp_keys_comp << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+          (inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
+      } else {
+        comp_keys << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+          (searchMode, inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
+      }
+    }
+
   }
 
   cudaError_t err = cudaGetLastError();
@@ -638,13 +698,13 @@ bool GPUEngine::Check(Secp256K1 *secp) {
 
 #endif //FULLCHECK
 
+  Point *p = new Point[nbThread];
+  Point *p2 = new Point[nbThread];
+  Int k;  
 
   // Check kernel
   int nbFoundCPU[6];
   int nbOK[6];
-  Int k;
-  Point *p = new Point[nbThread];
-  Point *p2 = new Point[nbThread];
   vector<ITEM> found;
   bool searchComp;
 
@@ -655,7 +715,7 @@ bool GPUEngine::Check(Secp256K1 *secp) {
 
   searchComp = (searchMode == SEARCH_COMPRESSED)?true:false;
 
-  uint32_t seed = (uint32_t)(Timer::getSeedFromTimer());
+  uint32_t seed = (uint32_t)time(NULL);
   printf("Seed: %u\n",seed);
   rseed(seed);
   memset(nbOK,0,sizeof(nbOK));

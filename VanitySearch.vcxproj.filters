@@ -42,6 +42,13 @@
       <Filter>GPU</Filter>
     </ClInclude>
     <ClInclude Include="Bech32.h" />
+    <ClInclude Include="Wildcard.h" />
+    <ClInclude Include="GPU\GPUBase58.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="GPU\GPUWildcard.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GPU\GPUGenerate.cpp">
@@ -73,6 +80,7 @@
     <ClCompile Include="Base58.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Bech32.cpp" />
+    <ClCompile Include="Wildcard.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="GPU\GPUEngine.cu">

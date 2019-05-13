@@ -24,7 +24,7 @@
 // We use affine coordinates for elliptic curve point (ie Z=1)
 
 __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo, int32_t mode,prefix_t *prefix, 
-                                        uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
+                                        uint32_t *lookup32, uint32_t maxFound, uint32_t *out,int type) {
 
   uint32_t   off;
   prefixl_t  l32;
@@ -36,43 +36,59 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
   uint32_t   mi;
   uint32_t   lmi;
   uint32_t   tid = (blockIdx.x*blockDim.x) + threadIdx.x;
+  char       add[48];
+  
+  if (prefix == NULL) {
 
-  pr0 = *(prefix_t *)(_h);
-  hit = prefix[pr0];
-
-  if (hit) {
-
-    if (lookup32) {
-      off = lookup32[pr0];
-      l32 = _h[0];
-      st=  off;
-      ed = off + hit - 1;
-      while(st<=ed) {
-        mi = (st+ed)/2;
-        lmi = lookup32[mi];
-	      if(l32<lmi) {
-		      ed = mi - 1;
-	      } else if(l32==lmi) {
-		      // found
-		      goto addItem;
-	      } else {
-	        st = mi + 1;
-	      }	    
-      }	   
-	    return;	  
+    // No lookup compute address and return
+    char *pattern = (char *)lookup32;
+    _GetAddress(type, _h, add);
+    if (_Match(add, pattern)) {
+      // found
+      goto addItem;
     }
+ 
+  } else {
+    
+    // Lookup table
+    pr0 = *(prefix_t *)(_h);
+    hit = prefix[pr0];
 
-addItem:
+    if (hit) {
 
-    pos = atomicAdd(out, 1);
-    if (pos < maxFound) {
-      out[pos*ITEM_SIZE32 + 1] = tid;
-      out[pos*ITEM_SIZE32 + 2] = (uint32_t)(incr << 16) | (uint32_t)(mode << 15) | (uint32_t)(endo);
-      out[pos*ITEM_SIZE32 + 3] = _h[0];
-      out[pos*ITEM_SIZE32 + 4] = _h[1];
-      out[pos*ITEM_SIZE32 + 5] = _h[2];
-      out[pos*ITEM_SIZE32 + 6] = _h[3];
-      out[pos*ITEM_SIZE32 + 7] = _h[4];
+      if (lookup32) {
+        off = lookup32[pr0];
+        l32 = _h[0];
+        st = off;
+        ed = off + hit - 1;
+        while (st <= ed) {
+          mi = (st + ed) / 2;
+          lmi = lookup32[mi];
+          if (l32 < lmi) {
+            ed = mi - 1;
+          } else if (l32 == lmi) {
+            // found
+            goto addItem;
+          } else {
+            st = mi + 1;
+          }
+        }
+        return;
+      }
+
+    addItem:
+
+      pos = atomicAdd(out, 1);
+      if (pos < maxFound) {
+        out[pos*ITEM_SIZE32 + 1] = tid;
+        out[pos*ITEM_SIZE32 + 2] = (uint32_t)(incr << 16) | (uint32_t)(mode << 15) | (uint32_t)(endo);
+        out[pos*ITEM_SIZE32 + 3] = _h[0];
+        out[pos*ITEM_SIZE32 + 4] = _h[1];
+        out[pos*ITEM_SIZE32 + 5] = _h[2];
+        out[pos*ITEM_SIZE32 + 6] = _h[3];
+        out[pos*ITEM_SIZE32 + 7] = _h[4];
+      }
+
     }
 
   }
@@ -81,7 +97,8 @@ addItem:
 
 // -----------------------------------------------------------------------------------------
 
-#define CHECK_POINT(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,lookup32,maxFound,out)
+#define CHECK_POINT(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,lookup32,maxFound,out,P2PKH)
+#define CHECK_POINT_P2SH(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,lookup32,maxFound,out,P2SH)
 
 __device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint8_t isOdd, int32_t incr, 
                                            uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
@@ -106,6 +123,7 @@ __device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint8
   _GetHash160Comp(pe2x, !isOdd, (uint8_t *)h);
   CHECK_POINT(h, -incr, 2, true);
 
+
 }
 
 __device__ __noinline__ void CheckHashP2SHComp(prefix_t *prefix, uint64_t *px, uint8_t isOdd, int32_t incr,
@@ -116,20 +134,20 @@ __device__ __noinline__ void CheckHashP2SHComp(prefix_t *prefix, uint64_t *px, u
   uint64_t   pe2x[4];
 
   _GetHash160P2SHComp(px, isOdd, (uint8_t *)h);
-  CHECK_POINT(h, incr, 0, true);
+  CHECK_POINT_P2SH(h, incr, 0, true);
   _ModMult(pe1x, px, _beta);
   _GetHash160P2SHComp(pe1x, isOdd, (uint8_t *)h);
-  CHECK_POINT(h, incr, 1, true);
+  CHECK_POINT_P2SH(h, incr, 1, true);
   _ModMult(pe2x, px, _beta2);
   _GetHash160P2SHComp(pe2x, isOdd, (uint8_t *)h);
-  CHECK_POINT(h, incr, 2, true);
+  CHECK_POINT_P2SH(h, incr, 2, true);
 
   _GetHash160P2SHComp(px, !isOdd, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 0, true);
+  CHECK_POINT_P2SH(h, -incr, 0, true);
   _GetHash160P2SHComp(pe1x, !isOdd, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 1, true);
+  CHECK_POINT_P2SH(h, -incr, 1, true);
   _GetHash160P2SHComp(pe2x, !isOdd, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 2, true);
+  CHECK_POINT_P2SH(h, -incr, 2, true);
 
 }
 
@@ -172,22 +190,22 @@ __device__ __noinline__ void CheckHashP2SHUncomp(prefix_t *prefix, uint64_t *px,
   uint64_t   pyn[4];
 
   _GetHash160P2SHUncomp(px, py, (uint8_t *)h);
-  CHECK_POINT(h, incr, 0, false);
+  CHECK_POINT_P2SH(h, incr, 0, false);
   _ModMult(pe1x, px, _beta);
   _GetHash160P2SHUncomp(pe1x, py, (uint8_t *)h);
-  CHECK_POINT(h, incr, 1, false);
+  CHECK_POINT_P2SH(h, incr, 1, false);
   _ModMult(pe2x, px, _beta2);
   _GetHash160P2SHUncomp(pe2x, py, (uint8_t *)h);
-  CHECK_POINT(h, incr, 2, false);
+  CHECK_POINT_P2SH(h, incr, 2, false);
 
   ModNeg256(pyn, py);
 
   _GetHash160P2SHUncomp(px, pyn, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 0, false);
+  CHECK_POINT_P2SH(h, -incr, 0, false);
   _GetHash160P2SHUncomp(pe1x, pyn, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 1, false);
+  CHECK_POINT_P2SH(h, -incr, 1, false);
   _GetHash160P2SHUncomp(pe2x, pyn, (uint8_t *)h);
-  CHECK_POINT(h, -incr, 2, false);
+  CHECK_POINT_P2SH(h, -incr, 2, false);
 
 }
 
@@ -245,6 +263,7 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
   uint64_t dy[4];
   uint64_t _s[4];
   uint64_t _p2[4];
+  char pattern[48];
 
   // Load starting key
   __syncthreads();
@@ -252,6 +271,11 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
   Load256A(sy, starty);
   Load256(px, sx);
   Load256(py, sy);
+
+  if (sPrefix == NULL) {
+    memcpy(pattern,lookup32,48);
+    lookup32 = (uint32_t *)pattern;
+  }
 
   for (uint32_t j = 0; j < STEP_SIZE / GRP_SIZE; j++) {
 
@@ -370,6 +394,7 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
   uint64_t dy[4];
   uint64_t _s[4];
   uint64_t _p2[4];
+  char pattern[48];
 
   // Load starting key
   __syncthreads();
@@ -377,6 +402,11 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
   Load256A(sy, starty);
   Load256(px, sx);
   Load256(py, sy);
+
+  if (sPrefix == NULL) {
+    memcpy(pattern, lookup32, 48);
+    lookup32 = (uint32_t *)pattern;
+  }
 
   for (uint32_t j = 0; j < STEP_SIZE / GRP_SIZE; j++) {
 

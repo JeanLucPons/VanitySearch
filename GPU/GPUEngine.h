@@ -64,6 +64,7 @@ public:
   bool SetKeys(Point *p);
   void SetSearchMode(int searchMode);
   void SetSearchType(int searchType);
+  void SetPattern(std::string pattern);
   bool Launch(std::vector<ITEM> &prefixFound,bool spinWait=false);
   int GetNbThread();
   int GetGroupSize();
@@ -98,6 +99,8 @@ private:
   bool rekey;
   uint32_t maxFound;
   uint32_t outputSize;
+  std::string pattern;
+  bool hasPattern;
 
 };
 

@@ -17,11 +17,13 @@
   <ItemGroup>
     <ClInclude Include="Base58.h" />
     <ClInclude Include="Bech32.h" />
+    <ClInclude Include="GPU\GPUBase58.h" />
     <ClInclude Include="GPU\GPUCompute.h" />
     <ClInclude Include="GPU\GPUEngine.h" />
     <ClInclude Include="GPU\GPUGroup.h" />
     <ClInclude Include="GPU\GPUHash.h" />
     <ClInclude Include="GPU\GPUMath.h" />
+    <ClInclude Include="GPU\GPUWildcard.h" />
     <ClInclude Include="hash\ripemd160.h" />
     <ClInclude Include="hash\sha256.h" />
     <ClInclude Include="hash\sha512.h" />
@@ -32,6 +34,7 @@
     <ClInclude Include="SECP256k1.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Vanity.h" />
+    <ClInclude Include="Wildcard.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Base58.cpp" />
@@ -45,6 +48,7 @@
     <ClCompile Include="Int.cpp" />
     <ClCompile Include="IntGroup.cpp" />
     <ClCompile Include="IntMod.cpp" />
+    <ClCompile Include="Wildcard.cpp" />
     <Text Include="LICENSE.txt" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Point.cpp" />

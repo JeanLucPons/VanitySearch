@@ -25,7 +25,7 @@
 #include "hash/sha512.h"
 #include "hash/sha256.h"
 
-#define RELEASE "1.13"
+#define RELEASE "1.14"
 
 using namespace std;
 
@@ -35,10 +35,10 @@ void printUsage() {
 
   printf("VanitySeacrh [-check] [-v] [-u] [-b] [-c] [-gpu] [-stop] [-i inputfile]\n");
   printf("             [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]]\n");
-  printf("             [-o outputfile] [-m maxFound] [-s seed] [-t threadNumber]\n");
+  printf("             [-o outputfile] [-m maxFound] [-ps seed] [-s seed] [-t nbThread]\n");
   printf("             [-nosse] [-r rekey] [-check] [-kp] [-sp startPubKey]\n");
   printf("             [-rp privkey partialkeyfile] [prefix]\n\n");
-  printf(" prefix: prefix to search\n");
+  printf(" prefix: prefix to search (Can contains wildcard '?' or '*')\n");
   printf(" -v: Print version\n");
   printf(" -u: Search uncompressed addresses\n");
   printf(" -b: Search both uncompressed or compressed addresses\n");
@@ -51,6 +51,7 @@ void printUsage() {
   printf(" -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)\n");
   printf(" -m: Specify maximun number of prefixes found by each kernel call\n");
   printf(" -s seed: Specify a seed for the base key, default is random\n");
+  printf(" -ps seed: Specify a seed concatened with a crypto secure random seed\n");
   printf(" -t threadNumber: Specify number of CPU thread, default is number of core\n");
   printf(" -nosse: Disable SSE hash function\n");
   printf(" -l: List cuda enabled devices\n");
@@ -160,13 +161,16 @@ void parseFile(string fileName, vector<string> &lines) {
 
 // ------------------------------------------------------------------------------------------
 
-void generateKeyPair(Secp256K1 *secp, string seed, int searchMode) {
+void generateKeyPair(Secp256K1 *secp, string seed, int searchMode,bool paranoiacSeed) {
 
   if (seed.length() < 8) {
     printf("Error: Use a seed of at leats 8 characters to generate a key pair\n");
     printf("Ex: VanitySearch -s \"A Strong Password\" -kp\n");
     exit(0);
   }
+
+  if(paranoiacSeed)
+    seed = seed + Timer::getSeed(32);
 
   if (searchMode == SEARCH_BOTH) {
     printf("Error: Use compressed or uncompressed to generate a key pair\n");
@@ -393,6 +397,7 @@ int main(int argc, char* argv[]) {
   startPuKey.Clear();
   bool startPubKeyCompressed;
   bool caseSensitive = true;
+  bool paranoiacSeed = false;
 
   while (a < argc) {
 
@@ -435,7 +440,7 @@ int main(int argc, char* argv[]) {
       exit(0);
 
     } else if (strcmp(argv[a], "-kp") == 0) {
-      generateKeyPair(secp,seed,searchMode);
+      generateKeyPair(secp,seed,searchMode,paranoiacSeed);
       exit(0);
     } else if (strcmp(argv[a], "-sp") == 0) {
       a++;
@@ -466,6 +471,11 @@ int main(int argc, char* argv[]) {
     } else if (strcmp(argv[a], "-s") == 0) {
       a++;
       seed = string(argv[a]);
+      a++;
+    } else if (strcmp(argv[a], "-ps") == 0) {
+      a++;
+      seed = string(argv[a]);
+      paranoiacSeed = true;
       a++;
     } else if (strcmp(argv[a], "-o") == 0) {
       a++;
@@ -524,7 +534,7 @@ int main(int argc, char* argv[]) {
   }
 
   VanitySearch *v = new VanitySearch(secp, prefix, seed, searchMode, gpuEnable, stop, outputFile, sse,
-    maxFound, rekey, caseSensitive, startPuKey);
+    maxFound, rekey, caseSensitive, startPuKey, paranoiacSeed);
   v->Search(nbCPUThread,gpuId,gridSize);
 
   return 0;
