@@ -20,13 +20,18 @@
 static const char *prefix[] = { "","Kilo","Mega","Giga","Tera","Peta","Hexa" };
 
 #ifdef WIN64
+
 LARGE_INTEGER Timer::perfTickStart;
 double Timer::perfTicksPerSec;
 LARGE_INTEGER Timer::qwTicksPerSec;
+#include <wincrypt.h>
+
 #else
+
 #include <sys/time.h>
 #include <unistd.h>
 time_t Timer::tickStart;
+
 #endif
 
 void Timer::Init() {
@@ -55,20 +60,68 @@ double Timer::get_tick() {
 #endif
 
 }
-uint64_t Timer::getSeedFromTimer() {
+
+std::string Timer::getSeed(int size) {
+
+  std::string ret;
+  char tmp[3];
+  unsigned char *buff = (BYTE *)malloc(size);
 
 #ifdef WIN64
+  
+  HCRYPTPROV   hCryptProv = NULL;
+  LPCSTR UserName = "KeyContainer";
 
-  uint64_t now = (uint64_t)time(NULL);
-  return (now<<32) | (uint64_t)(perfTickStart.LowPart);
+  if (!CryptAcquireContext(
+    &hCryptProv,               // handle to the CSP
+    UserName,                  // container name 
+    NULL,                      // use the default provider
+    PROV_RSA_FULL,             // provider type
+    0))                        // flag values
+  {
+    //-------------------------------------------------------------------
+    // An error occurred in acquiring the context. This could mean
+    // that the key container requested does not exist. In this case,
+    // the function can be called again to attempt to create a new key 
+    // container. Error codes are defined in Winerror.h.
+    if (GetLastError() == NTE_BAD_KEYSET) {
+      if (!CryptAcquireContext(
+        &hCryptProv,
+        UserName,
+        NULL,
+        PROV_RSA_FULL,
+        CRYPT_NEWKEYSET)) {
+        printf("CryptAcquireContext(): Could not create a new key container.\n");
+        exit(1);
+      }
+    } else {
+      printf("CryptAcquireContext(): A cryptographic service handle could not be acquired.\n");
+      exit(1);
+    }
+  }
+
+  if (!CryptGenRandom(hCryptProv,size,buff)) {
+    printf("CryptGenRandom(): Error during random sequence acquisition.\n");
+    exit(1);
+  }
+  
+  CryptReleaseContext(hCryptProv, 0);
 
 #else
 
   struct timeval tv;
   gettimeofday(&tv, NULL);
-  return (uint64_t)(tv.tv_sec<<32) | (uint64_t)(tv.tv_usec);
+  return (uint64_t)(tv.tv_sec << 32) | (uint64_t)(tv.tv_usec);
 
 #endif
+
+  for (int i = 0; i < size; i++) {
+    sprintf(tmp,"%02X",buff[i]);
+    ret.append(tmp);
+  }
+  
+  free(buff);
+  return ret;
 
 }
 
