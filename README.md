@@ -1,6 +1,6 @@
 # VanitySearch
 
-VanitySearch is a bitcoin address prefix finder. If you want to generate safe private keys, use the -s option to enter your passphrase which will be used for generating a base key as for BIP38 standard (*VanitySeacrh.exe -s "My PassPhrase" 1MyPrefix*).\
+VanitySearch is a bitcoin address prefix finder. If you want to generate safe private keys, use the -s option to enter your passphrase which will be used for generating a base key as for BIP38 standard (*VanitySeacrh.exe -s "My PassPhrase" 1MyPrefix*). You can also use *VanitySeacrh.exe -ps "My PassPhrase"* which will add a crypto secure seed to your passphrase.\
 VanitySearch may not compute a good grid size for your GPU, so try different values using -g option in order to get the best performances. If you want to use GPUs and CPUs together, you may have best performances by keeping one CPU core for handling GPU(s)/CPU exchanges (use -t option to set the number of CPU threads).
 
 # Feature
@@ -27,16 +27,17 @@ VanitySearch may not compute a good grid size for your GPU, so try different val
 You can downlad latest release from https://github.com/JeanLucPons/VanitySearch/releases
 
 ```
-VanitySeacrh [-check] [-v] [-u] [-b] [-gpu] [-stop] [-i inputfile]
+VanitySeacrh [-check] [-v] [-u] [-b] [-c] [-gpu] [-stop] [-i inputfile]
              [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]]
-             [-o outputfile] [-m maxFound] [-s seed] [-t threadNumber]
+             [-o outputfile] [-m maxFound] [-ps seed] [-s seed] [-t nbThread]
              [-nosse] [-r rekey] [-check] [-kp] [-sp startPubKey]
              [-rp privkey partialkeyfile] [prefix]
 
- prefix: prefix to search
+ prefix: prefix to search (Can contains wildcard '?' or '*')
  -v: Print version
  -u: Search uncompressed addresses
  -b: Search both uncompressed or compressed addresses
+ -c: Case unsensitive search
  -gpu: Enable gpu calculation
  -stop: Stop when all prefixes are found
  -i inputfile: Get list of prefixes to search from specified file
@@ -45,6 +46,7 @@ VanitySeacrh [-check] [-v] [-u] [-b] [-gpu] [-stop] [-i inputfile]
  -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)
  -m: Specify maximun number of prefixes found by each kernel call
  -s seed: Specify a seed for the base key, default is random
+ -ps seed: Specify a seed concatened with a crypto secure random seed
  -t threadNumber: Specify number of CPU thread, default is number of core
  -nosse: Disable SSE hash function
  -l: List cuda enabled devices
