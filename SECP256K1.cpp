@@ -154,10 +154,10 @@ void Secp256K1::Check() {
   printf("Check Calc PubKey (full) %s :",GetAddress(P2PKH, false,pub).c_str());
   PrintResult(EC(pub));
 
-  // 1Gp7rQ4GdooysEAEJAS2o4Ktjvf1tZCihp
-  pub.x.SetBase16(/*02*/"2b70d6a249aeb187d6f079ecc0fb34d075056ca985384240166a2080c7d2beb5");
-  pub.y = GetY(pub.x,true);
-  printf("Check Calc PubKey (even) %s:",GetAddress(P2PKH, true, pub).c_str());
+  // 385cR5DM96n1HvBDMzLHPYcw89fZAXULJP
+  pub.x.SetBase16(/*03*/"c931af9f331b7a9eb2737667880dacb91428906fbffad0173819a873172d21c4");
+  pub.y = GetY(pub.x,false);
+  printf("Check Calc PubKey (even) %s:",GetAddress(P2SH, true, pub).c_str());
   PrintResult(EC(pub));
 
   // 18aPiLmTow7Xgu96msrDYvSSWweCvB9oBA
@@ -748,6 +748,9 @@ std::string Secp256K1::GetAddress(int type, bool compressed, Point &pubKey) {
 
   case BECH32:
   {
+    if (!compressed) {
+      return " BECH32: Only compressed key ";
+    }
     char output[128];
     uint8_t h160[20];
     GetHash160(type, compressed, pubKey, h160);
@@ -757,6 +760,9 @@ std::string Secp256K1::GetAddress(int type, bool compressed, Point &pubKey) {
   break;
 
   case P2SH:
+    if (!compressed) {
+      return " P2SH: Only compressed key ";
+    }
     address[0] = 0x05;
     break;
   }
