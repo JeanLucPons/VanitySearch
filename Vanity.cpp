@@ -620,7 +620,7 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
   // pow(1-P,keyCount) is the probality of failure after keyCount tries
   double cP = 1.0 - pow(1-P,keyCount);
 
-  sprintf(tmp,"[P %.2f%%]",cP*100.0);
+  sprintf(tmp,"[Prob %.1f%%]",cP*100.0);
   ret = string(tmp);
   
   double desiredP = 0.5;
@@ -642,11 +642,11 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
     double nbYear = nbDay/365.0;
     if (nbYear > 1) {
       if(nbYear<5)
-        sprintf(tmp, "[%.2f%% in %.1fy]", desiredP*100.0, nbYear);
+        sprintf(tmp, "[%.f%% in %.1fy]", desiredP*100.0, nbYear);
       else
-        sprintf(tmp, "[%.2f%% in %gy]", desiredP*100.0, nbYear);
+        sprintf(tmp, "[%.f%% in %gy]", desiredP*100.0, nbYear);
     } else {
-      sprintf(tmp, "[%.2f%% in %.1fd]", desiredP*100.0, nbDay);
+      sprintf(tmp, "[%.f%% in %.1fd]", desiredP*100.0, nbDay);
     }
 
   } else {
@@ -656,7 +656,7 @@ string VanitySearch::GetExpectedTime(double keyRate,double keyCount) {
     int nbMin = (int)(((iTime % 86400) % 3600) / 60);
     int nbSec = (int)(iTime % 60);
 
-    sprintf(tmp, "[%.2f%% in %02d:%02d:%02d]", desiredP*100.0, nbHour, nbMin, nbSec);
+    sprintf(tmp, "[%.f%% in %02d:%02d:%02d]", desiredP*100.0, nbHour, nbMin, nbSec);
 
   }
 
@@ -687,7 +687,7 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex) {
     }
   }
 
-  fprintf(f, "\nPub Addr: %s\n", addr.c_str());
+  fprintf(f, "PubAddress: %s\n", addr.c_str());
 
   if (startPubKeySpecified) {
 
@@ -937,6 +937,7 @@ void VanitySearch::checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t in
     }
 
   } else {
+
 
     char a[64];
 
@@ -1741,7 +1742,7 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     avgGpuKeyRate /= (double)(nbSample);
 
     if (isAlive(params)) {
-      printf("%.3f MK/s (GPU %.3f MK/s) (2^%.2f) %s[%d]  \r",
+      printf("[%.2f Mkey/s][GPU %.2f Mkey/s][Total 2^%.2f]%s[Found %d]	\r",
         avgKeyRate / 1000000.0, avgGpuKeyRate / 1000000.0,
           log2((double)count), GetExpectedTime(avgKeyRate, (double)count).c_str(),nbFoundKey);
     }
