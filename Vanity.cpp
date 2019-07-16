@@ -687,6 +687,9 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex) {
     }
   }
 
+  if(!needToClose)
+    printf("\n");
+
   fprintf(f, "PubAddress: %s\n", addr.c_str());
 
   if (startPubKeySpecified) {
@@ -1742,7 +1745,7 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     avgGpuKeyRate /= (double)(nbSample);
 
     if (isAlive(params)) {
-      printf("[%.2f Mkey/s][GPU %.2f Mkey/s][Total 2^%.2f]%s[Found %d]	\r",
+      printf("\r[%.2f Mkey/s][GPU %.2f Mkey/s][Total 2^%.2f]%s[Found %d]  ",
         avgKeyRate / 1000000.0, avgGpuKeyRate / 1000000.0,
           log2((double)count), GetExpectedTime(avgKeyRate, (double)count).c_str(),nbFoundKey);
     }
