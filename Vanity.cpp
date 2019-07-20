@@ -40,7 +40,7 @@ Point _2Gn;
 
 VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,string seed,int searchMode, 
                            bool useGpu, bool stop, string outputFile, bool useSSE, uint32_t maxFound,
-                           uint64_t rekey, bool caseSensitive, Point &startPubKey, bool paranoiacSeed)
+                           uint64_t rekey, bool caseSensitive, bool csv, Point &startPubKey, bool paranoiacSeed)
   :inputPrefixes(inputPrefixes) {
 
   this->secp = secp;
@@ -56,6 +56,7 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
   this->startPubKey = startPubKey;
   this->hasPattern = false;
   this->caseSensitive = caseSensitive;
+  this->csv = csv;
   this->startPubKeySpecified = !startPubKey.isZero();
 
   lastRekey = 0;
@@ -309,7 +310,7 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
   char *ctimeBuff;
   time_t now = time(NULL);
   ctimeBuff = ctime(&now);
-  printf("Start %s", ctimeBuff);
+  printf("Start: %s", ctimeBuff);
 
   if (rekey > 0) {
     printf("Base Key: Randomly changed every %.0f Mkeys\n",(double)rekey);
@@ -687,29 +688,58 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex) {
     }
   }
 
-  fprintf(f, "PubAddress: %s\n", addr.c_str());
+  if(!needToClose)
+    printf("\r");
+if(csv)
+{
+  //  fprintf(f, "%s,", addr.c_str());
+  if (startPubKeySpecified) {
+  fprintf(f, "PartialPriv,%s,", addr.c_str());
+  fprintf(f, "%s,", pAddr.c_str());
+  } else {
+    switch (searchType) {
+    case P2PKH:
+      fprintf(f, "p2pkh,%s,", addr.c_str());
+      fprintf(f, "%s,", pAddr.c_str());
+      break;
+    case P2SH:
+      fprintf(f, "p2wpkh-p2sh,%s,", addr.c_str());
+      fprintf(f, "%s,", pAddr.c_str());
+      break;
+    case BECH32:
+      fprintf(f, "p2wpkh,%s,", addr.c_str());
+      fprintf(f, "%s,", pAddr.c_str());
+      break;
+    }
+      fprintf(f, "%s\n", pAddrHex.c_str());
+
+  }
+}
+else{
+//  fprintf(f, "Pattern  : %s\n", addr.c_str());
+  fprintf(f, "Address  : %s\n", addr.c_str());
 
   if (startPubKeySpecified) {
 
-    fprintf(f, "PartialPriv: %s\n", pAddr.c_str());
+  fprintf(f, "PartialPriv: %s\n", pAddr.c_str());
 
   } else {
 
     switch (searchType) {
     case P2PKH:
-      fprintf(f, "Priv (WIF): p2pkh:%s\n", pAddr.c_str());
+      fprintf(f, "Priv(WIF): p2pkh:%s\n", pAddr.c_str());
       break;
     case P2SH:
-      fprintf(f, "Priv (WIF): p2wpkh-p2sh:%s\n", pAddr.c_str());
+      fprintf(f, "Priv(WIF): p2wpkh-p2sh:%s\n", pAddr.c_str());
       break;
     case BECH32:
-      fprintf(f, "Priv (WIF): p2wpkh:%s\n", pAddr.c_str());
+      fprintf(f, "Priv(WIF): p2wpkh:%s\n", pAddr.c_str());
       break;
     }
-    fprintf(f, "Priv (HEX): 0x%s\n", pAddrHex.c_str());
+      fprintf(f, "Priv(HEX): 0x%s\n", pAddrHex.c_str());
 
   }
-
+}
   if(needToClose)
     fclose(f);
 
@@ -1742,7 +1772,7 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     avgGpuKeyRate /= (double)(nbSample);
 
     if (isAlive(params)) {
-      printf("[%.2f Mkey/s][GPU %.2f Mkey/s][Total 2^%.2f]%s[Found %d]	\r",
+      printf("\r[%.2f Mkey/s][GPU %.2f Mkey/s][Total 2^%.2f]%s[Found %d]  ",
         avgKeyRate / 1000000.0, avgGpuKeyRate / 1000000.0,
           log2((double)count), GetExpectedTime(avgKeyRate, (double)count).c_str(),nbFoundKey);
     }
