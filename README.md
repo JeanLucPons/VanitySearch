@@ -31,7 +31,7 @@ VanitySeacrh [-check] [-v] [-u] [-b] [-c] [-gpu] [-stop] [-i inputfile]
              [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]]
              [-o outputfile] [-m maxFound] [-ps seed] [-s seed] [-t nbThread]
              [-nosse] [-r rekey] [-check] [-kp] [-sp startPubKey]
-             [-rp privkey partialkeyfile] [prefix]
+             [-rp privkey partialkeyfile] [-csv] [prefix]
 
  prefix: prefix to search (Can contains wildcard '?' or '*')
  -v: Print version
@@ -55,6 +55,7 @@ VanitySeacrh [-check] [-v] [-u] [-b] [-c] [-gpu] [-stop] [-i inputfile]
  -rp privkey partialkeyfile: Reconstruct final private key(s) from partial key(s) info.
  -sp startPubKey: Start the search with a pubKey (for private key splitting)
  -r rekey: Rekey interval in MegaKey, default is disabled
+ -csv: Output of matches in csv format as [format],[Address],[WIF],[HEX]
 ```
  
 Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 1050 Ti):
@@ -228,4 +229,3 @@ Priv (HEX): 0x398E7271AF3E5A78821C1ADFDE3EE90760A6B65F72D856CFE455B1264350BCE8
 # License
 
 VanitySearch is licensed under GPLv3.
-
