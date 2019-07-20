@@ -37,7 +37,7 @@ void printUsage() {
   printf("             [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]]\n");
   printf("             [-o outputfile] [-m maxFound] [-ps seed] [-s seed] [-t nbThread]\n");
   printf("             [-nosse] [-r rekey] [-check] [-kp] [-sp startPubKey]\n");
-  printf("             [-rp privkey partialkeyfile] [prefix]\n\n");
+  printf("             [-rp privkey partialkeyfile] [-csv] [prefix]\n\n");
   printf(" prefix: prefix to search (Can contains wildcard '?' or '*')\n");
   printf(" -v: Print version\n");
   printf(" -u: Search uncompressed addresses\n");
@@ -60,6 +60,7 @@ void printUsage() {
   printf(" -rp privkey partialkeyfile: Reconstruct final private key(s) from partial key(s) info.\n");
   printf(" -sp startPubKey: Start the search with a pubKey (for private key splitting)\n");
   printf(" -r rekey: Rekey interval in MegaKey, default is disabled\n");
+  printf(" -csv: Output of matches in csv format as [format],[Address],[WIF],[HEX]\n");
   exit(-1);
 
 }
@@ -397,6 +398,7 @@ int main(int argc, char* argv[]) {
   startPuKey.Clear();
   bool startPubKeyCompressed;
   bool caseSensitive = true;
+  bool csv = false;
   bool paranoiacSeed = false;
 
   while (a < argc) {
@@ -413,6 +415,9 @@ int main(int argc, char* argv[]) {
       a++;
     } else if (strcmp(argv[a], "-c") == 0) {
       caseSensitive = false;
+      a++;
+    } else if (strcmp(argv[a], "-csv") == 0) {
+      csv = true;
       a++;
     } else if (strcmp(argv[a], "-v") == 0) {
       printf("%s\n",RELEASE);
@@ -534,7 +539,7 @@ int main(int argc, char* argv[]) {
   }
 
   VanitySearch *v = new VanitySearch(secp, prefix, seed, searchMode, gpuEnable, stop, outputFile, sse,
-    maxFound, rekey, caseSensitive, startPuKey, paranoiacSeed);
+    maxFound, rekey, caseSensitive, csv, startPuKey, paranoiacSeed);
   v->Search(nbCPUThread,gpuId,gridSize);
 
   return 0;
