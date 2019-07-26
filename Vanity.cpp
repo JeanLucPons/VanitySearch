@@ -40,7 +40,7 @@ Point _2Gn;
 
 VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,string seed,int searchMode, 
                            bool useGpu, bool stop, string outputFile, bool useSSE, uint32_t maxFound,
-                           uint64_t rekey, bool caseSensitive, bool csv, Point &startPubKey, bool paranoiacSeed)
+                           uint64_t rekey, bool caseSensitive, bool csv, bool hex, Point &startPubKey, bool paranoiacSeed)
   :inputPrefixes(inputPrefixes) {
 
   this->secp = secp;
@@ -57,6 +57,7 @@ VanitySearch::VanitySearch(Secp256K1 *secp, vector<std::string> &inputPrefixes,s
   this->hasPattern = false;
   this->caseSensitive = caseSensitive;
   this->csv = csv;
+  this->hex = hex;
   this->startPubKeySpecified = !startPubKey.isZero();
 
   lastRekey = 0;
@@ -692,7 +693,17 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex) {
     printf("\r");
 if(csv)
 {
-  //  fprintf(f, "%s,", addr.c_str());
+ //  fprintf(f, "%s,", addr.c_str()); //replace with pattern tag
+if(hex)
+{
+  fprintf(f, "%s,", addr.c_str());
+  if (startPubKeySpecified) {
+  fprintf(f, "PartialPriv,%s,", addr.c_str());
+  }
+   fprintf(f, "%s\n", pAddrHex.c_str());
+}
+else
+{
   if (startPubKeySpecified) {
   fprintf(f, "PartialPriv,%s,", addr.c_str());
   fprintf(f, "%s,", pAddr.c_str());
@@ -712,13 +723,22 @@ if(csv)
       break;
     }
       fprintf(f, "%s\n", pAddrHex.c_str());
-
+   }
   }
 }
-else{
-//  fprintf(f, "Pattern  : %s\n", addr.c_str());
-  fprintf(f, "Address  : %s\n", addr.c_str());
-
+else
+{
+//  fprintf(f, "Pattern  : %s\n", addr.c_str()); //replace with pattern tag
+    fprintf(f, "Address  : %s\n", addr.c_str());
+if(hex)
+{
+  if (startPubKeySpecified) {
+  fprintf(f, "PartialPriv: %s\n", pAddr.c_str());
+  }
+    fprintf(f, "Priv(HEX): 0x%s\n", pAddrHex.c_str());
+}
+else
+{
   if (startPubKeySpecified) {
 
   fprintf(f, "PartialPriv: %s\n", pAddr.c_str());
@@ -737,7 +757,7 @@ else{
       break;
     }
       fprintf(f, "Priv(HEX): 0x%s\n", pAddrHex.c_str());
-
+   }
   }
 }
   if(needToClose)
