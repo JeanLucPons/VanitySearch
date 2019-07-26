@@ -678,7 +678,6 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex) {
   
   FILE *f = stdout;
   bool needToClose = false;
-
   if (outputFile.length() > 0) {
     f = fopen(outputFile.c_str(), "a");
     if (f == NULL) {
@@ -688,9 +687,8 @@ void VanitySearch::output(string addr,string pAddr,string pAddrHex) {
       needToClose = true;
     }
   }
-
-  if(!needToClose)
-    printf("\r");
+if(!needToClose)
+printf("\r");
 if(csv)
 {
  //  fprintf(f, "%s,", addr.c_str()); //replace with pattern tag
@@ -739,6 +737,8 @@ if(hex)
 }
 else
 {
+ fprintf(f, "PubAddress: %s\n", addr.c_str());
+
   if (startPubKeySpecified) {
 
   fprintf(f, "PartialPriv: %s\n", pAddr.c_str());
