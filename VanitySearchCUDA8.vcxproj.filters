@@ -47,6 +47,10 @@
       <Filter>GPU</Filter>
     </ClInclude>
     <ClInclude Include="Bech32.h" />
+    <ClInclude Include="GPU\GPUBase58.h">
+      <Filter>GPU</Filter>
+    </ClInclude>
+    <ClInclude Include="Wildcard.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GPU\GPUGenerate.cpp">
@@ -78,5 +82,6 @@
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="Vanity.cpp" />
     <ClCompile Include="Bech32.cpp" />
+    <ClCompile Include="Wildcard.cpp" />
   </ItemGroup>
 </Project>
