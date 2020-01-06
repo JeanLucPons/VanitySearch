@@ -41,7 +41,7 @@
 __global__ void comp_keys(uint32_t mode,prefix_t *prefix, uint32_t *lookup32, uint64_t *keys, uint32_t maxFound, uint32_t *found) {
 
   int xPtr = (blockIdx.x*blockDim.x) * 8;
-  int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
+  int yPtr = xPtr + 4 * blockDim.x;
   ComputeKeys(mode, keys + xPtr, keys + yPtr, prefix, lookup32, maxFound, found);
 
 }
@@ -49,7 +49,7 @@ __global__ void comp_keys(uint32_t mode,prefix_t *prefix, uint32_t *lookup32, ui
 __global__ void comp_keys_p2sh(uint32_t mode, prefix_t *prefix, uint32_t *lookup32, uint64_t *keys, uint32_t maxFound, uint32_t *found) {
 
   int xPtr = (blockIdx.x*blockDim.x) * 8;
-  int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
+  int yPtr = xPtr + 4 * blockDim.x;
   ComputeKeysP2SH(mode, keys + xPtr, keys + yPtr, prefix, lookup32, maxFound, found);
 
 }
@@ -57,7 +57,7 @@ __global__ void comp_keys_p2sh(uint32_t mode, prefix_t *prefix, uint32_t *lookup
 __global__ void comp_keys_comp(prefix_t *prefix, uint32_t *lookup32, uint64_t *keys, uint32_t maxFound, uint32_t *found) {
 
   int xPtr = (blockIdx.x*blockDim.x) * 8;
-  int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
+  int yPtr = xPtr + 4 * blockDim.x;
   ComputeKeysComp(keys + xPtr, keys + yPtr, prefix, lookup32, maxFound, found);
 
 }
@@ -65,7 +65,7 @@ __global__ void comp_keys_comp(prefix_t *prefix, uint32_t *lookup32, uint64_t *k
 __global__ void comp_keys_pattern(uint32_t mode, prefix_t *pattern, uint64_t *keys,  uint32_t maxFound, uint32_t *found) {
 
   int xPtr = (blockIdx.x*blockDim.x) * 8;
-  int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
+  int yPtr = xPtr + 4 * blockDim.x;
   ComputeKeys(mode, keys + xPtr, keys + yPtr, NULL, (uint32_t *)pattern, maxFound, found);
 
 }
@@ -73,7 +73,7 @@ __global__ void comp_keys_pattern(uint32_t mode, prefix_t *pattern, uint64_t *ke
 __global__ void comp_keys_p2sh_pattern(uint32_t mode, prefix_t *pattern, uint64_t *keys, uint32_t maxFound, uint32_t *found) {
 
   int xPtr = (blockIdx.x*blockDim.x) * 8;
-  int yPtr = xPtr + 4 * NB_TRHEAD_PER_GROUP;
+  int yPtr = xPtr + 4 * blockDim.x;
   ComputeKeysP2SH(mode, keys + xPtr, keys + yPtr, NULL, (uint32_t *)pattern, maxFound, found);
 
 }
@@ -170,10 +170,11 @@ int _ConvertSMVer2Cores(int major, int minor) {
 
 }
 
-GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound,bool rekey) {
+GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_t maxFound,bool rekey) {
 
   // Initialise CUDA
   this->rekey = rekey;
+  this->nbThreadPerGroup = nbThreadPerGroup;
   initialised = false;
   cudaError_t err;
 
@@ -203,7 +204,7 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound,bool rekey)
   if (nbThreadGroup == -1)
     nbThreadGroup = deviceProp.multiProcessorCount * 8;
 
-  this->nbThread = nbThreadGroup * NB_TRHEAD_PER_GROUP;
+  this->nbThread = nbThreadGroup * nbThreadPerGroup;
   this->maxFound = maxFound;
   this->outputSize = (maxFound*ITEM_SIZE + 4);
 
@@ -211,8 +212,8 @@ GPUEngine::GPUEngine(int nbThreadGroup, int gpuId, uint32_t maxFound,bool rekey)
   sprintf(tmp,"GPU #%d %s (%dx%d cores) Grid(%dx%d)",
   gpuId,deviceProp.name,deviceProp.multiProcessorCount,
   _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor),
-  nbThread / NB_TRHEAD_PER_GROUP,
-  NB_TRHEAD_PER_GROUP);
+                      nbThread / nbThreadPerGroup,
+                      nbThreadPerGroup);
   deviceName = std::string(tmp);
 
   // Prefer L1 (We do not use __shared__ at all)
@@ -459,10 +460,10 @@ bool GPUEngine::callKernel() {
   if (searchType == P2SH) {
 
     if (hasPattern) {
-      comp_keys_p2sh_pattern << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+      comp_keys_p2sh_pattern << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
         (searchMode, inputPrefix, inputKey, maxFound, outputPrefix);
     } else {
-      comp_keys_p2sh << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+      comp_keys_p2sh << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
         (searchMode, inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
     }
 
@@ -475,14 +476,14 @@ bool GPUEngine::callKernel() {
         printf("GPUEngine: (TODO) BECH32 not yet supported with wildard\n");
         return false;
       }
-      comp_keys_pattern << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+      comp_keys_pattern << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
         (searchMode, inputPrefix, inputKey, maxFound, outputPrefix);
     } else {
       if (searchMode == SEARCH_COMPRESSED) {
-        comp_keys_comp << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+        comp_keys_comp << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
           (inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
       } else {
-        comp_keys << < nbThread / NB_TRHEAD_PER_GROUP, NB_TRHEAD_PER_GROUP >> >
+        comp_keys << < nbThread / nbThreadPerGroup, nbThreadPerGroup >> >
           (searchMode, inputPrefix, inputPrefixLookUp, inputKey, maxFound, outputPrefix);
       }
     }
@@ -502,18 +503,18 @@ bool GPUEngine::SetKeys(Point *p) {
 
   // Sets the starting keys for each thread
   // p must contains nbThread public keys
-  for (int i = 0; i < nbThread; i+= NB_TRHEAD_PER_GROUP) {
-    for (int j = 0; j < NB_TRHEAD_PER_GROUP; j++) {
+  for (int i = 0; i < nbThread; i+= nbThreadPerGroup) {
+    for (int j = 0; j < nbThreadPerGroup; j++) {
 
-      inputKeyPinned[8*i + j + 0*NB_TRHEAD_PER_GROUP] = p[i + j].x.bits64[0];
-      inputKeyPinned[8*i + j + 1*NB_TRHEAD_PER_GROUP] = p[i + j].x.bits64[1];
-      inputKeyPinned[8*i + j + 2*NB_TRHEAD_PER_GROUP] = p[i + j].x.bits64[2];
-      inputKeyPinned[8*i + j + 3*NB_TRHEAD_PER_GROUP] = p[i + j].x.bits64[3];
+      inputKeyPinned[8*i + j + 0* nbThreadPerGroup] = p[i + j].x.bits64[0];
+      inputKeyPinned[8*i + j + 1* nbThreadPerGroup] = p[i + j].x.bits64[1];
+      inputKeyPinned[8*i + j + 2* nbThreadPerGroup] = p[i + j].x.bits64[2];
+      inputKeyPinned[8*i + j + 3* nbThreadPerGroup] = p[i + j].x.bits64[3];
 
-      inputKeyPinned[8*i + j + 4*NB_TRHEAD_PER_GROUP] = p[i + j].y.bits64[0];
-      inputKeyPinned[8*i + j + 5*NB_TRHEAD_PER_GROUP] = p[i + j].y.bits64[1];
-      inputKeyPinned[8*i + j + 6*NB_TRHEAD_PER_GROUP] = p[i + j].y.bits64[2];
-      inputKeyPinned[8*i + j + 7*NB_TRHEAD_PER_GROUP] = p[i + j].y.bits64[3];
+      inputKeyPinned[8*i + j + 4* nbThreadPerGroup] = p[i + j].y.bits64[0];
+      inputKeyPinned[8*i + j + 5* nbThreadPerGroup] = p[i + j].y.bits64[1];
+      inputKeyPinned[8*i + j + 6* nbThreadPerGroup] = p[i + j].y.bits64[2];
+      inputKeyPinned[8*i + j + 7* nbThreadPerGroup] = p[i + j].y.bits64[3];
 
     }
   }

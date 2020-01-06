@@ -37,7 +37,8 @@ typedef struct {
   bool isRunning;
   bool hasStarted;
   bool rekeyRequest;
-  int  gridSize;
+  int  gridSizeX;
+  int  gridSizeY;
   int  gpuId;
 
 } TH_PARAM;

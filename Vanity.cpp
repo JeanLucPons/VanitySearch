@@ -1510,7 +1510,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
 
   // Global init
   int thId = ph->threadId;
-  GPUEngine g(ph->gridSize, ph->gpuId, maxFound, (rekey!=0));
+  GPUEngine g(ph->gridSizeX,ph->gridSizeY, ph->gpuId, maxFound, (rekey!=0));
   int nbThread = g.GetNbThread();
   Point *p = new Point[nbThread];
   Int *keys = new Int[nbThread];
@@ -1677,7 +1677,8 @@ void VanitySearch::Search(int nbThread,std::vector<int> gpuId,std::vector<int> g
     params[nbCPUThread+i].threadId = 0x80L+i;
     params[nbCPUThread+i].isRunning = true;
     params[nbCPUThread+i].gpuId = gpuId[i];
-    params[nbCPUThread+i].gridSize = gridSize[i];
+    params[nbCPUThread+i].gridSizeX = gridSize[2*i];
+    params[nbCPUThread+i].gridSizeY = gridSize[2*i+1];
 #ifdef WIN64
     DWORD thread_id;
     CreateThread(NULL, 0, _FindKeyGPU, (void*)(params+(nbCPUThread+i)), 0, &thread_id);

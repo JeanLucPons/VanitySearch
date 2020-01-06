@@ -48,7 +48,7 @@ void printUsage() {
   printf(" -i inputfile: Get list of prefixes to search from specified file\n");
   printf(" -o outputfile: Output results to the specified file\n");
   printf(" -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0\n");
-  printf(" -g gridSize1,gridSize2,...: Specify GPU(s) kernel gridsize, default is 8*(MP number)\n");
+  printf(" -g gridSize1x,gridSize1y,gridSize1x,gridSize1y, ...: Specify GPU(s) kernel gridsize, default is 8*(MP number),128\n");
   printf(" -m: Specify maximun number of prefixes found by each kernel call\n");
   printf(" -s seed: Specify a seed for the base key, default is random\n");
   printf(" -ps seed: Specify a seed concatened with a crypto secure random seed\n");
@@ -56,6 +56,7 @@ void printUsage() {
   printf(" -nosse: Disable SSE hash function\n");
   printf(" -l: List cuda enabled devices\n");
   printf(" -check: Check CPU and GPU kernel vs CPU\n");
+  printf(" -cp privKey: Compute public key (privKey in hex hormat)\n");
   printf(" -kp: Generate key pair\n");
   printf(" -rp privkey partialkeyfile: Reconstruct final private key(s) from partial key(s) info.\n");
   printf(" -sp startPubKey: Start the search with a pubKey (for private key splitting)\n");
@@ -372,7 +373,7 @@ int main(int argc, char* argv[]) {
   // Init SecpK1
   Secp256K1 *secp = new Secp256K1();
   secp->Init();
-  
+
   // Browse arguments
   if (argc < 2) {
     printf("Not enough argument\n");
@@ -384,7 +385,7 @@ int main(int argc, char* argv[]) {
   bool stop = false;
   int searchMode = SEARCH_COMPRESSED;
   vector<int> gpuId = {0};
-  vector<int> gridSize = {-1};
+  vector<int> gridSize;
   string seed = "";
   vector<string> prefix;
   string outputFile = "";
@@ -423,7 +424,11 @@ int main(int argc, char* argv[]) {
       secp->Check();
 
 #ifdef WITHGPU
-      GPUEngine g(gridSize[0],gpuId[0],maxFound,false);
+      if (gridSize.size() == 0) {
+        gridSize.push_back(-1);
+        gridSize.push_back(128);
+      }
+      GPUEngine g(gridSize[0],gridSize[1],gpuId[0],maxFound,false);
       g.SetSearchMode(searchMode);
       g.Check(secp);
 #else
@@ -447,6 +452,17 @@ int main(int argc, char* argv[]) {
       string pub = string(argv[a]);
       startPuKey = secp->ParsePublicKeyHex(pub, startPubKeyCompressed);
       a++;
+    } else if (strcmp(argv[a], "-cp") == 0) {
+      a++;
+      string priv = string(argv[a]);
+      Int k;
+      k.SetBase16(argv[a]);
+      Point p = secp->ComputePublicKey(&k);
+      printf("PubKey: %s\n",secp->GetPublicKeyHex(true,p).c_str());
+      printf("Addr (P2PKH): %s\n", secp->GetAddress(P2PKH,true,p).c_str());
+      printf("Addr (P2SH): %s\n", secp->GetAddress(P2SH, true,p).c_str());
+      printf("Addr (BECH32): %s\n", secp->GetAddress(BECH32, true,p).c_str());
+      exit(0);
     } else if (strcmp(argv[a], "-rp") == 0) {
       a++;
       string priv = string(argv[a]);
@@ -510,15 +526,14 @@ int main(int argc, char* argv[]) {
 
   printf("VanitySearch v" RELEASE "\n");
 
-  if(gpuId.size()!=gridSize.size()) {
-    if(gridSize.size()==1 && gridSize[0]==-1) {
-      gridSize.clear();
-      for(int i=0;i<gpuId.size();i++)
-        gridSize.push_back(-1);
-    } else {
-      printf("Invalid gridSize or gpuId argument, must have same size\n");
-      printUsage();
+  if(gridSize.size()==0) {
+    for (int i = 0; i < gpuId.size(); i++) {
+      gridSize.push_back(-1);
+      gridSize.push_back(128);
     }
+  } else if(gridSize.size() != gpuId.size()*2) {
+    printf("Invalid gridSize or gpuId argument, must have coherent size\n");
+    printUsage();
   }
 
   // Let one CPU core free per gpu is gpu is enabled

@@ -163,17 +163,17 @@ __device__ __constant__ uint64_t _beta2[] = { 0x3EC693D68E6AFA40ULL,0x630FB68AED
 
 #define Load256A(r, a) {\
   (r)[0] = (a)[IDX]; \
-  (r)[1] = (a)[IDX+NB_TRHEAD_PER_GROUP]; \
-  (r)[2] = (a)[IDX+2*NB_TRHEAD_PER_GROUP]; \
-  (r)[3] = (a)[IDX+3*NB_TRHEAD_PER_GROUP];}
+  (r)[1] = (a)[IDX+blockDim.x]; \
+  (r)[2] = (a)[IDX+2*blockDim.x]; \
+  (r)[3] = (a)[IDX+3*blockDim.x];}
 
 // ---------------------------------------------------------------------------------------
 
 #define Store256A(r, a) {\
   (r)[IDX] = (a)[0]; \
-  (r)[IDX+NB_TRHEAD_PER_GROUP] = (a)[1]; \
-  (r)[IDX+2*NB_TRHEAD_PER_GROUP] = (a)[2]; \
-  (r)[IDX+3*NB_TRHEAD_PER_GROUP] = (a)[3];}
+  (r)[IDX+blockDim.x] = (a)[1]; \
+  (r)[IDX+2*blockDim.x] = (a)[2]; \
+  (r)[IDX+3*blockDim.x] = (a)[3];}
 
 // ---------------------------------------------------------------------------------------
 
