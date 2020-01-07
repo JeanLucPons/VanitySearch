@@ -1182,13 +1182,13 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
     pr2 = *(prefix_t *)h2;
     pr3 = *(prefix_t *)h3;
 
-    if (hasPattern || prefixes[pr0].items)
+    if (prefixes[pr0].items)
       checkAddr(pr0, h0, key, -i, 0, compressed);
-    if (hasPattern || prefixes[pr1].items)
+    if (prefixes[pr1].items)
       checkAddr(pr1, h1, key, -(i + 1), 0, compressed);
-    if (hasPattern || prefixes[pr2].items)
+    if (prefixes[pr2].items)
       checkAddr(pr2, h2, key, -(i + 2), 0, compressed);
-    if (hasPattern || prefixes[pr3].items)
+    if (prefixes[pr3].items)
       checkAddr(pr3, h3, key, -(i + 3), 0, compressed);
 
   } else {
@@ -1214,13 +1214,13 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
     pr2 = *(prefix_t *)h2;
     pr3 = *(prefix_t *)h3;
 
-    if (hasPattern || prefixes[pr0].items)
+    if (prefixes[pr0].items)
       checkAddr(pr0, h0, key, -i, 1, compressed);
-    if (hasPattern || prefixes[pr1].items)
+    if (prefixes[pr1].items)
       checkAddr(pr1, h1, key, -(i + 1), 1, compressed);
-    if (hasPattern || prefixes[pr2].items)
+    if (prefixes[pr2].items)
       checkAddr(pr2, h2, key, -(i + 2), 1, compressed);
-    if (hasPattern || prefixes[pr3].items)
+    if (prefixes[pr3].items)
       checkAddr(pr3, h3, key, -(i + 3), 1, compressed);
 
   } else {
@@ -1245,13 +1245,13 @@ void VanitySearch::checkAddressesSSE(bool compressed,Int key, int i, Point p1, P
     pr2 = *(prefix_t *)h2;
     pr3 = *(prefix_t *)h3;
 
-    if (hasPattern || prefixes[pr0].items)
+    if (prefixes[pr0].items)
       checkAddr(pr0, h0, key, -i, 2, compressed);
-    if (hasPattern || prefixes[pr1].items)
+    if (prefixes[pr1].items)
       checkAddr(pr1, h1, key, -(i + 1), 2, compressed);
-    if (hasPattern || prefixes[pr2].items)
+    if (prefixes[pr2].items)
       checkAddr(pr2, h2, key, -(i + 2), 2, compressed);
-    if (hasPattern || prefixes[pr3].items)
+    if (prefixes[pr3].items)
       checkAddr(pr3, h3, key, -(i + 3), 2, compressed);
 
   } else {
