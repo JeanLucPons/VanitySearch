@@ -182,7 +182,7 @@ GPUEngine::GPUEngine(int nbThreadGroup, int nbThreadPerGroup, int gpuId, uint32_
   cudaError_t error_id = cudaGetDeviceCount(&deviceCount);
 
   if (error_id != cudaSuccess) {
-    printf("GPUEngine: CudaGetDeviceCount %s\n", cudaGetErrorString(error_id));
+    printf("GPUEngine: CudaGetDeviceCount %s %d\n", cudaGetErrorString(error_id),error_id);
     return;
   }
 
