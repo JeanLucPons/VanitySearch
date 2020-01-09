@@ -183,10 +183,12 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClCompile Include="SECP256K1.cpp" />
     <ClCompile Include="Timer.cpp" />
     <ClCompile Include="Vanity.cpp" />
+    <ClCompile Include="Wildcard.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Base58.h" />
     <ClInclude Include="Bech32.h" />
+    <ClInclude Include="GPU\GPUBase58.h" />
     <ClInclude Include="GPU\GPUCompute.h" />
     <ClInclude Include="GPU\GPUEngine.h" />
     <ClInclude Include="GPU\GPUGroup.h" />
@@ -202,6 +204,7 @@ copy "$(CudaToolkitBinDir)\cudart*.dll" "$(OutDir)"</Command>
     <ClInclude Include="SECP256k1.h" />
     <ClInclude Include="Timer.h" />
     <ClInclude Include="Vanity.h" />
+    <ClInclude Include="Wildcard.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

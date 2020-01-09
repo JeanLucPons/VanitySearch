@@ -25,7 +25,7 @@
 #include "hash/sha512.h"
 #include "hash/sha256.h"
 
-#define RELEASE "1.15"
+#define RELEASE "1.16"
 
 using namespace std;
 
@@ -61,7 +61,7 @@ void printUsage() {
   printf(" -rp privkey partialkeyfile: Reconstruct final private key(s) from partial key(s) info.\n");
   printf(" -sp startPubKey: Start the search with a pubKey (for private key splitting)\n");
   printf(" -r rekey: Rekey interval in MegaKey, default is disabled\n");
-  exit(-1);
+  exit(0);
 
 }
 
@@ -167,7 +167,7 @@ void generateKeyPair(Secp256K1 *secp, string seed, int searchMode,bool paranoiac
   if (seed.length() < 8) {
     printf("Error: Use a seed of at leats 8 characters to generate a key pair\n");
     printf("Ex: VanitySearch -s \"A Strong Password\" -kp\n");
-    exit(0);
+    exit(-1);
   }
 
   if(paranoiacSeed)
@@ -175,7 +175,7 @@ void generateKeyPair(Secp256K1 *secp, string seed, int searchMode,bool paranoiac
 
   if (searchMode == SEARCH_BOTH) {
     printf("Error: Use compressed or uncompressed to generate a key pair\n");
-    exit(0);
+    exit(-1);
   }
 
   bool compressed = (searchMode == SEARCH_COMPRESSED);
@@ -376,8 +376,8 @@ int main(int argc, char* argv[]) {
 
   // Browse arguments
   if (argc < 2) {
-    printf("Not enough argument\n");
-    printUsage();
+    printf("Error: Not enough argument (use -h for help)");
+    exit(-1);
   }
 
   int a = 1;
@@ -514,12 +514,14 @@ int main(int argc, char* argv[]) {
       a++;
       rekey = (uint64_t)getInt("rekey", argv[a]);
       a++;
+    } else if (strcmp(argv[a], "-h") == 0) {
+      printUsage();
     } else if (a == argc - 1) {
       prefix.push_back(string(argv[a]));
       a++;
     } else {
       printf("Unexpected %s argument\n",argv[a]);
-      printUsage();
+      exit(-1);
     }
 
   }
@@ -533,7 +535,7 @@ int main(int argc, char* argv[]) {
     }
   } else if(gridSize.size() != gpuId.size()*2) {
     printf("Invalid gridSize or gpuId argument, must have coherent size\n");
-    printUsage();
+    exit(-1);
   }
 
   // Let one CPU core free per gpu is gpu is enabled
