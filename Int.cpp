@@ -1208,8 +1208,9 @@ void Int::Check() {
   }
 
   t0 = Timer::get_tick();
+  a.Rand(BISIZE);
   for (int i = 0; i < 100000; i++) {
-    a.Rand(BISIZE);
+    a.AddOne();
     a.ModInv();
   }
   t1 = Timer::get_tick();
@@ -1241,11 +1242,12 @@ void Int::Check() {
     }
   }
 
+  for (int i = 0; i < 256; i++)
+    m[i].Rand(256);
   t0 = Timer::get_tick();
   for (int j = 0; j < 1000; j++) {
-    for (int i = 0; i < 256; i++) {
-      m[i].Rand(256);
-    }
+    for (int i = 0; i < 256; i++)
+      m[i].AddOne();
     g.ModInv();
   }
   t1 = Timer::get_tick();
@@ -1269,10 +1271,10 @@ void Int::Check() {
   }
 
   t0 = Timer::get_tick();
+  a.Rand(BISIZE);
   for (int i = 0; i < 1000000; i++) {
-    a.Rand(BISIZE);
-    b.Rand(BISIZE);
-    c.ModMulK1(&a, &b);
+    a.AddOne();
+    c.ModMulK1(&a);
   }
   t1 = Timer::get_tick();
 
@@ -1294,9 +1296,9 @@ void Int::Check() {
   }
 
   t0 = Timer::get_tick();
+  b.Rand(BISIZE);
   for (int i = 0; i < 1000000; i++) {
-    a.Rand(BISIZE);
-    b.Rand(BISIZE);
+    b.AddOne();
     c.ModSquareK1(&b);
   }
   t1 = Timer::get_tick();
@@ -1323,11 +1325,12 @@ void Int::Check() {
     }
   }
 
+  a.Rand(BISIZE);
+  b.Rand(BISIZE);
   t0 = Timer::get_tick();
   for (int i = 0; i < 1000000; i++) {
-    a.Rand(BISIZE);
-    b.Rand(BISIZE);
     c.Set(&a);
+    b.AddOne();
     c.ModMulK1order(&b);
   }
   t1 = Timer::get_tick();
