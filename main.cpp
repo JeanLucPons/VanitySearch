@@ -25,7 +25,7 @@
 #include "hash/sha512.h"
 #include "hash/sha256.h"
 
-#define RELEASE "1.16"
+#define RELEASE "1.17"
 
 using namespace std;
 
@@ -34,7 +34,7 @@ using namespace std;
 void printUsage() {
 
   printf("VanitySeacrh [-check] [-v] [-u] [-b] [-c] [-gpu] [-stop] [-i inputfile]\n");
-  printf("             [-gpuId gpuId1[,gpuId2,...]] [-g gridSize1[,gridSize2,...]]\n");
+  printf("             [-gpuId gpuId1[,gpuId2,...]] [-g g1x,g1y,[,g2x,g2y,...]]\n");
   printf("             [-o outputfile] [-m maxFound] [-ps seed] [-s seed] [-t nbThread]\n");
   printf("             [-nosse] [-r rekey] [-check] [-kp] [-sp startPubKey]\n");
   printf("             [-rp privkey partialkeyfile] [prefix]\n\n");
@@ -48,7 +48,7 @@ void printUsage() {
   printf(" -i inputfile: Get list of prefixes to search from specified file\n");
   printf(" -o outputfile: Output results to the specified file\n");
   printf(" -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0\n");
-  printf(" -g gridSize1x,gridSize1y,gridSize1x,gridSize1y, ...: Specify GPU(s) kernel gridsize, default is 8*(MP number),128\n");
+  printf(" -g g1x,g1y,g2x,g2y, ...: Specify GPU(s) kernel gridsize, default is 8*(MP number),128\n");
   printf(" -m: Specify maximun number of prefixes found by each kernel call\n");
   printf(" -s seed: Specify a seed for the base key, default is random\n");
   printf(" -ps seed: Specify a seed concatened with a crypto secure random seed\n");
