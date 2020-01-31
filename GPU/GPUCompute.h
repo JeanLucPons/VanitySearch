@@ -582,7 +582,7 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
       ModSub256(px, _p2,px);
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
-
+      __syncthreads();
       CHECK_P2PKH_POINT(j*GRP_SIZE + (GRP_SIZE/2 + (i + 1)));
 
       // P = StartPoint - i*G, if (x,y) = i*G then (x,-y) = -i*G
@@ -595,6 +595,7 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
       ModSub256(px, _p2, px);
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
+      __syncthreads();
       CHECK_P2PKH_POINT(j*GRP_SIZE + (GRP_SIZE/2 - (i + 1)));
 
     }
