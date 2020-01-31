@@ -512,6 +512,20 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
 // -----------------------------------------------------------------------------------------
 // Optimized kernel for compressed P2PKH address only
 
+#define CHECK_P2PKH_POINT(_incr) {                                             \
+_GetHash160CompSym(px, (uint8_t *)h1, (uint8_t *)h2);                          \
+CheckPoint(h1, (_incr), 0, true, sPrefix, lookup32, maxFound, out, P2PKH);     \
+CheckPoint(h2, -(_incr), 0, true, sPrefix, lookup32, maxFound, out, P2PKH);    \
+_ModMult(pe1x, px, _beta);                                                     \
+_GetHash160CompSym(pe1x, (uint8_t *)h1, (uint8_t *)h2);                        \
+CheckPoint(h1, (_incr), 1, true, sPrefix, lookup32, maxFound, out, P2PKH);     \
+CheckPoint(h2, -(_incr), 1, true, sPrefix, lookup32, maxFound, out, P2PKH);    \
+_ModMult(pe2x, px, _beta2);                                                    \
+_GetHash160CompSym(pe2x, (uint8_t *)h1, (uint8_t *)h2);                        \
+CheckPoint(h1, (_incr), 2, true, sPrefix, lookup32, maxFound, out, P2PKH);     \
+CheckPoint(h2, -(_incr), 2, true, sPrefix, lookup32, maxFound, out, P2PKH);    \
+}
+
 __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sPrefix, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint64_t dx[GRP_SIZE/2+1][4];
@@ -523,6 +537,10 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
   uint64_t dy[4];
   uint64_t _s[4];
   uint64_t _p2[4];
+  uint32_t   h1[5];
+  uint32_t   h2[5];
+  uint64_t   pe1x[4];
+  uint64_t   pe2x[4];
 
   // Load starting key
   __syncthreads();
@@ -547,7 +565,7 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
     // We compute key in the positive and negative way from the center of the group
 
     // Check starting point
-    CheckHashComp(sPrefix, px, 0, j*GRP_SIZE + (GRP_SIZE/2), lookup32, maxFound, out);
+    CHECK_P2PKH_POINT(j*GRP_SIZE + (GRP_SIZE/2));
 
     ModNeg256(pyn,py);
 
@@ -565,7 +583,7 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
 
-      CheckHashComp(sPrefix, px, 0, j*GRP_SIZE + (GRP_SIZE/2 + (i + 1)), lookup32, maxFound, out);
+      CHECK_P2PKH_POINT(j*GRP_SIZE + (GRP_SIZE/2 + (i + 1)));
 
       // P = StartPoint - i*G, if (x,y) = i*G then (x,-y) = -i*G
       Load256(px, sx);
@@ -577,7 +595,7 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
       ModSub256(px, _p2, px);
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
-      CheckHashComp(sPrefix, px, 0, j*GRP_SIZE + (GRP_SIZE/2 - (i + 1)), lookup32, maxFound, out);
+      CHECK_P2PKH_POINT(j*GRP_SIZE + (GRP_SIZE/2 - (i + 1)));
 
     }
 
@@ -593,7 +611,7 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
     ModSub256(px, _p2, px);
     ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
-    CheckHashComp(sPrefix, px, 0, j*GRP_SIZE + (0), lookup32, maxFound, out);
+    CHECK_P2PKH_POINT(j*GRP_SIZE + (0));
 
     i++;
 

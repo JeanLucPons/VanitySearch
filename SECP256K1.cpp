@@ -188,7 +188,7 @@ Point Secp256K1::ComputePublicKey(Int *privKey) {
   for(; i < 32; i++) {
     b = privKey->GetByte(i);
     if(b)
-      Q = Add(Q, GTable[256 * i + (b-1)]);
+      Q = Add2(Q, GTable[256 * i + (b-1)]);
   }
 
   Q.Reduce();
@@ -816,6 +816,50 @@ Point Secp256K1::AddDirect(Point &p1,Point &p2) {
   r.y.ModSub(&p2.x,&r.x);
   r.y.ModMulK1(&_s);
   r.y.ModSub(&p2.y);       // ry = - p2.y - s*(ret.x-p2.x);  
+
+  return r;
+
+}
+
+Point Secp256K1::Add2(Point &p1, Point &p2) {
+
+  // P2.z = 1
+
+  Int u;
+  Int v;
+  Int u1;
+  Int v1;
+  Int vs2;
+  Int vs3;
+  Int us2;
+  Int a;
+  Int us2w;
+  Int vs2v2;
+  Int vs3u2;
+  Int _2vs2v2;
+  Point r;
+
+  u1.ModMulK1(&p2.y, &p1.z);
+  v1.ModMulK1(&p2.x, &p1.z);
+  u.ModSub(&u1, &p1.y);
+  v.ModSub(&v1, &p1.x);
+  us2.ModSquareK1(&u);
+  vs2.ModSquareK1(&v);
+  vs3.ModMulK1(&vs2, &v);
+  us2w.ModMulK1(&us2, &p1.z);
+  vs2v2.ModMulK1(&vs2, &p1.x);
+  _2vs2v2.ModAdd(&vs2v2, &vs2v2);
+  a.ModSub(&us2w, &vs3);
+  a.ModSub(&_2vs2v2);
+
+  r.x.ModMulK1(&v, &a);
+
+  vs3u2.ModMulK1(&vs3, &p1.y);
+  r.y.ModSub(&vs2v2, &a);
+  r.y.ModMulK1(&r.y, &u);
+  r.y.ModSub(&vs3u2);
+
+  r.z.ModMulK1(&vs3, &p1.z);
 
   return r;
 

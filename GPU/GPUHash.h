@@ -513,6 +513,71 @@ __device__ __noinline__ void _GetHash160Comp(uint64_t *x, uint8_t isOdd, uint8_t
 
 }
 
+__device__ __noinline__ void _GetHash160CompSym(uint64_t *x, uint8_t *h1, uint8_t *h2) {
+
+  uint32_t *x32 = (uint32_t *)(x);
+  uint32_t publicKeyBytes[16];
+  uint32_t publicKeyBytes2[16];
+  uint32_t s[16];
+
+  // Compressed public key
+
+  // Even
+  publicKeyBytes[0] = __byte_perm(x32[7], 0x2, 0x4321);
+  publicKeyBytes[1] = __byte_perm(x32[7], x32[6], 0x0765);
+  publicKeyBytes[2] = __byte_perm(x32[6], x32[5], 0x0765);
+  publicKeyBytes[3] = __byte_perm(x32[5], x32[4], 0x0765);
+  publicKeyBytes[4] = __byte_perm(x32[4], x32[3], 0x0765);
+  publicKeyBytes[5] = __byte_perm(x32[3], x32[2], 0x0765);
+  publicKeyBytes[6] = __byte_perm(x32[2], x32[1], 0x0765);
+  publicKeyBytes[7] = __byte_perm(x32[1], x32[0], 0x0765);
+  publicKeyBytes[8] = __byte_perm(x32[0], 0x80, 0x0456);
+  publicKeyBytes[9] = 0;
+  publicKeyBytes[10] = 0;
+  publicKeyBytes[11] = 0;
+  publicKeyBytes[12] = 0;
+  publicKeyBytes[13] = 0;
+  publicKeyBytes[14] = 0;
+  publicKeyBytes[15] = 0x108;
+
+  // Odd
+  publicKeyBytes2[0] = __byte_perm(x32[7], 0x3, 0x4321);
+  publicKeyBytes2[1] = publicKeyBytes[1];
+  *(uint64_t *)(&publicKeyBytes2[2]) = *(uint64_t *)(&publicKeyBytes[2]);
+  *(uint64_t *)(&publicKeyBytes2[4]) = *(uint64_t *)(&publicKeyBytes[4]);
+  *(uint64_t *)(&publicKeyBytes2[6]) = *(uint64_t *)(&publicKeyBytes[6]);
+  *(uint64_t *)(&publicKeyBytes2[8]) = *(uint64_t *)(&publicKeyBytes[8]);
+  *(uint64_t *)(&publicKeyBytes2[10]) = *(uint64_t *)(&publicKeyBytes[10]);
+  *(uint64_t *)(&publicKeyBytes2[12]) = *(uint64_t *)(&publicKeyBytes[12]);
+  *(uint64_t *)(&publicKeyBytes2[14]) = *(uint64_t *)(&publicKeyBytes[14]);
+
+  SHA256Initialize(s);
+  SHA256Transform(s, publicKeyBytes);
+
+#pragma unroll 8
+  for (int i = 0; i < 8; i++)
+    s[i] = bswap32(s[i]);
+
+  *(uint64_t *)(s + 8) = 0x80ULL;
+  *(uint64_t *)(s + 10) = 0ULL;
+  *(uint64_t *)(s + 12) = 0ULL;
+  *(uint64_t *)(s + 14) = ripemd160_sizedesc_32;
+
+  RIPEMD160Initialize((uint32_t *)h1);
+  RIPEMD160Transform((uint32_t *)h1, s);
+
+  SHA256Initialize(s);
+  SHA256Transform(s, publicKeyBytes2);
+
+#pragma unroll 8
+  for (int i = 0; i < 8; i++)
+    s[i] = bswap32(s[i]);
+
+  RIPEMD160Initialize((uint32_t *)h2);
+  RIPEMD160Transform((uint32_t *)h2, s);
+
+}
+
 __device__ __noinline__ void _GetHash160(uint64_t *x, uint64_t *y, uint8_t *hash) {
 
   uint32_t *x32 = (uint32_t *)(x);

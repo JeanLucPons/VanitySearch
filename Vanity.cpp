@@ -1562,7 +1562,7 @@ void VanitySearch::FindKeyGPU(TH_PARAM *ph) {
       for (int i = 0; i < nbThread; i++) {
         keys[i].Add((uint64_t)STEP_SIZE);
       }
-      counters[thId] += 6 * STEP_SIZE * nbThread; // Point +  endo1 + endo2 + symetrics
+      counters[thId] += 6ULL * STEP_SIZE * nbThread; // Point +  endo1 + endo2 + symetrics
     }
 
   }
