@@ -25,7 +25,7 @@
 #include "hash/sha512.h"
 #include "hash/sha256.h"
 
-#define RELEASE "1.17"
+#define RELEASE "1.18"
 
 using namespace std;
 
@@ -456,12 +456,18 @@ int main(int argc, char* argv[]) {
       a++;
       string priv = string(argv[a]);
       Int k;
-      k.SetBase16(argv[a]);
+      bool isComp = true;
+      if(priv[0]=='K') {
+        k = secp->DecodePrivateKey((char *)priv.c_str(),&isComp);
+      } else {
+        k.SetBase16(argv[a]);
+      }
       Point p = secp->ComputePublicKey(&k);
-      printf("PubKey: %s\n",secp->GetPublicKeyHex(true,p).c_str());
-      printf("Addr (P2PKH): %s\n", secp->GetAddress(P2PKH,true,p).c_str());
-      printf("Addr (P2SH): %s\n", secp->GetAddress(P2SH, true,p).c_str());
-      printf("Addr (BECH32): %s\n", secp->GetAddress(BECH32, true,p).c_str());
+      printf("PrivAddr: p2pkh:%s\n",secp->GetPrivAddress(isComp,k).c_str());
+      printf("PubKey: %s\n",secp->GetPublicKeyHex(isComp,p).c_str());
+      printf("Addr (P2PKH): %s\n", secp->GetAddress(P2PKH,isComp,p).c_str());
+      printf("Addr (P2SH): %s\n", secp->GetAddress(P2SH,isComp,p).c_str());
+      printf("Addr (BECH32): %s\n", secp->GetAddress(BECH32,isComp,p).c_str());
       exit(0);
     } else if (strcmp(argv[a], "-rp") == 0) {
       a++;
