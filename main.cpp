@@ -457,7 +457,7 @@ int main(int argc, char* argv[]) {
       string priv = string(argv[a]);
       Int k;
       bool isComp = true;
-      if(priv[0]=='K') {
+      if(priv[0]=='5' || priv[0] == 'K' || priv[0] == 'L') {
         k = secp->DecodePrivateKey((char *)priv.c_str(),&isComp);
       } else {
         k.SetBase16(argv[a]);
