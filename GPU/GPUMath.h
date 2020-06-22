@@ -92,8 +92,9 @@ __device__ __constant__ uint64_t _beta2[] = { 0x3EC693D68E6AFA40ULL,0x630FB68AED
   UADDO1(r[0], _P[0]); \
   UADDC1(r[1], _P[1]); \
   UADDC1(r[2], _P[2]); \
-  UADD1(r[3], _P[3]); \
-  r[4]= 0ULL;}
+  UADDC1(r[3], _P[3]); \
+  UADD1(r[4], _P[4]);}
+
 
 // ---------------------------------------------------------------------------------------
 
@@ -445,14 +446,12 @@ __device__ __noinline__ void _ModInv(uint64_t *R) {
     return;
   }
 
-  if (_IsNegative(s)) {
+  // In very rare case |s|>2P 
+  while(_IsNegative(s))
     AddP(s);
-  }
-  else {
-    Sub1(s, _P);
-    if (_IsNegative(s))
-      AddP(s);
-  }
+  while(!_IsNegative(s))
+    Sub1(s,_P);
+  AddP(s);
 
   Load(R, s);
 

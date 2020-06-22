@@ -498,10 +498,10 @@ void Int::ModInv() {
     return;
   }
 
-  if (s.IsNegative())
+  // In very rare case |s|>2P
+  while(s.IsNegative())
     s.Add(&_P);
-
-  if (s.IsGreaterOrEqual(&_P))
+  while(s.IsGreaterOrEqual(&_P))
     s.Sub(&_P);
 
   Set(&s);
