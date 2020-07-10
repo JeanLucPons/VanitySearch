@@ -579,10 +579,10 @@ bool GPUEngine::Launch(std::vector<ITEM> &prefixFound,bool spinWait) {
     }
     nbFound = maxFound;
   }
-  
+
   // When can perform a standard copy, the kernel is eneded
   cudaMemcpy( outputPrefixPinned , outputPrefix , nbFound*ITEM_SIZE + 4 , cudaMemcpyDeviceToHost);
-  
+
   for (uint32_t i = 0; i < nbFound; i++) {
     uint32_t *itemPtr = outputPrefixPinned + (i*ITEM_SIZE32 + 1);
     ITEM it;
@@ -701,7 +701,7 @@ bool GPUEngine::Check(Secp256K1 *secp) {
 
   Point *p = new Point[nbThread];
   Point *p2 = new Point[nbThread];
-  Int k;  
+  Int k;
 
   // Check kernel
   int nbFoundCPU[6];
@@ -738,12 +738,12 @@ bool GPUEngine::Check(Secp256K1 *secp) {
   Launch(found,true);
   double t1 = Timer::get_tick();
   Timer::printResult((char *)"Key", 6*STEP_SIZE*nbThread, t0, t1);
-   
+
   //for (int i = 0; i < found.size(); i++) {
   //  printf("[%d]: thId=%d incr=%d\n", i, found[i].thId,found[i].incr);
   //  printf("[%d]: %s\n", i,toHex(found[i].hash,20).c_str());
   //}
-  
+
   printf("ComputeKeys() found %d items , CPU check...\n",(int)found.size());
 
   Int beta,beta2;
@@ -753,7 +753,7 @@ bool GPUEngine::Check(Secp256K1 *secp) {
   // Check with CPU
   for (j = 0; (j<nbThread); j++) {
     for (i = 0; i < STEP_SIZE; i++) {
-      
+
       Point pt,p1,p2;
       pt = p[j];
       p1 = p[j];
@@ -818,7 +818,7 @@ bool GPUEngine::Check(Secp256K1 *secp) {
 
     int nbF = nbFoundCPU[0] + nbFoundCPU[1] + nbFoundCPU[2] +
               nbFoundCPU[3] + nbFoundCPU[4] + nbFoundCPU[5];
-    printf("CPU found %d items\n",nbF); 
+    printf("CPU found %d items\n",nbF);
 
     printf("GPU: point   correct [%d/%d]\n", nbOK[0] , nbFoundCPU[0]);
     printf("GPU: endo #1 correct [%d/%d]\n", nbOK[1] , nbFoundCPU[1]);

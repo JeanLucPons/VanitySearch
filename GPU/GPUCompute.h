@@ -20,10 +20,10 @@
 // For the kernel, we use a 16 bits prefix lookup table which correspond to ~3 Base58 characters
 // A second level lookup table contains 32 bits prefix (if used)
 // (The CPU computes the full address and check the full prefix)
-// 
+//
 // We use affine coordinates for elliptic curve point (ie Z=1)
 
-__device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo, int32_t mode,prefix_t *prefix, 
+__device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo, int32_t mode,prefix_t *prefix,
                                         uint32_t *lookup32, uint32_t maxFound, uint32_t *out,int type) {
 
   uint32_t   off;
@@ -37,7 +37,7 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
   uint32_t   lmi;
   uint32_t   tid = (blockIdx.x*blockDim.x) + threadIdx.x;
   char       add[48];
-  
+
   if (prefix == NULL) {
 
     // No lookup compute address and return
@@ -47,9 +47,9 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
       // found
       goto addItem;
     }
- 
+
   } else {
-    
+
     // Lookup table
     pr0 = *(prefix_t *)(_h);
     hit = prefix[pr0];
@@ -100,7 +100,7 @@ __device__ __noinline__ void CheckPoint(uint32_t *_h, int32_t incr, int32_t endo
 #define CHECK_POINT(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,lookup32,maxFound,out,P2PKH)
 #define CHECK_POINT_P2SH(_h,incr,endo,mode)  CheckPoint(_h,incr,endo,mode,prefix,lookup32,maxFound,out,P2SH)
 
-__device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint8_t isOdd, int32_t incr, 
+__device__ __noinline__ void CheckHashComp(prefix_t *prefix, uint64_t *px, uint8_t isOdd, int32_t incr,
                                            uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint32_t   h[5];
@@ -153,7 +153,7 @@ __device__ __noinline__ void CheckHashP2SHComp(prefix_t *prefix, uint64_t *px, u
 
 // -----------------------------------------------------------------------------------------
 
-__device__ __noinline__ void CheckHashUncomp(prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr, 
+__device__ __noinline__ void CheckHashUncomp(prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr,
                                              uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint32_t   h[5];
@@ -211,7 +211,7 @@ __device__ __noinline__ void CheckHashP2SHUncomp(prefix_t *prefix, uint64_t *px,
 
 // -----------------------------------------------------------------------------------------
 
-__device__ __noinline__ void CheckHash(uint32_t mode, prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr, 
+__device__ __noinline__ void CheckHash(uint32_t mode, prefix_t *prefix, uint64_t *px, uint64_t *py, int32_t incr,
                                        uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   switch (mode) {
@@ -251,7 +251,7 @@ __device__ __noinline__ void CheckP2SHHash(uint32_t mode, prefix_t *prefix, uint
 
 // -----------------------------------------------------------------------------------------
 
-__device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty, 
+__device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
                             prefix_t *sPrefix, uint32_t *lookup32, uint32_t maxFound, uint32_t *out) {
 
   uint64_t dx[GRP_SIZE/2+1][4];
@@ -312,7 +312,7 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
 
       ModSub256(py, Gx[i], px);
       _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-      ModSub256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);  
+      ModSub256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
 
       CHECK_PREFIX(GRP_SIZE / 2 + (i + 1));
 
@@ -328,7 +328,7 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
 
       ModSub256(py, Gx[i], px);
       _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-      ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);  
+      ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
 
       CHECK_PREFIX(GRP_SIZE / 2 - (i + 1));
 
@@ -348,7 +348,7 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
 
     ModSub256(py, Gx[i], px);
     _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-    ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);  
+    ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
 
     CHECK_PREFIX(0);
 
@@ -367,7 +367,7 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
 
     ModSub256(py, _2Gnx, px);
     _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-    ModSub256(py, _2Gny);         // py = - p2.y - s*(ret.x-p2.x);  
+    ModSub256(py, _2Gny);         // py = - p2.y - s*(ret.x-p2.x);
 
   }
 
@@ -443,7 +443,7 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
 
       ModSub256(py, Gx[i], px);
       _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-      ModSub256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);  
+      ModSub256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
 
       CHECK_PREFIX_P2SH(GRP_SIZE / 2 + (i + 1));
 
@@ -459,7 +459,7 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
 
       ModSub256(py, Gx[i], px);
       _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-      ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);  
+      ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
 
       CHECK_PREFIX_P2SH(GRP_SIZE / 2 - (i + 1));
 
@@ -479,7 +479,7 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
 
     ModSub256(py, Gx[i], px);
     _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-    ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);  
+    ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
 
     CHECK_PREFIX_P2SH(0);
 
@@ -498,7 +498,7 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
 
     ModSub256(py, _2Gnx, px);
     _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-    ModSub256(py, _2Gny);         // py = - p2.y - s*(ret.x-p2.x);  
+    ModSub256(py, _2Gny);         // py = - p2.y - s*(ret.x-p2.x);
 
   }
 
@@ -629,7 +629,7 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
 
     ModSub256(py, _2Gnx, px);
     _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-    ModSub256(py, _2Gny);         // py = - p2.y - s*(ret.x-p2.x);  
+    ModSub256(py, _2Gny);         // py = - p2.y - s*(ret.x-p2.x);
 
   }
 

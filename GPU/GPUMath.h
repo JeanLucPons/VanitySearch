@@ -356,7 +356,7 @@ __device__ __noinline__ void _ModInv(uint64_t *R) {
 
     // u' = (uu*u + uv*v) >> bitCount
     // v' = (vu*u + vv*v) >> bitCount
-    // Do not maintain a matrix for r and s, the number of 
+    // Do not maintain a matrix for r and s, the number of
     // 'added P' can be easily calculated
     uu = 1; uv = 0;
     vu = 0; vv = 1;
@@ -446,7 +446,7 @@ __device__ __noinline__ void _ModInv(uint64_t *R) {
     return;
   }
 
-  // In very rare case |s|>2P 
+  // In very rare case |s|>2P
   while(_IsNegative(s))
     AddP(s);
   while(!_IsNegative(s))
@@ -493,14 +493,14 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a, uint64_t *b) {
   UADDC1(r512[6], t[3]);
   UADD1(r512[7], t[4]);
 
-  // Reduce from 512 to 320 
+  // Reduce from 512 to 320
   UMult(t, (r512 + 4), 0x1000003D1ULL);
   UADDO1(r512[0], t[0]);
   UADDC1(r512[1], t[1]);
   UADDC1(r512[2], t[2]);
   UADDC1(r512[3], t[3]);
 
-  // Reduce from 320 to 256 
+  // Reduce from 320 to 256
   UADD1(t[4], 0ULL);
   UMULLO(al, t[4], 0x1000003D1ULL);
   UMULHI(ah, t[4], 0x1000003D1ULL);
@@ -542,7 +542,7 @@ __device__ void _ModMult(uint64_t *r, uint64_t *a) {
   UADDC1(r512[6], t[3]);
   UADD1(r512[7], t[4]);
 
-  // Reduce from 512 to 320 
+  // Reduce from 512 to 320
   UMult(t, (r512 + 4), 0x1000003D1ULL);
   UADDO1(r512[0], t[0]);
   UADDC1(r512[1], t[1]);
@@ -666,7 +666,7 @@ __device__ void _ModSqr(uint64_t *rp, const uint64_t *up) {
 
 #if 1
 
-  // Reduce from 512 to 320 
+  // Reduce from 512 to 320
   UMULLO(r0, r512[4], 0x1000003D1ULL);
   UMULLO(r1, r512[5], 0x1000003D1ULL);
   MADDO(r1, r512[4], 0x1000003D1ULL, r1);

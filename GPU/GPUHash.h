@@ -56,7 +56,7 @@ __device__ __constant__ uint32_t I[] = {
 __device__ __forceinline__ uint32_t S0(uint32_t x) {
 
   uint32_t y;
-  asm("{\n\t" 
+  asm("{\n\t"
       " .reg .u64 r1,r2,r3;\n\t"
       " cvt.u64.u32 r1, %1;\n\t"
       " mov.u64 r2, r1;\n\t"
@@ -217,7 +217,7 @@ __device__ void SHA256Initialize(uint32_t s[8]) {
 
 // Perform SHA-256 transformations, process 64-byte chunks
 __device__ void SHA256Transform(uint32_t s[8],uint32_t* w) {
-  
+
   uint32_t t1;
   uint32_t t2;
 

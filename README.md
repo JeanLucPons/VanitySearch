@@ -15,7 +15,7 @@ VanitySearch may not compute a good grid size for your GPU, so try different val
   <li>CUDA optimisation via inline PTX assembly</li>
   <li>Seed protected by pbkdf2_hmac_sha512 (BIP38)</li>
   <li>Support P2PKH, P2SH and BECH32 addresses</li>
-  <li>Support split-key vanity address</li>    
+  <li>Support split-key vanity address</li>
 </ul>
 
 # Discussion Thread
@@ -57,7 +57,7 @@ VanitySeacrh [-check] [-v] [-u] [-b] [-c] [-gpu] [-stop] [-i inputfile]
  -sp startPubKey: Start the search with a pubKey (for private key splitting)
  -r rekey: Rekey interval in MegaKey, default is disabled
 ```
- 
+
 Exemple (Windows, Intel Core i7-4770 3.4GHz 8 multithreaded cores, GeForce GTX 1050 Ti):
 
 ```
@@ -159,7 +159,7 @@ The bitcoin address (P2PKH) consists of a hash160 (displayed in Base58 format) w
 If we have a list of m distinct addresses (m<=2<sup>160</sup>), the search space is then reduced to 2<sup>160</sup>/m, the probability to find a collision after 1 try becomes m/2<sup>160</sup> and the probability to find a collision after n tries becomes 1-(1-m/2<sup>160</sup>)<sup>n</sup>.\
 An example:\
 We have a hardware capable of generating **1GKey/s** and we have an input list of **10<sup>6</sup>** addresses, the following table shows the probability of finding a collision after a certain amount of time:
-  
+
 | Time     |  Probability  |
 |----------|:-------------:|
 | 1 second |6.8e-34|
@@ -174,7 +174,7 @@ We have a hardware capable of generating **1GKey/s** and we have an input list o
 
 Calculation has been done using this [online high precision calculator](https://keisan.casio.com/calculator)
 
-As you can see, even with a competitive hardware, it is very unlikely that you find a collision. Birthday paradox doesn't apply in this context, it works only if we know already the public key (not the address, the hash of the public key) we want to find.  This program doesn't look for collisions between public keys. It searchs only for collisions with addresses with a certain prefix. 
+As you can see, even with a competitive hardware, it is very unlikely that you find a collision. Birthday paradox doesn't apply in this context, it works only if we know already the public key (not the address, the hash of the public key) we want to find.  This program doesn't look for collisions between public keys. It searchs only for collisions with addresses with a certain prefix.
 
 # Compilation
 
@@ -191,7 +191,7 @@ Note: The current relase has been compiled with CUDA SDK 10.0, if you have a dif
 
 Intall CUDA SDK.\
 Depenging on the CUDA SDK version and on your Linux distribution you may need to install an older g++ (just for the CUDA SDK).\
-Edit the makefile and set up the good CUDA SDK path and appropriate compiler for nvcc. 
+Edit the makefile and set up the good CUDA SDK path and appropriate compiler for nvcc.
 
 ```
 CUDA       = /usr/local/cuda-8.0
@@ -221,7 +221,7 @@ Base Key:C6718D8E50C1A5877DE3E52021C116F7598826873C61496BDB7CAD668CE3DCE5
 Number of CPU thread: 7
 GPU: GPU #1 Quadro 600 (2x48 cores) Grid(16x128)
 GPU: GPU #0 Quadro 600 (2x48 cores) Grid(16x128)
-40.284 MK/s (GPU 27.520 MK/s) (2^31.84) [P 22.24%][50.00% in 00:02:47][0]  
+40.284 MK/s (GPU 27.520 MK/s) (2^31.84) [P 22.24%][50.00% in 00:02:47][0]
 Pub Addr: 1TryMeERTZK7RCTemSJB5SNb2WcKSx45p
 Priv (WIF): Ky9bMLDpb9o5rBwHtLaidREyA6NzLFkWJ19QjPDe2XDYJdmdUsRk
 Priv (HEX): 0x398E7271AF3E5A78821C1ADFDE3EE90760A6B65F72D856CFE455B1264350BCE8

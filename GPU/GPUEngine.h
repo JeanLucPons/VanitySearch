@@ -56,7 +56,7 @@ class GPUEngine {
 
 public:
 
-  GPUEngine(int nbThreadGroup,int nbThreadPerGroup,int gpuId,uint32_t maxFound,bool rekey); 
+  GPUEngine(int nbThreadGroup,int nbThreadPerGroup,int gpuId,uint32_t maxFound,bool rekey);
   ~GPUEngine();
   void SetPrefix(std::vector<prefix_t> prefixes);
   void SetPrefix(std::vector<LPREFIX> prefixes,uint32_t totalPrefix);

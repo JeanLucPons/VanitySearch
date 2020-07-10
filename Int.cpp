@@ -266,7 +266,7 @@ uint32_t Int::GetInt32() {
 // ------------------------------------------------
 
 unsigned char Int::GetByte(int n) {
-  
+
   unsigned char *bbPtr = (unsigned char *)bits;
   return bbPtr[n];
 
@@ -480,7 +480,7 @@ void Int::ShiftL32BitAndSub(Int *a,int n) {
 // ------------------------------------------------
 
 void Int::ShiftL(uint32_t n) {
-    
+
   if( n<64 ) {
 	shiftL((unsigned char)n, bits64);
   } else {
@@ -489,7 +489,7 @@ void Int::ShiftL(uint32_t n) {
     for(uint32_t i=0;i<nb64;i++) ShiftL64Bit();
 	  shiftL((unsigned char)nb, bits64);
   }
-  
+
 }
 
 // ------------------------------------------------
@@ -523,7 +523,7 @@ void Int::ShiftR64Bit() {
 // ---------------------------------D---------------
 
 void Int::ShiftR(uint32_t n) {
-    
+
   if( n<64 ) {
     shiftR((unsigned char)n, bits64);
   } else {
@@ -532,7 +532,7 @@ void Int::ShiftR(uint32_t n) {
     for(uint32_t i=0;i<nb64;i++) ShiftR64Bit();
 	  shiftR((unsigned char)nb, bits64);
   }
-  
+
 }
 
 // ------------------------------------------------
@@ -568,7 +568,7 @@ void Int::Mult(uint64_t a) {
 // ------------------------------------------------
 
 void Int::IMult(Int *a, int64_t b) {
-  
+
   Set(a);
 
   // Make b positive
@@ -591,7 +591,7 @@ void Int::Mult(Int *a, uint64_t b) {
 // ------------------------------------------------
 
 void Int::Mult(Int *a,Int *b) {
-  
+
   unsigned char c = 0;
   uint64_t h;
   uint64_t pr = 0;
@@ -623,7 +623,7 @@ void Int::Mult(Int *a,uint32_t b) {
 // ------------------------------------------------
 
 static uint32_t bitLength(uint32_t dw) {
-  
+
   uint32_t mask = 0x80000000;
   uint32_t b=0;
   while(b<32 && (mask & dw)==0) {
@@ -770,7 +770,7 @@ void Int::Div(Int *a,Int *mod) {
   uint64_t  dhLong = _dh;
   uint32_t  _dl    = (dSize>1)?d.bits[dSize-2]:0;
   int sb = tSize-1;
-        
+
   // D2 Initialize j
   for(int j=0; j<(int)qSize; j++) {
 
@@ -794,7 +794,7 @@ void Int::Div(Int *a,Int *mod) {
     if (qhat == 0)
       continue;
 
-    if (!skipCorrection) { 
+    if (!skipCorrection) {
 
       // Correct qhat
       uint64_t nl = (uint64_t)rem.bits[sb-j-1];
@@ -814,7 +814,7 @@ void Int::Div(Int *a,Int *mod) {
 
     }
 
-    // D4 Multiply and subtract    
+    // D4 Multiply and subtract
     dq.Mult(&d,qhat);
     rem.ShiftL32BitAndSub(&dq,qSize-j-1);
     if( rem.IsNegative() ) {
@@ -864,7 +864,7 @@ void Int::GCD(Int *a) {
       k++;
     U.ShiftR(k);
     V.ShiftR(k);
-    if (U.GetBit(0)==1) { 
+    if (U.GetBit(0)==1) {
       T.Set(&V);
       T.Neg();
     } else {
@@ -891,13 +891,13 @@ void Int::GCD(Int *a) {
 
     // Store gcd
     Set(&U);
-    ShiftL(k); 
+    ShiftL(k);
 
 }
 
 // ------------------------------------------------
 
-void Int::SetBase10(char *value) {  
+void Int::SetBase10(char *value) {
 
   CLEAR();
   Int pw(1);
@@ -915,7 +915,7 @@ void Int::SetBase10(char *value) {
 
 // ------------------------------------------------
 
-void  Int::SetBase16(char *value) {  
+void  Int::SetBase16(char *value) {
   SetBaseN(16,"0123456789ABCDEF",value);
 }
 
@@ -934,7 +934,7 @@ std::string Int::GetBase16() {
 // ------------------------------------------------
 
 std::string Int::GetBlockStr() {
-	
+
 	char tmp[256];
 	char bStr[256];
 	tmp[0] = 0;
@@ -1128,7 +1128,7 @@ void Int::Check() {
     printf("Mult() Results Wrong\nR=%s\nT=%s\n",e.GetBase10().c_str(), c.GetBase10().c_str());
     return;
   }
-  
+
   // Div -------------------------------------------------------------------------------------------
   tTotal = 0.0;
   ok = true;
@@ -1148,18 +1148,18 @@ void Int::Check() {
     a.Add(&c);
     if (!a.IsEqual(&d)) {
 	  ok = false;
-      printf("Div() Results Wrong \nN: %s\nD: %s\nQ: %s\nR: %s\n", 
+      printf("Div() Results Wrong \nN: %s\nD: %s\nQ: %s\nR: %s\n",
         d.GetBase16().c_str(),
         b.GetBase16().c_str(),
         a.GetBase16().c_str(),
         c.GetBase16().c_str()
-        
+
       );
       return;
     }
 
   }
-  
+
   if(ok) {
     printf("Div() Results OK : ");
     Timer::printResult("Div", 1000, 0, tTotal);
