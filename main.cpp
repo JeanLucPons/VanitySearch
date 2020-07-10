@@ -376,7 +376,7 @@ int main(int argc, char* argv[]) {
 
   // Browse arguments
   if (argc < 2) {
-    printf("Error: Not enough argument (use -h for help)");
+    printf("Error: No arguments (use -h for help)\n");
     exit(-1);
   }
 
