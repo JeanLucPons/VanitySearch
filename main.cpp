@@ -267,9 +267,9 @@ void reconstructAdd(Secp256K1 *secp, string fileName, string outputFile, string 
     string addr;
     string partialPrivAddr;
 
-    if (lines[i].substr(0, 10) == "Pub Addr: ") {
+    if (lines[i].substr(0, 12) == "PubAddress: ") {
 
-      addr = lines[i].substr(10);
+      addr = lines[i].substr(12);
 
       switch (addr.data()[0]) {
       case '1':
@@ -286,7 +286,7 @@ void reconstructAdd(Secp256K1 *secp, string fileName, string outputFile, string 
       }
 
     } else {
-      printf("Invalid partialkey info file at line %d (\"Pub Addr: \" expected)\n",i);
+      printf("Invalid partialkey info file at line %d (\"PubAddress: \" expected)\n",i);
       exit(-1);
     }
 
