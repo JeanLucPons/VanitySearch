@@ -189,45 +189,109 @@ Note: The current relase has been compiled with CUDA SDK 10.0, if you have a dif
 
 ## Linux
 
-Intall CUDA SDK.\
-Depenging on the CUDA SDK version and on your Linux distribution you may need to install an older g++ (just for the CUDA SDK).\
-Edit the makefile and set up the good CUDA SDK path and appropriate compiler for nvcc.
+ - Intall CUDA SDK.
+ - Install older g++ (just for the CUDA SDK). Depenging on the CUDA SDK version and on your Linux distribution you may need to install an older g++.
+ - Install recent gcc. VanitySearch needs to be compiled and linked with a recent gcc (>=7). The current release has been compiled with gcc 7.3.0.
+ - Edit the makefile and set up the appropriate CUDA SDK and compiler paths for nvcc. Or pass them as variables to `make` invocation.
 
-```
-CUDA       = /usr/local/cuda-8.0
-CXXCUDA    = /usr/bin/g++-4.8
-```
+    ```make
+    CUDA       = /usr/local/cuda-8.0
+    CXXCUDA    = /usr/bin/g++-4.8
+    ```
 
-You can enter a list of architectrure (refer to nvcc documentation) if you have several GPU with different architecture. Compute capability 2.0 (Fermi) is deprecated for recent CUDA SDK.
-VanitySearch need to be compiled and linked with a recent gcc (>=7). The current release has been compiled with gcc 7.3.0.\
-Go to the VanitySearch directory. ccap is the desired compute capability.
+ - You can enter a list of architectrures (refer to nvcc documentation) if you have several GPU with different architecture.
 
-```
-$ g++ -v
-gcc version 7.3.0 (Ubuntu 7.3.0-27ubuntu1~18.04)
-$ make all (for build without CUDA support)
-or
-$ make gpu=1 ccap=20 all
-```
+ - Set CCAP to the desired compute capability according to your hardware. See docker section for more. Compute capability 2.0 (Fermi) is deprecated for recent CUDA SDK.
+
+ - Go to the VanitySearch directory.
+ - To build CPU-only version (without CUDA support):
+    ```sh
+    $ make all
+    ```
+ - To build with CUDA:
+    ```sh
+    $ make gpu=1 CCAP=2.0 all
+    ```
+
 Runnig VanitySearch (Intel(R) Xeon(R) CPU, 8 cores,  @ 2.93GHz, Quadro 600 (x2))
+```sh
+$ export LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64
+$ ./VanitySearch -t 7 -gpu -gpuId 0,1 1TryMe
+# VanitySearch v1.10
+# Difficulty: 15318045009
+# Search: 1TryMe [Compressed]
+# Start Wed Mar 27 10:26:43 2019
+# Base Key:C6718D8E50C1A5877DE3E52021C116F7598826873C61496BDB7CAD668CE3DCE5
+# Number of CPU thread: 7
+# GPU: GPU #1 Quadro 600 (2x48 cores) Grid(16x128)
+# GPU: GPU #0 Quadro 600 (2x48 cores) Grid(16x128)
+# 40.284 MK/s (GPU 27.520 MK/s) (2^31.84) [P 22.24%][50.00% in 00:02:47][0]
+#
+# Pub Addr: 1TryMeERTZK7RCTemSJB5SNb2WcKSx45p
+# Priv (WIF): Ky9bMLDpb9o5rBwHtLaidREyA6NzLFkWJ19QjPDe2XDYJdmdUsRk
+# Priv (HEX): 0x398E7271AF3E5A78821C1ADFDE3EE90760A6B65F72D856CFE455B1264350BCE8
 ```
-$export LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64
-pons@linpons:~/VanitySearch$ ./VanitySearch -t 7 -gpu -gpuId 0,1 1TryMe
-VanitySearch v1.10
-Difficulty: 15318045009
-Search: 1TryMe [Compressed]
-Start Wed Mar 27 10:26:43 2019
-Base Key:C6718D8E50C1A5877DE3E52021C116F7598826873C61496BDB7CAD668CE3DCE5
-Number of CPU thread: 7
-GPU: GPU #1 Quadro 600 (2x48 cores) Grid(16x128)
-GPU: GPU #0 Quadro 600 (2x48 cores) Grid(16x128)
-40.284 MK/s (GPU 27.520 MK/s) (2^31.84) [P 22.24%][50.00% in 00:02:47][0]
-Pub Addr: 1TryMeERTZK7RCTemSJB5SNb2WcKSx45p
-Priv (WIF): Ky9bMLDpb9o5rBwHtLaidREyA6NzLFkWJ19QjPDe2XDYJdmdUsRk
-Priv (HEX): 0x398E7271AF3E5A78821C1ADFDE3EE90760A6B65F72D856CFE455B1264350BCE8
+
+## Docker
+
+[![Docker Stars](https://img.shields.io/docker/stars/ratijas/vanitysearch.svg)](https://hub.docker.com/r/ratijas/vanitysearch)
+[![Docker Pulls](https://img.shields.io/docker/pulls/ratijas/vanitysearch.svg)](https://hub.docker.com/r/ratijas/vanitysearch)
+
+### Supported tags
+
+ * [`latest`, `cuda-ccap-6`, `cuda-ccap-6.0` *(cuda/Dockerfile)*](./docker/cuda/Dockerfile)
+ * [`cuda-ccap-5`, `cuda-ccap-5.2` *(cuda/Dockerfile)*](./docker/cuda/Dockerfile)
+ * [`cuda-ccap-2`, `cuda-ccap-2.0` *(cuda/ccap-2.0.Dockerfile)*](./docker/cuda/ccap-2.0.Dockerfile)
+ * [`cpu` *(cpu/Dockerfile)*](./docker/cpu/Dockerfile)
+
+### Docker build
+
+Docker images are build for CPU-only version and for each supported CUDA Compute capability version (`CCAP`). Generally, users should choose latest `CCAP` supported by their hardware and driver. Compatibility table can be found on [Wikipedia](https://en.wikipedia.org/wiki/CUDA#GPUs_supported) or at the official NVIDIA web page of your product.
+
+Docker uses multi-stage builds to improve final image size. Scripts are provided to facilitate the build process.
+
+When building on your own, full image name (including owner/repo parts) can be customized via `IMAGE_NAME` environment variable. It defaults to just `vanitysearch` withour owner part. Pre-built images are available on Docker hub from [@ratijas](https://hub.docker.com/r/ratijas/vanitysearch).
+
+#### Docker build / CPU-only
+
+Build and tag `vanitysearch:cpu` image:
+```sh
+$ ./docker/cpu/build.sh
+```
+
+#### Docker build / GPU
+
+Build with "default" GPU support, which might not be suitable for your system:
+```sh
+$ ./docker/cuda/build.sh
+```
+
+Build with customized GPU support:
+```sh
+$ env CCAP=5.2 CUDA=10.2 ./docker/cuda/build.sh
+```
+
+As for docker-compose folks, sorry, docker-composed GPUs are not (yet) supported on a 3.x branch. But it (hopefully) will change soon.
+
+### Docker run
+
+Note: VanitySearch image does not (neither should) require network access. To further ensure no data ever leaks from the running container, always pass `--network none` to the docker run command.
+
+```sh
+$ docker run -it --rm --gpus all --network none ratijas/vanitysearch:cuda-ccap-5.2 -gpu -c -stop 1docker
+# VanitySearch v1.18
+# Difficulty: 957377813
+# Search: 1docker [Compressed, Case unsensitive] (Lookup size 3)
+# Start Sat Jul 11 17:41:32 2020
+# Base Key: B506F2C7CA8AA2E826F2947012CFF15D2E6CD3DA5C562E8252C9F755F2A4C5D3
+# Number of CPU thread: 1
+# GPU: GPU #0 GeForce GTX 970M (10x128 cores) Grid(80x128)
+#
+# PubAddress: 1DoCKeRXYyydeQy6xxpneqtDovXFarAwrE
+# Priv (WIF): p2pkh:KzESATCZFmnH1RfwT5XbCF9dZSnDGTS8z61YjnQbgFiM7tXtcH73
+# Priv (HEX): 0x59E27084C6252377A8B7AABB20AFD975060914B3747BD6392930BC5BE7A06565
 ```
 
 # License
 
 VanitySearch is licensed under GPLv3.
-
