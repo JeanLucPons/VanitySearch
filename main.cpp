@@ -25,7 +25,7 @@
 #include "hash/sha512.h"
 #include "hash/sha256.h"
 
-#define RELEASE "1.18"
+#define RELEASE "1.19"
 
 using namespace std;
 
