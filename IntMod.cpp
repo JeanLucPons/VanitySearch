@@ -107,6 +107,147 @@ void Int::ModNeg() {
 
 // ------------------------------------------------
 
+inline void DivStep62(int64_t u0,int64_t v0,
+  int64_t* eta,
+  int64_t* uu,int64_t* uv,
+  int64_t* vu,int64_t* vv) {
+
+  // u' = (uu*u + uv*v) >> bitCount
+  // v' = (vu*u + vv*v) >> bitCount
+  // Do not maintain a matrix for r and s, the number of
+  // 'added P' can be easily calculated
+
+  int bitCount;
+
+#if 0
+
+  #define SWAP_ADD(x,y) x+=y;y-=x;
+  #define SWAP_SUB(x,y) x-=y;y+=x;
+
+  // Former divstep62 (using __builtin_ctzll)
+  // Do not use eta, u and v have an exponential decay in worst case
+  // but with low probability to reach this worst case complexity
+  // Avg: 581 Kinv/s
+
+  bitCount = 62;
+  int64_t nb0;
+
+  while(true) {
+
+    int zeros = __builtin_ctzll(v0 | (UINT64_MAX << bitCount));
+    v0 >>= zeros;
+    *uu <<= zeros;
+    *uv <<= zeros;
+    bitCount -= zeros;
+
+    if(bitCount <= 0)
+      break;
+
+    nb0 = (v0 + u0) & 0x3;
+    if(nb0 == 0) {
+      SWAP_ADD(*vv,*uv);
+      SWAP_ADD(*vu,*uu);
+      SWAP_ADD(v0,u0);
+    } else {
+      SWAP_SUB(*vv,*uv);
+      SWAP_SUB(*vu,*uu);
+      SWAP_SUB(v0,u0);
+    }
+
+  }
+
+
+#endif
+
+#if 1
+
+  #define SWAP_NEG(tmp,x,y) tmp = x; x = y; y = -tmp;
+
+  int64_t m,w,x,y,z;
+  bitCount = 62;
+
+  // divstep62 var time implementation by Peter Dettman
+  // (see https://github.com/bitcoin-core/secp256k1/pull/767)
+  // Avg: 640 Kinv/s
+
+  while(true) {
+
+    // Use a sentinel bit to count zeros only up to bitCount
+    int zeros = __builtin_ctzll(v0 | (UINT64_MAX << bitCount));
+
+    v0 >>= zeros;
+    *uu <<= zeros;
+    *uv <<= zeros;
+    *eta -= zeros;
+    bitCount -= zeros;
+
+    if(bitCount <= 0)
+      break;
+
+    if(*eta < 0) {
+      *eta = -*eta;
+      SWAP_NEG(x,u0,v0);
+      SWAP_NEG(y,*uu,*vu);
+      SWAP_NEG(z,*uv,*vv);
+    }
+
+    // Handle up to 3 divsteps at once, subject to eta and bitCount
+    int limit = (*eta + 1) > bitCount ? bitCount : (int)(*eta + 1);
+    m = (UINT64_MAX >> (64 - limit)) & 7U;
+
+    // Note that f * f == 1 mod 8, for any f
+    w = (-u0 * v0) & m;
+    v0 += u0 * w;
+    *vu += *uu * w;
+    *vv += *uv * w;
+
+  }
+
+#endif
+
+#if 0
+
+  // divstep62 constant time implementation by Peter Dettman
+  // Avg: 405 Kinv/s
+
+  uint64_t c1,c2,x,y,z;
+
+  for(bitCount = 0; bitCount < 62; bitCount++) {
+
+    c1 = -(v0 & ((uint64_t)(*eta) >> 63));
+
+    x = (u0 ^ v0) & c1;
+    u0 ^= x; v0 ^= x; v0 ^= c1; v0 -= c1;
+
+    y = (*uu ^ *vu) & c1;
+    *uu ^= y; *vu ^= y; *vu ^= c1; *vu -= c1;
+
+    z = (*uv ^ *vv) & c1;
+    *uv ^= z; *vv ^= z; *vv ^= c1; *vv -= c1;
+
+    *eta = (*eta ^ c1) - c1 - 1;
+
+    c2 = -(v0 & 1);
+
+    v0 += (u0 & c2); v0 >>= 1;
+    *vu += (*uu & c2); *uu <<= 1;
+    *vv += (*uv & c2); *uv <<= 1;
+  }
+
+#endif
+
+}
+
+#define MatrixVecMul(u,v,_11,_12,_21,_22) \
+  t1.IMult(&u,_11); \
+  t2.IMult(&v,_12); \
+  t3.IMult(&u,_21); \
+  t4.IMult(&v,_22); \
+  u.Add(&t1,&t2); \
+  v.Add(&t3,&t4);
+
+// ------------------------------------------------
+
 void Int::ModInv() {
 
   // Compute modular inverse of this mop _P
@@ -114,19 +255,18 @@ void Int::ModInv() {
   // Return 0 if no inverse
 
   // 256bit
-  //#define XCD 1               // ~62  kOps/s
-  //#define BXCD 1              // ~167 kOps/s
-  //#define MONTGOMERY 1        // ~200 kOps/s
-  //#define PENK 1              // ~179 kOps/s
-  #define DRS62 1             // ~365 kOps/s
+  //#define XCD 1               // ~80  kOps/s
+  //#define MONTGOMERY 1        // ~246 kOps/s
+  //#define PENK 1              // ~215 kOps/s
+  #define DRS62 1               // ~640 kOps/s
 
   Int u(&_P);
   Int v(this);
-  Int r((int64_t)0);
-  Int s((int64_t)1);
 
 #ifdef XCD
 
+  Int r((int64_t)0);
+  Int s((int64_t)1);
   Int q, t1, t2, w;
 
   // Classic XCD
@@ -162,55 +302,10 @@ void Int::ModInv() {
 
 #endif
 
-#ifdef BXCD
-
-#define SWAP_SUB(x,y) x.Sub(&y);y.Add(&x)
-
-  // Binary XCD loop
-
-  while (!u.IsZero()) {
-
-    if (u.IsEven()) {
-
-      u.ShiftR(1);
-      if (r.IsOdd())
-        r.Add(&_P);
-      r.ShiftR(1);
-
-    } else {
-
-      SWAP_SUB(u, v);
-      SWAP_SUB(r, s);
-
-    }
-
-  }
-
-  // v ends with -1 ou 1
-  if (!v.IsOne()) {
-    // v = -1
-    s.Neg();
-    s.Add(&_P);
-    v.Neg();
-  }
-
-  if (!v.IsOne()) {
-    CLEAR();
-    return;
-  }
-
-  if (s.IsNegative())
-    s.Add(&_P);
-
-  if (s.IsGreaterOrEqual(&_P))
-    s.Sub(&_P);
-
-  Set(&s);
-
-#endif
-
 #ifdef PENK
 
+  Int r((int64_t)0);
+  Int s((int64_t)1);
   Int x;
   Int n2(&_P);
   int k = 0;
@@ -330,6 +425,8 @@ void Int::ModInv() {
 
 #ifdef MONTGOMERY
 
+  Int r((int64_t)0);
+  Int s((int64_t)1);
   Int x;
   int k = 0;
 
@@ -380,131 +477,90 @@ void Int::ModInv() {
 #ifdef DRS62
 
   // Delayed right shift 62bits
-
-  #define SWAP_ADD(x,y) x+=y;y-=x;
-  #define SWAP_SUB(x,y) x-=y;y+=x;
-  #define IS_EVEN(x) ((x&1)==0)
-
+  Int r;
+  Int s;
   Int r0_P;
   Int s0_P;
-  Int uu_u;
-  Int uv_v;
-  Int vu_u;
-  Int vv_v;
-  Int uu_r;
-  Int uv_s;
-  Int vu_r;
-  Int vv_s;
+  Int t1,t2,t3,t4;
 
-  int64_t bitCount;
   int64_t uu, uv, vu, vv;
-  int64_t v0, u0;
-  int64_t nb0;
+  int64_t eta = -1;
 
-  while (!u.IsZero()) {
+  //printf("ModInv(%s)\n",GetBase16().c_str());
 
-    // u' = (uu*u + uv*v) >> bitCount
-    // v' = (vu*u + vv*v) >> bitCount
-    // Do not maintain a matrix for r and s, the number of
-    // 'added P' can be easily calculated
-    uu = 1; uv = 0;
-    vu = 0; vv = 1;
 
-    u0 = (int64_t)u.bits64[0];
-    v0 = (int64_t)v.bits64[0];
-    bitCount = 0;
+  //----------------------- First step (r,s) = (1,0)
+  uu = 1; uv = 0;
+  vu = 0; vv = 1;
 
-    // Slightly optimized Binary XCD loop on native signed integers
-    // Stop at 62 bits to avoid uv matrix overfow and loss of sign bit
-    while (true) {
+  DivStep62(u.bits64[0],v.bits64[0],&eta,&uu,&uv,&vu,&vv);
 
-      while (IS_EVEN(u0) && bitCount<62) {
+  // Now update BigInt variables
 
-        bitCount++;
-        u0 >>= 1;
-        vu <<= 1;
-        vv <<= 1;
+  MatrixVecMul(u,v,uu,uv,vu,vv);
+  LoadI64(t2,uv);
+  LoadI64(t4,vv);
 
-      }
+  // Compute multiple of P to add to s and r to make them multiple of 2^62
+  uint64_t r0 = (t2.bits64[0] * MM64) & MSK62;
+  uint64_t s0 = (t4.bits64[0] * MM64) & MSK62;
+  r0_P.Mult(&_P,r0);
+  s0_P.Mult(&_P,s0);
+  r.Add(&t2,&r0_P);
+  s.Add(&t4,&s0_P);
 
-      if (bitCount == 62)
-        break;
+  // Right shift all variables by 62bits
+  shiftR(62,u.bits64);
+  shiftR(62,v.bits64);
+  shiftR(62,r.bits64);
+  shiftR(62,s.bits64);
 
-      nb0 = (v0 + u0) & 0x3;
-      if (nb0 == 0) {
-        SWAP_ADD(uv, vv);
-        SWAP_ADD(uu, vu);
-        SWAP_ADD(u0, v0);
-      } else {
-        SWAP_SUB(uv, vv);
-        SWAP_SUB(uu, vu);
-        SWAP_SUB(u0, v0);
-      }
+  //----------------------- DivStep loop
+  while (!v.IsZero()) {
 
-    }
+    uu =  1; uv = 0;
+    vu =  0; vv = 1;
+
+    DivStep62(u.bits64[0],v.bits64[0],&eta,&uu,&uv,&vu,&vv);
 
     // Now update BigInt variables
 
-    uu_u.IMult(&u,uu);
-    uv_v.IMult(&v,uv);
-
-    vu_u.IMult(&u,vu);
-    vv_v.IMult(&v,vv);
-
-    uu_r.IMult(&r,uu);
-    uv_s.IMult(&s,uv);
-
-    vu_r.IMult(&r,vu);
-    vv_s.IMult(&s,vv);
+    MatrixVecMul(u,v,uu,uv,vu,vv);
+    MatrixVecMul(r,s,uu,uv,vu,vv);
 
     // Compute multiple of P to add to s and r to make them multiple of 2^62
-    uint64_t r0 = ((uu_r.bits64[0] + uv_s.bits64[0]) * MM64) & MSK62;
-    uint64_t s0 = ((vu_r.bits64[0] + vv_s.bits64[0]) * MM64) & MSK62;
+    uint64_t r0 = (r.bits64[0] * MM64) & MSK62;
+    uint64_t s0 = (s.bits64[0] * MM64) & MSK62;
     r0_P.Mult(&_P,r0);
     s0_P.Mult(&_P,s0);
-
-    // u = (uu*u + uv*v)
-    u.Add(&uu_u,&uv_v);
-
-    // v = (vu*u + vv*v)
-    v.Add(&vu_u,&vv_v);
-
-    // r = (uu*r + uv*s + r0*P)
-    r.Add(&uu_r,&uv_s);
     r.Add(&r0_P);
-
-    // s = (vu*r + vv*s + s0*P)
-    s.Add(&vu_r,&vv_s);
     s.Add(&s0_P);
 
     // Right shift all variables by 62bits
     shiftR(62, u.bits64);
-	shiftR(62, v.bits64);
-	shiftR(62, r.bits64);
-	shiftR(62, s.bits64);
+    shiftR(62, v.bits64);
+    shiftR(62, r.bits64);
+    shiftR(62, s.bits64);
 
   }
 
-  // v ends with -1 or 1
-  if (v.IsNegative()) {
-    // V = -1
-    v.Neg();
-    s.Neg();
-    s.Add(&_P);
+  // u ends with -1 or 1
+  if (u.IsNegative()) {
+    // u = -1
+    u.Neg();
+    r.Neg();
   }
-  if (!v.IsOne()) {
+  if (!u.IsOne()) {
     // No inverse
     CLEAR();
     return;
   }
 
-  // In very rare case |s|>2P
-  while(s.IsNegative())
-    s.Add(&_P);
-  while(s.IsGreaterOrEqual(&_P))
-    s.Sub(&_P);
-
-  Set(&s);
+  while(r.IsNegative())
+    r.Add(&_P);
+  while(r.IsGreaterOrEqual(&_P))
+    r.Sub(&_P);
+  Set(&r);
 
 #endif
 
@@ -609,7 +665,7 @@ void Int::ModSqrt() {
     }
 
     // Search smalest non-qresidue of P
-    Int q(1);
+    Int q((uint64_t)1);
     do {
       q.AddOne();
     }  while (q.HasSqrt());
@@ -1074,7 +1130,6 @@ void Int::ModSquareK1(Int *a) {
   r512[7] = t[1];
 
   // Reduce from 512 to 320
-  // Reduce from 512 to 320
   imm_umul(r512 + 4, 0x1000003D1ULL, t);
   c = _addcarry_u64(0, r512[0], t[0], r512 + 0);
   c = _addcarry_u64(c, r512[1], t[1], r512 + 1);
@@ -1108,6 +1163,40 @@ void Int::ModAddK1order(Int *a, Int *b) {
   if (IsNegative())
     Add(_O);
 }
+
+void Int::ModAddK1order(Int *a) {
+  Add(a);
+  Sub(_O);
+  if(IsNegative())
+    Add(_O);
+}
+
+void Int::ModSubK1order(Int *a) {
+  Sub(a);
+  if(IsNegative())
+    Add(_O);
+}
+
+void Int::ModNegK1order() {
+  Neg();
+  Add(_O);
+}
+
+uint32_t Int::ModPositiveK1() {
+
+  Int N(this);
+  Int D(this);
+  N.ModNeg();
+  D.Sub(&N);
+  if(D.IsNegative()) {
+    return 0;
+  } else {
+    Set(&N);
+    return 1;
+  }
+
+}
+
 
 void Int::ModMulK1order(Int *a) {
 

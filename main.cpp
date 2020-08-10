@@ -57,6 +57,7 @@ void printUsage() {
   printf(" -l: List cuda enabled devices\n");
   printf(" -check: Check CPU and GPU kernel vs CPU\n");
   printf(" -cp privKey: Compute public key (privKey in hex hormat)\n");
+  printf(" -ca pubKey: Compute address (pubKey in hex hormat)\n");
   printf(" -kp: Generate key pair\n");
   printf(" -rp privkey partialkeyfile: Reconstruct final private key(s) from partial key(s) info.\n");
   printf(" -sp startPubKey: Start the search with a pubKey (for private key splitting)\n");
@@ -374,6 +375,9 @@ int main(int argc, char* argv[]) {
   Secp256K1 *secp = new Secp256K1();
   secp->Init();
 
+  //GPUEngine::GenerateCode(secp,512);
+  //exit(0);
+
   // Browse arguments
   if (argc < 2) {
     printf("Error: No arguments (use -h for help)\n");
@@ -452,6 +456,15 @@ int main(int argc, char* argv[]) {
       string pub = string(argv[a]);
       startPuKey = secp->ParsePublicKeyHex(pub, startPubKeyCompressed);
       a++;
+    } else if(strcmp(argv[a],"-ca") == 0) {
+      a++;
+      string pub = string(argv[a]);
+      bool isComp;
+      Point p = secp->ParsePublicKeyHex(pub,isComp);
+      printf("Addr (P2PKH): %s\n",secp->GetAddress(P2PKH,isComp,p).c_str());
+      printf("Addr (P2SH): %s\n",secp->GetAddress(P2SH,isComp,p).c_str());
+      printf("Addr (BECH32): %s\n",secp->GetAddress(BECH32,isComp,p).c_str());
+      exit(0);
     } else if (strcmp(argv[a], "-cp") == 0) {
       a++;
       string priv = string(argv[a]);

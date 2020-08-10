@@ -18,13 +18,14 @@
 #include "Int.h"
 #include "IntGroup.h"
 #include <string.h>
+#include <math.h>
 #include <emmintrin.h>
 #include "Timer.h"
 
 #define MAX(x,y) (((x)>(y))?(x):(y))
 #define MIN(x,y) (((x)<(y))?(x):(y))
 
-Int _ONE(1);
+Int _ONE((uint64_t)1);
 
 
 // ------------------------------------------------
@@ -45,6 +46,13 @@ Int::Int(int64_t i64) {
 	  CLEAR();
   }
   bits64[0] = i64;
+
+}
+
+Int::Int(uint64_t u64) {
+
+  CLEAR();
+  bits64[0] = u64;
 
 }
 
@@ -423,7 +431,7 @@ bool Int::IsOdd() {
 
 void Int::Neg() {
 
-	volatile unsigned char c=0;
+	unsigned char c=0;
 	c = _subborrow_u64(c, 0, bits64[0], bits64 + 0);
 	c = _subborrow_u64(c, 0, bits64[1], bits64 + 1);
 	c = _subborrow_u64(c, 0, bits64[2], bits64 + 2);
@@ -537,6 +545,21 @@ void Int::ShiftR(uint32_t n) {
 
 // ------------------------------------------------
 
+void Int::SwapBit(int bitNumber) {
+
+  uint32_t nb64 = bitNumber / 64;
+  uint32_t nb = bitNumber % 64;
+  uint64_t mask = 1ULL << nb;
+  if(bits64[nb64] & mask ) {
+    bits64[nb64] &= ~mask;
+  } else {
+    bits64[nb64] |= mask;
+  }
+
+}
+
+// ------------------------------------------------
+
 void Int::Mult(Int *a) {
 
   Int b(this);
@@ -569,13 +592,30 @@ void Int::Mult(uint64_t a) {
 
 void Int::IMult(Int *a, int64_t b) {
 
-  Set(a);
-
   // Make b positive
   if (b < 0LL) {
-	Neg();
-	b = -b;
+
+    unsigned char c = 0;
+    c = _subborrow_u64(c,0,a->bits64[0],bits64 + 0);
+    c = _subborrow_u64(c,0,a->bits64[1],bits64 + 1);
+    c = _subborrow_u64(c,0,a->bits64[2],bits64 + 2);
+    c = _subborrow_u64(c,0,a->bits64[3],bits64 + 3);
+    c = _subborrow_u64(c,0,a->bits64[4],bits64 + 4);
+#if NB64BLOCK > 5
+    c = _subborrow_u64(c,0,a->bits64[5],bits64 + 5);
+    c = _subborrow_u64(c,0,a->bits64[6],bits64 + 6);
+    c = _subborrow_u64(c,0,a->bits64[7],bits64 + 7);
+    c = _subborrow_u64(c,0,a->bits64[8],bits64 + 8);
+#endif
+
+    b = -b;
+
+  } else {
+
+    Set(a);
+
   }
+
   imm_mul(bits64, b, bits64);
 
 }
@@ -618,6 +658,22 @@ void Int::Mult(Int *a,Int *b) {
 
 void Int::Mult(Int *a,uint32_t b) {
   imm_mul(a->bits64, (uint64_t)b, bits64);
+}
+
+// ------------------------------------------------
+
+double Int::ToDouble() {
+
+  double base = 1.0;
+  double sum = 0;
+  double pw32 = pow(2.0,32.0);
+  for(int i=0;i<NB32BLOCK;i++) {
+    sum += (double)(bits[i]) * base;
+    base *= pw32;
+  }
+
+  return sum;
+
 }
 
 // ------------------------------------------------
@@ -723,6 +779,20 @@ void Int::Rand(int nbit) {
 	for(;i<nb;i++)
 		bits[i]=rndl();
 	bits[i]=rndl()&mask;
+
+}
+
+// ------------------------------------------------
+
+void Int::Rand(Int *randMax) {
+
+  int b = randMax->GetBitLength();
+  Int r;
+  r.Rand(b);
+  Int q(&r);
+  Int rem;
+  q.Div(randMax,&rem);
+  Set(&rem);
 
 }
 
@@ -900,7 +970,7 @@ void Int::GCD(Int *a) {
 void Int::SetBase10(char *value) {
 
   CLEAR();
-  Int pw(1);
+  Int pw((uint64_t)1);
   Int c;
   int lgth = (int)strlen(value);
   for(int i=lgth-1;i>=0;i--) {
@@ -977,8 +1047,8 @@ void  Int::SetBaseN(int n,char *charset,char *value) {
 
   CLEAR();
 
-  Int pw((uint32_t)1);
-  Int nb((int32_t)n);
+  Int pw((uint64_t)1);
+  Int nb((uint64_t)n);
   Int c;
 
   int lgth = (int)strlen(value);
@@ -1071,6 +1141,56 @@ std::string Int::GetBase2() {
   ret[k]=0;
 
   return std::string(ret);
+
+}
+
+bool Int::IsProbablePrime() {
+
+  // Prime cheking (probalistic Miller-Rabin test)
+  Int::SetupField(this);
+  int nbBit = GetBitLength();
+
+  Int Q(this);
+  Q.SubOne();
+  Int N1(&Q);
+  uint64_t e = 0;
+  while(Q.IsEven()) {
+    Q.ShiftR(1);
+    e++;
+  }
+
+  uint64_t k = 50;
+
+  for(uint64_t i = 0; i < k; i++) {
+
+    Int a;
+    Int x;
+    x.SetInt32(0);
+    while(x.IsLowerOrEqual(&_ONE) || x.IsGreaterOrEqual(&N1))
+      x.Rand(nbBit);
+    x.ModExp(&Q);
+    if(x.IsOne() || x.IsEqual(&N1))
+      continue;
+
+    for(uint64_t j = 0; j < e - 1; j++) {
+      x.ModSquare(&x);
+      if(x.IsOne()) {
+        // Composite
+        return false;
+      }
+      if(x.IsEqual(&N1))
+        break;
+    }
+
+    if(x.IsEqual(&N1))
+      continue;
+
+    return false;
+
+  }
+
+  // Probable prime
+  return true;
 
 }
 
@@ -1172,19 +1292,28 @@ void Int::Check() {
 
   // ModInv -------------------------------------------------------------------------------------------
 
-  for (int i = 0; i < 1000 && ok; i++) {
+  for (int64_t i = 0; i < 100000 && ok; i++) {
+
     a.Rand(BISIZE);
+
     b = a;
     a.ModInv();
+    c = a;
     a.ModMul(&b);
     if (!a.IsOne()) {
-      printf("ModInv() Results Wrong [%d] %s\n",i, a.GetBase16().c_str());
-	  ok = false;
+      printf("ModInv() Results Wrong %s\n", b.GetBase16().c_str());
+	    ok = false;
     }
+    c.ModInv();
+    if(!c.IsEqual(&b)) {
+      printf("ModInv() Results Wrong %s\n", a.GetBase16().c_str());
+      ok = false;
+    }
+
   }
 
   ok = true;
-  for (int i = 0; i < 100 && ok; i++) {
+  for (int i = 0; i < 10000 && ok; i++) {
 
     // Euler a^-1 = a^(p-2) mod p (p is prime)
     Int e(Int::GetFieldCharacteristic());
@@ -1209,14 +1338,15 @@ void Int::Check() {
 
   t0 = Timer::get_tick();
   a.Rand(BISIZE);
-  for (int i = 0; i < 100000; i++) {
+  for (int i = 0; i < 200000; i++) {
     a.AddOne();
     a.ModInv();
   }
   t1 = Timer::get_tick();
 
   printf("ModInv() Results OK : ");
-  Timer::printResult("Inv", 100000, 0, t1 - t0);
+  Timer::printResult("Inv", 200000, 0, t1 - t0);
+  double movInvCost = (t1-t0);
 
   // IntGroup -----------------------------------------------------------------------------------
 
@@ -1242,12 +1372,11 @@ void Int::Check() {
     }
   }
 
-  for (int i = 0; i < 256; i++)
-    m[i].Rand(256);
   t0 = Timer::get_tick();
   for (int j = 0; j < 1000; j++) {
-    for (int i = 0; i < 256; i++)
-      m[i].AddOne();
+    for (int i = 0; i < 256; i++) {
+      m[i].Rand(256);
+    }
     g.ModInv();
   }
   t1 = Timer::get_tick();
@@ -1270,11 +1399,13 @@ void Int::Check() {
     }
   }
 
-  t0 = Timer::get_tick();
   a.Rand(BISIZE);
+  b.Rand(BISIZE);
+  t0 = Timer::get_tick();
   for (int i = 0; i < 1000000; i++) {
     a.AddOne();
-    c.ModMulK1(&a);
+    b.AddOne();
+    c.ModMulK1(&a, &b);
   }
   t1 = Timer::get_tick();
 
@@ -1295,16 +1426,22 @@ void Int::Check() {
     }
   }
 
-  t0 = Timer::get_tick();
+  a.Rand(BISIZE);
   b.Rand(BISIZE);
+  t0 = Timer::get_tick();
   for (int i = 0; i < 1000000; i++) {
+    a.AddOne();
     b.AddOne();
     c.ModSquareK1(&b);
   }
   t1 = Timer::get_tick();
 
   printf("ModSquareK1() Results OK : ");
-  Timer::printResult("Mult", 1000000, 0, t1 - t0);
+  Timer::printResult("Sqr", 1000000, 0, t1 - t0);
+
+  // modInvCost is for 200000 iterations
+  double cost = movInvCost*5.0 / (t1-t0);
+  printf("ModInv() Cost : %.1f S\n",cost);
 
   // ModMulK1 order -----------------------------------------------------------------------------
   // InitK1() is done by secpK1
@@ -1325,12 +1462,11 @@ void Int::Check() {
     }
   }
 
-  a.Rand(BISIZE);
-  b.Rand(BISIZE);
   t0 = Timer::get_tick();
   for (int i = 0; i < 1000000; i++) {
+    a.Rand(BISIZE);
+    b.Rand(BISIZE);
     c.Set(&a);
-    b.AddOne();
     c.ModMulK1order(&b);
   }
   t1 = Timer::get_tick();

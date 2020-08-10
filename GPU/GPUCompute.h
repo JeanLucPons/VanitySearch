@@ -326,9 +326,9 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
       ModSub256(px, _p2, px);
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
-      ModSub256(py, Gx[i], px);
-      _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-      ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
+      ModSub256(py, px, Gx[i]);
+      _ModMult(py, _s);             // py = s*(ret.x-p2.x)
+      ModSub256(py, Gy[i], py);     // py = - p2.y - s*(ret.x-p2.x);
 
       CHECK_PREFIX(GRP_SIZE / 2 - (i + 1));
 
@@ -346,9 +346,9 @@ __device__ void ComputeKeys(uint32_t mode, uint64_t *startx, uint64_t *starty,
     ModSub256(px, _p2, px);
     ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
-    ModSub256(py, Gx[i], px);
-    _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-    ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
+    ModSub256(py, px, Gx[i]);
+    _ModMult(py, _s);             // py = s*(ret.x-p2.x)
+    ModSub256(py, Gy[i], py);     // py = - p2.y - s*(ret.x-p2.x);
 
     CHECK_PREFIX(0);
 
@@ -430,6 +430,7 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
 
     for (i = 0; i < HSIZE; i++) {
 
+      __syncthreads();
       // P = StartPoint + i*G
       Load256(px, sx);
       Load256(py, sy);
@@ -447,6 +448,7 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
 
       CHECK_PREFIX_P2SH(GRP_SIZE / 2 + (i + 1));
 
+      __syncthreads();
       // P = StartPoint - i*G, if (x,y) = i*G then (x,-y) = -i*G
       Load256(px, sx);
       ModSub256(dy, pyn, Gy[i]);
@@ -457,14 +459,15 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
       ModSub256(px, _p2, px);
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
-      ModSub256(py, Gx[i], px);
-      _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-      ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
+      ModSub256(py,px, Gx[i]);
+      _ModMult(py, _s);             // py = s*(ret.x-p2.x)
+      ModSub256(py, Gy[i], py);     // py = - p2.y - s*(ret.x-p2.x);
 
       CHECK_PREFIX_P2SH(GRP_SIZE / 2 - (i + 1));
 
     }
 
+    __syncthreads();
     // First point (startP - (GRP_SZIE/2)*G)
     Load256(px, sx);
     Load256(py, sy);
@@ -477,14 +480,15 @@ __device__ void ComputeKeysP2SH(uint32_t mode, uint64_t *startx, uint64_t *start
     ModSub256(px, _p2, px);
     ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
-    ModSub256(py, Gx[i], px);
-    _ModMult(py, _s);             // py = - s*(ret.x-p2.x)
-    ModAdd256(py, Gy[i]);         // py = - p2.y - s*(ret.x-p2.x);
+    ModSub256(py,px , Gx[i]);
+    _ModMult(py, _s);             // py = s*(ret.x-p2.x)
+    ModSub256(py, Gy[i], py);     // py = - p2.y - s*(ret.x-p2.x);
 
     CHECK_PREFIX_P2SH(0);
 
     i++;
 
+    __syncthreads();
     // Next start point (startP + GRP_SIZE*G)
     Load256(px, sx);
     Load256(py, sy);
@@ -571,6 +575,7 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
 
     for(i = 0; i < HSIZE; i++) {
 
+      __syncthreads();
       // P = StartPoint + i*G
       Load256(px, sx);
       Load256(py, sy);
@@ -582,9 +587,9 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
       ModSub256(px, _p2,px);
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
-      __syncthreads();
       CHECK_P2PKH_POINT(j*GRP_SIZE + (GRP_SIZE/2 + (i + 1)));
 
+      __syncthreads();
       // P = StartPoint - i*G, if (x,y) = i*G then (x,-y) = -i*G
       Load256(px, sx);
       ModSub256(dy,pyn,Gy[i]);
@@ -595,11 +600,11 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
       ModSub256(px, _p2, px);
       ModSub256(px, Gx[i]);         // px = pow2(s) - p1.x - p2.x;
 
-      __syncthreads();
       CHECK_P2PKH_POINT(j*GRP_SIZE + (GRP_SIZE/2 - (i + 1)));
 
     }
 
+    __syncthreads();
     // First point (startP - (GRP_SZIE/2)*G)
     Load256(px, sx);
     Load256(py, sy);
@@ -616,6 +621,7 @@ __device__ void ComputeKeysComp(uint64_t *startx, uint64_t *starty, prefix_t *sP
 
     i++;
 
+    __syncthreads();
     // Next start point (startP + GRP_SIZE*G)
     Load256(px, sx);
     Load256(py, sy);

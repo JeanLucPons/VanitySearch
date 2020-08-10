@@ -43,6 +43,7 @@ public:
 
   Int();
   Int(int64_t i64);
+  Int(uint64_t u64);
   Int(Int *a);
 
   // Op
@@ -60,6 +61,7 @@ public:
   void Mult(Int *a,uint64_t b);
   void IMult(Int *a, int64_t b);
   void Mult(Int *a,Int *b);
+  void IMultAdd(Int* a,int64_t aa,Int* b,int64_t bb);
   void Div(Int *a,Int *mod = NULL);
   void MultModN(Int *a, Int *b, Int *n);
   void Neg();
@@ -73,6 +75,9 @@ public:
   void ShiftL(uint32_t n);
   void ShiftL32Bit();
   void ShiftL64Bit();
+  // Bit swap
+  void SwapBit(int bitNumber);
+
 
   // Comp
   bool IsGreater(Int *a);
@@ -87,6 +92,10 @@ public:
   bool IsNegative();
   bool IsEven();
   bool IsOdd();
+  bool IsProbablePrime();
+
+
+  double ToDouble();
 
   // Modular arithmetic
 
@@ -126,9 +135,13 @@ public:
   static void InitK1(Int *order);
   void ModMulK1(Int *a, Int *b);
   void ModMulK1(Int *a);
-  void ModMulK1order(Int *a);
   void ModSquareK1(Int *a);
+  void ModMulK1order(Int *a);
   void ModAddK1order(Int *a,Int *b);
+  void ModAddK1order(Int *a);
+  void ModSubK1order(Int *a);
+  void ModNegK1order();
+  uint32_t ModPositiveK1();
 
   // Size
   int GetSize();
@@ -144,6 +157,7 @@ public:
   void SetDWord(int n, uint32_t b);
   void SetQWord(int n,uint64_t b);
   void Rand(int nbit);
+  void Rand(Int *randMax);
   void Set32Bytes(unsigned char *bytes);
   void MaskByte(int n);
 
@@ -187,7 +201,6 @@ private:
   void CLEAR();
   void CLEARFF();
 
-
 };
 
 // Inline routines
@@ -219,9 +232,26 @@ static uint64_t inline __shiftleft128(uint64_t a, uint64_t b,unsigned char n) {
 #define _subborrow_u64(a,b,c,d) __builtin_ia32_sbb_u64(a,b,c,(long long unsigned int*)d);
 #define _addcarry_u64(a,b,c,d) __builtin_ia32_addcarryx_u64(a,b,c,(long long unsigned int*)d);
 #define _byteswap_uint64 __builtin_bswap64
+
 #else
+
 #include <intrin.h>
+
+static inline int __builtin_ctzll(unsigned long long x) {
+  unsigned long ret;
+  _BitScanForward64(&ret,x);
+  return (int)ret;
+}
+
 #endif
+
+
+#define LoadI64(i,i64)    \
+i.bits64[0] = i64;        \
+i.bits64[1] = i64 >> 63;  \
+i.bits64[2] = i.bits64[1];\
+i.bits64[3] = i.bits64[1];\
+i.bits64[4] = i.bits64[1];
 
 static void inline imm_mul(uint64_t *x, uint64_t y, uint64_t *dst) {
 
