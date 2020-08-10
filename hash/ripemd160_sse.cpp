@@ -34,7 +34,7 @@ namespace ripemd160sse {
       0xC3D2E1F0ul,0xC3D2E1F0ul,0xC3D2E1F0ul,0xC3D2E1F0ul
   };
 
-//#define f1(x, y, z) (x ^ y ^ z) 
+//#define f1(x, y, z) (x ^ y ^ z)
 //#define f2(x, y, z) ((x & y) | (~x & z))
 //#define f3(x, y, z) ((x | ~y) ^ z)
 //#define f4(x, y, z) ((x & z) | (~z & y))
@@ -68,7 +68,7 @@ namespace ripemd160sse {
 #define Round(a,b,c,d,e,f,x,k,r) \
   u = add4(a,f,x,_mm_set1_epi32(k)); \
   a = _mm_add_epi32(ROL(u, r),e); \
-  c = ROL(c, 10);              
+  c = ROL(c, 10);
 
 #define R11(a,b,c,d,e,x,r) Round(a, b, c, d, e, f1(b, c, d), x, 0, r)
 #define R21(a,b,c,d,e,x,r) Round(a, b, c, d, e, f2(b, c, d), x, 0x5A827999ul, r)

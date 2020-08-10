@@ -113,7 +113,7 @@ void Int::ModInv() {
   // 0 < this < P  , P must be odd
   // Return 0 if no inverse
 
-  // 256bit 
+  // 256bit
   //#define XCD 1               // ~62  kOps/s
   //#define BXCD 1              // ~167 kOps/s
   //#define MONTGOMERY 1        // ~200 kOps/s
@@ -129,7 +129,7 @@ void Int::ModInv() {
 
   Int q, t1, t2, w;
 
-  // Classic XCD 
+  // Classic XCD
 
   bool bIterations = true;  // Remember odd/even iterations
   while (!u.IsZero()) {
@@ -405,7 +405,7 @@ void Int::ModInv() {
 
     // u' = (uu*u + uv*v) >> bitCount
     // v' = (vu*u + vv*v) >> bitCount
-    // Do not maintain a matrix for r and s, the number of 
+    // Do not maintain a matrix for r and s, the number of
     // 'added P' can be easily calculated
     uu = 1; uv = 0;
     vu = 0; vv = 1;
@@ -895,23 +895,23 @@ void Int::ModMulK1(Int *a, Int *b) {
   c = _addcarry_u64(c, r512[6], t[3], r512 + 6);
   c = _addcarry_u64(c, r512[7], t[4], r512 + 7);
 
-  // Reduce from 512 to 320 
+  // Reduce from 512 to 320
   imm_umul(r512 + 4, 0x1000003D1ULL, t);
   c = _addcarry_u64(0, r512[0], t[0], r512 + 0);
   c = _addcarry_u64(c, r512[1], t[1], r512 + 1);
   c = _addcarry_u64(c, r512[2], t[2], r512 + 2);
   c = _addcarry_u64(c, r512[3], t[3], r512 + 3);
 
-  // Reduce from 320 to 256 
+  // Reduce from 320 to 256
   // No overflow possible here t[4]+c<=0x1000003D1ULL
-  al = _umul128(t[4] + c, 0x1000003D1ULL, &ah); 
+  al = _umul128(t[4] + c, 0x1000003D1ULL, &ah);
   c = _addcarry_u64(0, r512[0], al, bits64 + 0);
   c = _addcarry_u64(c, r512[1], ah, bits64 + 1);
   c = _addcarry_u64(c, r512[2], 0ULL, bits64 + 2);
   c = _addcarry_u64(c, r512[3], 0ULL, bits64 + 3);
 
   // Probability of carry here or that this>P is very very unlikely
-  bits64[4] = 0; 
+  bits64[4] = 0;
 
 }
 
@@ -956,14 +956,14 @@ void Int::ModMulK1(Int *a) {
   c = _addcarry_u64(c, r512[6], t[3], r512 + 6);
   c = _addcarry_u64(c, r512[7], t[4], r512 + 7);
 
-  // Reduce from 512 to 320 
+  // Reduce from 512 to 320
   imm_umul(r512 + 4, 0x1000003D1ULL, t);
   c = _addcarry_u64(0, r512[0], t[0], r512 + 0);
   c = _addcarry_u64(c, r512[1], t[1], r512 + 1);
   c = _addcarry_u64(c, r512[2], t[2], r512 + 2);
   c = _addcarry_u64(c, r512[3], t[3], r512 + 3);
 
-  // Reduce from 320 to 256 
+  // Reduce from 320 to 256
   // No overflow possible here t[4]+c<=0x1000003D1ULL
   al = _umul128(t[4] + c, 0x1000003D1ULL, &ah);
   c = _addcarry_u64(0, r512[0], al, bits64 + 0);
@@ -1073,15 +1073,15 @@ void Int::ModSquareK1(Int *a) {
   //k=7
   r512[7] = t[1];
 
-  // Reduce from 512 to 320 
-  // Reduce from 512 to 320 
+  // Reduce from 512 to 320
+  // Reduce from 512 to 320
   imm_umul(r512 + 4, 0x1000003D1ULL, t);
   c = _addcarry_u64(0, r512[0], t[0], r512 + 0);
   c = _addcarry_u64(c, r512[1], t[1], r512 + 1);
   c = _addcarry_u64(c, r512[2], t[2], r512 + 2);
   c = _addcarry_u64(c, r512[3], t[3], r512 + 3);
 
-  // Reduce from 320 to 256 
+  // Reduce from 320 to 256
   // No overflow possible here t[4]+c<=0x1000003D1ULL
   u10 = _umul128(t[4] + c, 0x1000003D1ULL, &u11);
   c = _addcarry_u64(0, r512[0], u10, bits64 + 0);

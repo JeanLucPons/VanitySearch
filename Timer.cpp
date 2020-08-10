@@ -69,13 +69,13 @@ std::string Timer::getSeed(int size) {
   unsigned char *buff = (unsigned char *)malloc(size);
 
 #ifdef WIN64
-  
+
   HCRYPTPROV   hCryptProv = NULL;
   LPCSTR UserName = "KeyContainer";
 
   if (!CryptAcquireContext(
     &hCryptProv,               // handle to the CSP
-    UserName,                  // container name 
+    UserName,                  // container name
     NULL,                      // use the default provider
     PROV_RSA_FULL,             // provider type
     0))                        // flag values
@@ -83,7 +83,7 @@ std::string Timer::getSeed(int size) {
     //-------------------------------------------------------------------
     // An error occurred in acquiring the context. This could mean
     // that the key container requested does not exist. In this case,
-    // the function can be called again to attempt to create a new key 
+    // the function can be called again to attempt to create a new key
     // container. Error codes are defined in Winerror.h.
     if (GetLastError() == NTE_BAD_KEYSET) {
       if (!CryptAcquireContext(
@@ -105,7 +105,7 @@ std::string Timer::getSeed(int size) {
     printf("CryptGenRandom(): Error during random sequence acquisition.\n");
     exit(1);
   }
-  
+
   CryptReleaseContext(hCryptProv, 0);
 
 #else
@@ -127,7 +127,7 @@ std::string Timer::getSeed(int size) {
     sprintf(tmp,"%02X",buff[i]);
     ret.append(tmp);
   }
-  
+
   free(buff);
   return ret;
 

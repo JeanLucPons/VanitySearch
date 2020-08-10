@@ -82,7 +82,7 @@ inline unsigned long rk_random(rk_state *state)
 
     state->pos = 0;
   }
-  
+
   y = state->key[state->pos++];
 
   /* Tempering */

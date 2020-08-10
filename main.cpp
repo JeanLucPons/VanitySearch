@@ -117,7 +117,7 @@ void getInts(string name,vector<int> &tokens, const string &text, char sep) {
 // ------------------------------------------------------------------------------------------
 
 void parseFile(string fileName, vector<string> &lines) {
-  
+
   // Get file size
   FILE *fp = fopen(fileName.c_str(), "rb");
   if (fp == NULL) {
@@ -352,7 +352,7 @@ void reconstructAdd(Secp256K1 *secp, string fileName, string outputFile, string 
       CHECK_ADDR();
 
       if (!found) {
-        printf("Unable to reconstruct final key from partialkey line %d\n Addr: %s\n PartKey: %s\n", 
+        printf("Unable to reconstruct final key from partialkey line %d\n Addr: %s\n PartKey: %s\n",
           i, addr.c_str(),partialPrivAddr.c_str());
       }
 
@@ -376,7 +376,7 @@ int main(int argc, char* argv[]) {
 
   // Browse arguments
   if (argc < 2) {
-    printf("Error: Not enough argument (use -h for help)");
+    printf("Error: No arguments (use -h for help)\n");
     exit(-1);
   }
 

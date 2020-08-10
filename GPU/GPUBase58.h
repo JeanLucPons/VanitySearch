@@ -55,7 +55,7 @@ __device__ __noinline__ void _GetAddress(int type,uint32_t *hash,char *b58Add) {
   memcpy(A + 1, (char *)hash, 20);
 
   // Compute checksum
-  
+
   addBytes[0] = __byte_perm(hash[0], (uint32_t)A[0], 0x4012);
   addBytes[1] = __byte_perm(hash[0], hash[1], 0x3456);
   addBytes[2] = __byte_perm(hash[1], hash[2], 0x3456);

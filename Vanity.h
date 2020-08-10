@@ -56,7 +56,7 @@ typedef struct {
   bool isFull;
   prefixl_t lPrefix;
   uint8_t hash160[20];
-  
+
 } PREFIX_ITEM;
 
 typedef struct {
@@ -70,7 +70,7 @@ class VanitySearch {
 
 public:
 
-  VanitySearch(Secp256K1 *secp, std::vector<std::string> &prefix, std::string seed, int searchMode, 
+  VanitySearch(Secp256K1 *secp, std::vector<std::string> &prefix, std::string seed, int searchMode,
                bool useGpu,bool stop,std::string outputFile, bool useSSE,uint32_t maxFound,uint64_t rekey,
                bool caseSensitive,Point &startPubKey,bool paranoiacSeed);
 
@@ -84,7 +84,7 @@ private:
   std::string GetExpectedTime(double keyRate, double keyCount);
   bool checkPrivKey(std::string addr, Int &key, int32_t incr, int endomorphism, bool mode);
   void checkAddr(int prefIdx, uint8_t *hash160, Int &key, int32_t incr, int endomorphism, bool mode);
-  void checkAddrSSE(uint8_t *h1, uint8_t *h2, uint8_t *h3, uint8_t *h4, 
+  void checkAddrSSE(uint8_t *h1, uint8_t *h2, uint8_t *h3, uint8_t *h4,
                     int32_t incr1, int32_t incr2, int32_t incr3, int32_t incr4,
                     Int &key, int endomorphism, bool mode);
   void checkAddresses(bool compressed, Int key, int i, Point p1);

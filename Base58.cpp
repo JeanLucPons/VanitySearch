@@ -48,7 +48,7 @@ bool DecodeBase58(const char* psz, std::vector<uint8_t> &vch) {
 
   int length = (int)strlen(psz);
 
-  // Process the characters	
+  // Process the characters
   int digitslen = 1;
   digits[0] = 0;
   for (int i = 0; i < length; i++) {
@@ -80,7 +80,7 @@ bool DecodeBase58(const char* psz, std::vector<uint8_t> &vch) {
   for (int i = 0; i < zeroes; i++)
     vch.push_back(0);
 
-  // reverse    
+  // reverse
   for (int i = 0; i < digitslen; i++)
     vch.push_back(digits[digitslen - 1 - i]);
 
@@ -92,7 +92,7 @@ std::string EncodeBase58(const unsigned char* pbegin, const unsigned char* pend)
 
   std::string ret;
   unsigned char digits[256];
-  
+
   // Skip leading zeroes
   while (pbegin != pend && *pbegin == 0) {
     ret.push_back('1');

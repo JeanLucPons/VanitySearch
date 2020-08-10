@@ -74,7 +74,7 @@ public:
   void ShiftL32Bit();
   void ShiftL64Bit();
 
-  // Comp 
+  // Comp
   bool IsGreater(Int *a);
   bool IsGreaterOrEqual(Int *a);
   bool IsLowerOrEqual(Int *a);
@@ -112,12 +112,12 @@ public:
   void ModSub(Int *a);                       // this <- this-a (mod n) [0<a<P]
   void ModSub(Int *a, Int *b);               // this <- a-b (mod n) [0<a,b<P]
   void ModSub(uint64_t a);                   // this <- this-a (mod n) [0<a<P]
-  void ModMul(Int *a,Int *b);                // this <- a*b (mod n) 
-  void ModMul(Int *a);                       // this <- this*b (mod n) 
-  void ModSquare(Int *a);                    // this <- a^2 (mod n) 
-  void ModCube(Int *a);                      // this <- a^3 (mod n) 
-  void ModDouble();                          // this <- 2*this (mod n) 
-  void ModExp(Int *e);                       // this <- this^e (mod n) 
+  void ModMul(Int *a,Int *b);                // this <- a*b (mod n)
+  void ModMul(Int *a);                       // this <- this*b (mod n)
+  void ModSquare(Int *a);                    // this <- a^2 (mod n)
+  void ModCube(Int *a);                      // this <- a^3 (mod n)
+  void ModDouble();                          // this <- 2*this (mod n)
+  void ModExp(Int *e);                       // this <- this^e (mod n)
   void ModNeg();                             // this <- -this (mod n)
   void ModSqrt();                            // this <- +/-sqrt(this) (mod n)
   bool HasSqrt();                            // true if this admit a square root
