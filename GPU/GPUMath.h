@@ -45,6 +45,7 @@
 #define MADDO(r,a,b,c) asm volatile ("mad.hi.cc.u64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c) : "memory" );
 #define MADDC(r,a,b,c) asm volatile ("madc.hi.cc.u64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c) : "memory" );
 #define MADD(r,a,b,c) asm volatile ("madc.hi.u64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c));
+#define MADDS(r,a,b,c) asm volatile ("madc.hi.s64 %0, %1, %2, %3;" : "=l"(r) : "l"(a), "l"(b), "l"(c));
 
 // SECPK1 endomorphism constants
 __device__ __constant__ uint64_t _beta[] = { 0xC1396C28719501EEULL,0x9CF0497512F58995ULL,0x6E64479EAC3434E9ULL,0x7AE96A2B657C0710ULL };
@@ -64,23 +65,8 @@ __device__ __constant__ uint64_t _beta2[] = { 0x3EC693D68E6AFA40ULL,0x630FB68AED
 
 #define IDX threadIdx.x
 
-// ---------------------------------------------------------------------------------------
-
-#define Add2(r, a, b) {\
-  UADDO(r[0], a[0], b[0]); \
-  UADDC(r[1], a[1], b[1]); \
-  UADDC(r[2], a[2], b[2]); \
-  UADDC(r[3], a[3], b[3]); \
-  UADD(r[4], a[4], b[4]);}
-
-// ---------------------------------------------------------------------------------------
-
-#define Add1(r,a) { \
-  UADDO1(r[0], a[0]); \
-  UADDC1(r[1], a[1]); \
-  UADDC1(r[2], a[2]); \
-  UADDC1(r[3], a[3]); \
-  UADD1(r[4], a[4]);}
+#define __sright128(a,b,n) ((a)>>(n))|((b)<<(64-(n)))
+#define __sleft128(a,b,n) ((b)<<(n))|((a)>>(64-(n)))
 
 // ---------------------------------------------------------------------------------------
 
@@ -126,19 +112,6 @@ USUBC(r[1],0ULL,r[1]); \
 USUBC(r[2],0ULL,r[2]); \
 USUBC(r[3],0ULL,r[3]); \
 USUB(r[4],0ULL,r[4]); }
-
-// ---------------------------------------------------------------------------------------
-
-#define Mult2(r, a, b) {\
-  UMULLO(r[0],a[0],b); \
-  UMULLO(r[1],a[1],b); \
-  MADDO(r[1], a[0],b,r[1]); \
-  UMULLO(r[2],a[2], b); \
-  MADDC(r[2], a[1], b, r[2]); \
-  UMULLO(r[3],a[3], b); \
-  MADDC(r[3], a[2], b, r[3]); \
-  UMULLO(r[4],a[4], b); \
-  MADD(r[4], a[3], b, r[4]);}
 
 // ---------------------------------------------------------------------------------------
 
@@ -206,6 +179,16 @@ __device__ void ShiftR62(uint64_t *r) {
 
 }
 
+__device__ void ShiftR62(uint64_t dest[5],uint64_t r[5],uint64_t carry) {
+
+  dest[0] = (r[1] << 2) | (r[0] >> 62);
+  dest[1] = (r[2] << 2) | (r[1] >> 62);
+  dest[2] = (r[3] << 2) | (r[2] >> 62);
+  dest[3] = (r[4] << 2) | (r[3] >> 62);
+  dest[4] = (carry << 2) | (r[4] >> 62);
+
+}
+
 // ---------------------------------------------------------------------------------------
 
 __device__ void IMult(uint64_t* r,uint64_t* a,int64_t b) {
@@ -213,18 +196,62 @@ __device__ void IMult(uint64_t* r,uint64_t* a,int64_t b) {
   uint64_t t[NBBLOCK];
 
   // Make b positive
-  int64_t msk = b >> 63;
-  int64_t nmsk = ~msk;
-  b = ((-b) & msk) | (b & ~msk);
-  USUBO(t[0],a[0] & nmsk,a[0] & msk);
-  USUBC(t[1],a[1] & nmsk,a[1] & msk);
-  USUBC(t[2],a[2] & nmsk,a[2] & msk);
-  USUBC(t[3],a[3] & nmsk,a[3] & msk);
-  USUB(t[4],a[4] & nmsk,a[4] & msk);
-  Mult2(r,t,b)
+  if(b < 0) {
+    b = -b;
+    USUBO(t[0],0ULL,a[0]);
+    USUBC(t[1],0ULL,a[1]);
+    USUBC(t[2],0ULL,a[2]);
+    USUBC(t[3],0ULL,a[3]);
+    USUB(t[4],0ULL,a[4]);
+  }
+  else {
+    Load(t,a);
+  }
+
+  UMULLO(r[0],t[0],b);
+  UMULLO(r[1],t[1],b);
+  MADDO(r[1],t[0],b,r[1]);
+  UMULLO(r[2],t[2],b);
+  MADDC(r[2],t[1],b,r[2]);
+  UMULLO(r[3],t[3],b);
+  MADDC(r[3],t[2],b,r[3]);
+  UMULLO(r[4],t[4],b);
+  MADD(r[4],t[3],b,r[4]);
 
 }
 
+__device__ uint64_t IMultC(uint64_t* r,uint64_t* a,int64_t b) {
+
+  uint64_t t[NBBLOCK];
+  uint64_t carry;
+
+  // Make b positive
+  if(b < 0) {
+    b = -b;
+    USUBO(t[0],0ULL,a[0]);
+    USUBC(t[1],0ULL,a[1]);
+    USUBC(t[2],0ULL,a[2]);
+    USUBC(t[3],0ULL,a[3]);
+    USUB(t[4],0ULL,a[4]);
+  }
+  else {
+    Load(t,a);
+  }
+
+  UMULLO(r[0],t[0],b);
+  UMULLO(r[1],t[1],b);
+  MADDO(r[1],t[0],b,r[1]);
+  UMULLO(r[2],t[2],b);
+  MADDC(r[2],t[1],b,r[2]);
+  UMULLO(r[3],t[3],b);
+  MADDC(r[3],t[2],b,r[3]);
+  UMULLO(r[4],t[4],b);
+  MADDC(r[4],t[3],b,r[4]);
+  MADDS(carry,t[4],b,0ULL);
+
+  return carry;
+
+}
 
 // ---------------------------------------------------------------------------------------
 
@@ -321,118 +348,155 @@ __device__ void ModSub256(uint64_t* r,uint64_t* b) {
 }
 
 // ---------------------------------------------------------------------------------------
-#define SWAP_ADD(x,y) x+=y;y-=x;
-#define SWAP_SUB(x,y) x-=y;y+=x;
-#define SWAP_NEG(tmp,x,y) tmp = x; x = y; y = -tmp;
+
+__device__ __forceinline__ uint32_t ctz(uint64_t x) {
+  uint32_t n;
+  asm("{\n\t"
+    " .reg .u64 tmp;\n\t"
+    " brev.b64 tmp, %1;\n\t"
+    " clz.b64 %0, tmp;\n\t"
+    "}"
+    : "=r"(n) : "l"(x));
+  return n;
+}
+
+// ---------------------------------------------------------------------------------------
+#define SWAP(tmp,x,y) tmp = x; x = y; y = tmp;
 #define MSK62 0x3FFFFFFFFFFFFFFF
 
-__device__ void _DivStep62(int64_t u0,int64_t v0,
-  int64_t* eta,
+__device__ void _DivStep62(uint64_t u[5],uint64_t v[5],
+  int32_t* pos,
   int64_t* uu,int64_t* uv,
   int64_t* vu,int64_t* vv) {
 
 
   // u' = (uu*u + uv*v) >> bitCount
   // v' = (vu*u + vv*v) >> bitCount
+  // Do not maintain a matrix for r and s, the number of 
+  // 'added P' can be easily calculated
 
-  int64_t  bitCount;
+  *uu = 1; *uv = 0;
+  *vu = 0; *vv = 1;
 
-#if 0
+  uint32_t bitCount = 62;
+  uint32_t zeros;
+  uint64_t u0 = u[0];
+  uint64_t v0 = v[0];
 
-  // Former divstep62
-  // Do not use eta, u and v have an exponential decay in worst case 
-  // but with low probability to reach this worst case complexity
-
-  int64_t  nb0;
+  // Extract 64 MSB of u and v
+  // u and v must be positive
+  uint64_t uh,vh;
+  int64_t w,x,y,z;
   bitCount = 62;
 
-  while(true) {
+  while(*pos > 0 && (u[*pos] | v[*pos]) == 0) (*pos)--;
+  if(*pos == 0) {
 
-    // zeros = log2(z & -z)
-    int64_t z = v0 | (UINT64_MAX << bitCount);
-    float f = (float)(z & -z);
-    int zeros = (*(uint32_t*)(&f) >> 23) - 127;
-    v0 >>= zeros;
-    *uu <<= zeros;
-    *uv <<= zeros;
-    bitCount -= zeros;
+    uh = u[0];
+    vh = v[0];
 
-    /*
-    while(IS_EVEN(v0) && (bitCount > 0)) {
+  }
+  else {
 
-      bitCount--;
-      v0 >>= 1;
-      *uu <<= 1;
-      *uv <<= 1;
-
-    }
-    */
-
-    if(bitCount <= 0)
-      break;
-
-    nb0 = (v0 + u0) & 0x3;
-    if(nb0 == 0) {
-      SWAP_ADD(*vv,*uv);
-      SWAP_ADD(*vu,*uu);
-      SWAP_ADD(v0,u0);
+    uint32_t s = __clzll(u[*pos] | v[*pos]);
+    if(s == 0) {
+      uh = u[*pos];
+      vh = v[*pos];
     }
     else {
-      SWAP_SUB(*vv,*uv);
-      SWAP_SUB(*vu,*uu);
-      SWAP_SUB(v0,u0);
+      uh = __sleft128(u[*pos - 1],u[*pos],s);
+      vh = __sleft128(v[*pos - 1],v[*pos],s);
     }
 
   }
 
-
-#endif
-
-#if 1
-
-  int64_t x,y,z;
-  bitCount = 62;
-
-  // divstep62 var time implementation by Peter Dettman
-  // (see https://github.com/bitcoin-core/secp256k1/pull/767)
 
   while(true) {
 
     // Use a sentinel bit to count zeros only up to bitCount
-    z = v0 | (UINT64_MAX << bitCount);
-
-#ifdef NOFASTCTZ
-    int zeros = __ffsll(z) - 1;
-#else
-    // zeros = log2(z & -z) is faster than __ffsll()
-    float f = (float)(z & -z);
-    int zeros = (*(uint32_t*)(&f) >> 23) - 127;
-#endif
+    zeros = ctz(v0 | (1ULL << bitCount));
 
     v0 >>= zeros;
+    vh >>= zeros;
     *uu <<= zeros;
     *uv <<= zeros;
-    *eta -= zeros;
     bitCount -= zeros;
 
-    if(bitCount <= 0)
+    if(bitCount == 0)
       break;
 
-    if(*eta < 0) {
-      *eta = -*eta;
-      SWAP_NEG(x,u0,v0);
-      SWAP_NEG(y,*uu,*vu);
-      SWAP_NEG(z,*uv,*vv);
+    if(vh < uh) {
+      SWAP(w,uh,vh);
+      SWAP(x,u0,v0);
+      SWAP(y,*uu,*vu);
+      SWAP(z,*uv,*vv);
     }
 
-    v0 += u0;
-    *vv += *uv;
-    *vu += *uu;
+    vh -= uh;
+    v0 -= u0;
+    *vv -= *uv;
+    *vu -= *uu;
 
   }
 
-#endif
+}
 
+__device__ void MatrixVecMulHalf(uint64_t dest[5],uint64_t u[5],uint64_t v[5],int64_t _11,int64_t _12,uint64_t* carry) {
+
+  uint64_t t1[NBBLOCK];
+  uint64_t t2[NBBLOCK];
+  uint64_t c1,c2;
+
+  c1 = IMultC(t1,u,_11);
+  c2 = IMultC(t2,v,_12);
+
+  UADDO(dest[0],t1[0],t2[0]);
+  UADDC(dest[1],t1[1],t2[1]);
+  UADDC(dest[2],t1[2],t2[2]);
+  UADDC(dest[3],t1[3],t2[3]);
+  UADDC(dest[4],t1[4],t2[4]);
+  UADD(*carry,c1,c2);
+
+}
+
+__device__ void MatrixVecMul(uint64_t u[5],uint64_t v[5],int64_t _11,int64_t _12,int64_t _21,int64_t _22) {
+
+  uint64_t t1[NBBLOCK];
+  uint64_t t2[NBBLOCK];
+  uint64_t t3[NBBLOCK];
+  uint64_t t4[NBBLOCK];
+
+  IMult(t1,u,_11);
+  IMult(t2,v,_12);
+  IMult(t3,u,_21);
+  IMult(t4,v,_22);
+
+  UADDO(u[0],t1[0],t2[0]);
+  UADDC(u[1],t1[1],t2[1]);
+  UADDC(u[2],t1[2],t2[2]);
+  UADDC(u[3],t1[3],t2[3]);
+  UADD(u[4],t1[4],t2[4]);
+
+  UADDO(v[0],t3[0],t4[0]);
+  UADDC(v[1],t3[1],t4[1]);
+  UADDC(v[2],t3[2],t4[2]);
+  UADDC(v[3],t3[3],t4[3]);
+  UADD(v[4],t3[4],t4[4]);
+
+}
+
+__device__ uint64_t AddCh(uint64_t r[5],uint64_t a[5],uint64_t carry) {
+
+  uint64_t carryOut;
+
+  UADDO1(r[0],a[0]);
+  UADDC1(r[1],a[1]);
+  UADDC1(r[2],a[2]);
+  UADDC1(r[3],a[3]);
+  UADDC1(r[4],a[4]);
+  UADD(carryOut,carry,0ULL);
+
+  return carryOut;
 
 }
 
@@ -441,19 +505,22 @@ __device__ __noinline__ void _ModInv(uint64_t* R) {
   // Compute modular inverse of R mop P (using 320bits signed integer)
   // 0 < this < P  , P must be odd
   // Return 0 if no inverse
+  // See IntMod.cpp for more info.
 
   int64_t  uu,uv,vu,vv;
-  uint64_t r0,s0;
-  int64_t  eta = -1;
+  uint64_t mr0,ms0;
+  int32_t  pos = NBBLOCK - 1;
 
   uint64_t u[NBBLOCK];
   uint64_t v[NBBLOCK];
   uint64_t r[NBBLOCK];
   uint64_t s[NBBLOCK];
-  uint64_t t1[NBBLOCK];
-  uint64_t t2[NBBLOCK];
-  uint64_t t3[NBBLOCK];
-  uint64_t t4[NBBLOCK];
+  uint64_t tr[NBBLOCK];
+  uint64_t ts[NBBLOCK];
+  uint64_t r0[NBBLOCK];
+  uint64_t s0[NBBLOCK];
+  uint64_t carryR;
+  uint64_t carryS;
 
   u[0] = 0xFFFFFFFEFFFFFC2F;
   u[1] = 0xFFFFFFFFFFFFFFFF;
@@ -461,118 +528,64 @@ __device__ __noinline__ void _ModInv(uint64_t* R) {
   u[3] = 0xFFFFFFFFFFFFFFFF;
   u[4] = 0;
   Load(v,R);
+  r[0] = 0; s[0] = 1;
+  r[1] = 0; s[1] = 0;
+  r[2] = 0; s[2] = 0;
+  r[3] = 0; s[3] = 0;
+  r[4] = 0; s[4] = 0;
 
   // Delayed right shift 62bits
-  // Do not maintain a matrix for r and s, the number of 
-  // 'added P' can be easily calculated
-
-  // Fist step (r,s)=(0,1) ----------------------------
-
-  uu = 1; uv = 0;
-  vu = 0; vv = 1;
-
-  _DivStep62((int64_t)u[0],(int64_t)v[0],&eta,&uu,&uv,&vu,&vv);
-
-  // Now update BigInt variables
-
-  // u = (uu*u + uv*v)
-  // v = (vu*u + vv*v)
-  IMult(t1,u,uu);
-  IMult(t2,v,uv);
-  IMult(t3,u,vu);
-  IMult(t4,v,vv);
-  Add2(u,t1,t2);
-  Add2(v,t3,t4);
-
-  _LoadI64(t2,uv);
-  _LoadI64(t4,vv);
-
-  // Compute multiple of P to add to s and r to make them multiple of 2^62
-  r0 = (t2[0] * MM64) & MSK62;
-  s0 = (t4[0] * MM64) & MSK62;
-  MulP(r,r0);
-  Add1(r,t2);
-  MulP(s,s0);
-  Add1(s,t4);
-
-  // Right shift all variables by 62bits
-  ShiftR62(u);
-  ShiftR62(v);
-  ShiftR62(r);
-  ShiftR62(s);
 
   // DivStep loop -------------------------------
 
   while(true) {
 
-    uu = 1; uv = 0;
-    vu = 0; vv = 1;
+    _DivStep62(u,v,&pos,&uu,&uv,&vu,&vv);
 
-    _DivStep62((int64_t)u[0],(int64_t)v[0],&eta,&uu,&uv,&vu,&vv);
+    MatrixVecMul(u,v,uu,uv,vu,vv);
 
-    // Now update BigInt variables
+    if(_IsNegative(u)) {
+      Neg(u);
+      uu = -uu;
+      uv = -uv;
+    }
+    if(_IsNegative(v)) {
+      Neg(v);
+      vu = -vu;
+      vv = -vv;
+    }
 
-    // u = (uu*u + uv*v)
-    // v = (vu*u + vv*v)
-    IMult(t1,u,uu);
-    IMult(t2,v,uv);
-    IMult(t3,u,vu);
-    IMult(t4,v,vv);
-    Add2(u,t1,t2);
-    Add2(v,t3,t4);
-
-    // Right shift (u,v) by 62bits
     ShiftR62(u);
     ShiftR62(v);
 
-    IMult(t1,r,uu);
-    IMult(t2,s,uv);
+    // Update r
+    MatrixVecMulHalf(tr,r,s,uu,uv,&carryR);
+    mr0 = (tr[0] * MM64) & MSK62;
+    MulP(r0,mr0);
+    carryR = AddCh(tr,r0,carryR);
 
     if(_IsZero(v)) {
 
-      // Last step
-      // s not needed
-      r0 = ((t1[0] + t2[0]) * MM64) & MSK62;
-      MulP(r,r0);
-      Add1(r,t1);
-      Add1(r,t2);
-      ShiftR62(r);
+      ShiftR62(r,tr,carryR);
       break;
 
-    } else {
+    }
+    else {
 
-      // r = (uu*r + uv*s + r0*P)
-      // s = (vu*r + vv*s + s0*P)
-
-      IMult(t3,r,vu);
-      IMult(t4,s,vv);
-
-      // Compute multiple of P to add to s to make it multiple of 2^62
-      r0 = ((t1[0] + t2[0]) * MM64) & MSK62;
-      s0 = ((t3[0] + t4[0]) * MM64) & MSK62;
-      MulP(r,r0);
-      Add1(r,t1);
-      Add1(r,t2);
-
-      // s = (vu*r + vv*s + s0*P)
-      MulP(s,s0);
-      Add1(s,t3);
-      Add1(s,t4);
-
-      // Right shift (r,s) by 62bits
-      ShiftR62(r);
-      ShiftR62(s);
+      // Update s
+      MatrixVecMulHalf(ts,r,s,vu,vv,&carryS);
+      ms0 = (ts[0] * MM64) & MSK62;
+      MulP(s0,ms0);
+      carryS = AddCh(ts,s0,carryS);
 
     }
 
+    ShiftR62(r,tr,carryR);
+    ShiftR62(s,ts,carryS);
+
   }
 
-  // u ends with -1 or 1
-  if(_IsNegative(u)) {
-    Neg(u);
-    Neg(r);
-  }
-
+  // u ends with gcd
   if(!_IsOne(u)) {
     // No inverse
     R[0] = 0ULL;
@@ -590,26 +603,6 @@ __device__ __noinline__ void _ModInv(uint64_t* R) {
   AddP(r);
 
   Load(R,r);
-
-  /*
-  int64_t msk = (int64_t)(u[4]) >> 63;
-  int64_t nmsk = ~msk;
-  USUBO(r[0],r[0] & nmsk,r[0] & msk);
-  USUBC(r[1],r[1] & nmsk,r[1] & msk);
-  USUBC(r[2],r[2] & nmsk,r[2] & msk);
-  USUBC(r[3],r[3] & nmsk,r[3] & msk);
-  USUB(r[4],r[4] & nmsk,r[4] & msk);
-  Add16P(r);
-  // Reduce from 320 to 256
-  uint64_t ah;
-  uint64_t al;
-  UMULLO(al,r[4],0x1000003D1ULL);
-  UMULHI(ah,r[4],0x1000003D1ULL);
-  UADDO(R[0],r[0],al);
-  UADDC(R[1],r[1],ah);
-  UADDC(R[2],r[2],0ULL);
-  UADD(R[3],r[3],0ULL);
-  */
 
 }
 

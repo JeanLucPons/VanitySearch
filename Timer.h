@@ -33,6 +33,7 @@ public:
   static std::string getResult(char *unit, int nbTry, double t0, double t1);
   static int getCoreNumber();
   static std::string getSeed(int size);
+  static uint32_t getSeed32();
   static void SleepMillis(uint32_t millis);
 
 #ifdef WIN64

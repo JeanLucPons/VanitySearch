@@ -369,14 +369,11 @@ int main(int argc, char* argv[]) {
 
   // Global Init
   Timer::Init();
-  rseed((unsigned long)time(NULL));
+  rseed(Timer::getSeed32());
 
   // Init SecpK1
   Secp256K1 *secp = new Secp256K1();
   secp->Init();
-
-  //GPUEngine::GenerateCode(secp,512);
-  //exit(0);
 
   // Browse arguments
   if (argc < 2) {
