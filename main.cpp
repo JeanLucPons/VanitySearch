@@ -166,7 +166,7 @@ void parseFile(string fileName, vector<string> &lines) {
 void generateKeyPair(Secp256K1 *secp, string seed, int searchMode,bool paranoiacSeed) {
 
   if (seed.length() < 8) {
-    printf("Error: Use a seed of at leats 8 characters to generate a key pair\n");
+    printf("Error: Use a seed of at least 8 characters to generate a key pair\n");
     printf("Ex: VanitySearch -s \"A Strong Password\" -kp\n");
     exit(-1);
   }
