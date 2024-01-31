@@ -42,7 +42,7 @@ VanitySearch [-check] [-v] [-u] [-b] [-c] [-gpu] [-stop] [-i inputfile]
  -stop: Stop when all prefixes are found
  -i inputfile: Get list of prefixes to search from specified file
  -o outputfile: Output results to the specified file
- -gpu gpuId1,gpuId2,...: List of GPU(s) to use, default is 0
+ -gpuId gpuId1,gpuId2,...: List of GPU(s) to use, default is 0
  -g g1x,g1y,g2x,g2y, ...: Specify GPU(s) kernel gridsize, default is 8*(MP number),128
  -m: Specify maximun number of prefixes found by each kernel call
  -s seed: Specify a seed for the base key, default is random
